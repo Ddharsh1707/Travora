@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ClipboardCheck, FileText, History, Search, UsersRound } from "lucide-react";
+import { ClipboardCheck, FileSpreadsheet, FileText, History, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -7,6 +7,7 @@ import EmployeeDirectory from "./EmployeeDirectory";
 import EmployeeHistory from "./EmployeeHistory";
 import MyRequests from "./MyRequests";
 import ApprovalQueue from "./ApprovalQueue";
+import ImportTravel from "./ImportTravel";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -26,6 +27,7 @@ const ROUTES: TravelRoute[] = [
   { href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER", "ADMIN"] },
   { href: "/travel/search", label: "Travel search", icon: <Search size={16} />, roles: OVERSIGHT },
   { href: "/travel/employees", label: "Employees", icon: <UsersRound size={16} />, roles: OVERSIGHT },
+  { href: "/travel/import", label: "Excel / CSV import", icon: <FileSpreadsheet size={16} />, roles: STAFF },
 ];
 
 export const travelPageMeta: Record<string, { eyebrow: string; title: string; description?: string }> = {
@@ -34,6 +36,7 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/approvals": { eyebrow: "Travel", title: "Approvals" },
   "/travel/search": { eyebrow: "Travel", title: "Travel search" },
   "/travel/employees": { eyebrow: "Travel", title: "Employees" },
+  "/travel/import": { eyebrow: "Travel", title: "Excel / CSV import" },
 };
 
 export function travelNavCategory(role: Role): { category: string; items: { label: string; href: string; icon: ReactNode }[] } | null {
@@ -67,6 +70,8 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
       return <TravelSearch canManage={canManage} canSeeOthers />;
     case "/travel/employees":
       return <EmployeeDirectory />;
+    case "/travel/import":
+      return canManage ? <ImportTravel /> : null;
     default:
       return null;
   }
