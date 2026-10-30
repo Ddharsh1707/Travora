@@ -263,6 +263,43 @@ select t.ok(t.cnt('select 1 from public.travel_records') = 0, 'login without a p
 select t.ok(t.cnt('select 1 from public.get_my_profile()') = 0, 'login without a profile has no role');
 reset role;
 
+-- ---------------------------------------------------------------------------
+-- Phase 2 read models respect RLS (security_invoker views)
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok(t.cnt('select 1 from public.travel_records_search') = 1, 'search view: employee sees only own trips');
+select t.ok(t.cnt($$select 1 from public.travel_records_search where employee_code = 'EMP002'$$) = 0, 'search view: filtering by another employee returns nothing');
+select t.ok(t.cnt('select 1 from public.employee_travel_summary') = 2, 'summary view: employee sees self + manager only');
+select t.ok((select total_spend from public.employee_travel_summary where employee_code = 'EMP001') = 8450, 'summary view: own spend correct');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.ok(t.cnt($$select 1 from public.travel_records_search where employee_code = 'EMP002'$$) = 0, 'search view: approver limited to scope');
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.ok(t.cnt($$select 1 from public.travel_records_search where departure_date between '2026-10-01' and '2026-10-31'$$) = 3, 'search view: travel desk sees all trips in a date range');
+-- Booking against an approved request marks it booked automatically
+insert into public.travel_records (employee_id, request_id, origin, destination, departure_date, booking_reference, amount)
+values ('00000000-0000-0000-0000-0000000000e1', '20000000-0000-0000-0000-0000000000e1', 'Chennai', 'Delhi', '2026-11-14', 'PNRNEW', 9100);
+select t.ok((select status::text from public.travel_requests where id = '20000000-0000-0000-0000-0000000000e1') = 'booked', 'booking an approved request marks it booked');
+select t.throws($$insert into public.travel_records (employee_id, request_id, origin, destination, departure_date)
+                  values ('00000000-0000-0000-0000-0000000000e2', '20000000-0000-0000-0000-0000000000e1', 'A', 'B', '2026-11-15')$$,
+                'record cannot be attached to another employee''s request');
+reset role;
+select t.ok((select bool_and(coalesce(reloptions::text, '') like '%security_invoker=true%') from pg_class
+             where relname in ('travel_records_search', 'employee_travel_summary')), 'views run with caller permissions');
+
+-- The frontend embeds related profiles by these constraint names.
+select t.ok((select count(*) from pg_constraint where conname in
+            ('travel_requests_employee_id_fkey', 'travel_requests_approver_id_fkey')) = 2, 'foreign key names used by the app exist');
+select t.ok(exists (select 1 from pg_proc where proname = 'record_report_generated'), 'report audit function exists');
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select public.record_report_generated('employee_travel_history', '00000000-0000-0000-0000-0000000000e1');
+select t.ok(true, 'employee can log a report about themselves');
+select t.throws($$select public.record_report_generated('employee_travel_history', '00000000-0000-0000-0000-0000000000e2')$$,
+                'employee cannot generate a report about someone else');
+select t.throws($$select public.record_report_generated('anything_goes', null)$$, 'unknown report names rejected');
+reset role;
+
 -- Even the database owner cannot rewrite history.
 select t.throws($$delete from public.audit_logs$$, 'audit logs are append-only for the owner too');
 

@@ -65,6 +65,7 @@ import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { isSupabaseEnabled } from "./lib/supabase";
+import { TravelPage, isTravelPathAllowed, travelNavCategory, travelPageMeta } from "./pages/travel/routes";
 import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
@@ -416,9 +417,15 @@ function Sidebar({
   onToggleCollapse?: () => void;
 }) {
   const initials = (user.username || "Trapple").slice(0, 2).toUpperCase();
-  const categories = categorizedNavByRole[role] || [
+  const baseCategories = categorizedNavByRole[role] || [
     { category: "WORKSPACE", items: navByRole[role] },
   ];
+  const travelCategory = isSupabaseEnabled ? travelNavCategory(role) : null;
+  // In Supabase mode only screens that already run on Supabase are offered;
+  // the rest move over in later phases.
+  const categories = travelCategory
+    ? [travelCategory, { category: "HELP", items: [{ label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> }] }]
+    : baseCategories;
 
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
@@ -640,7 +647,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
   };
 
   const path = location === "/" ? "/employee" : location;
-  const meta = pageMeta[path] ?? pageMeta["/employee"];
+  const meta = pageMeta[path] ?? travelPageMeta[path] ?? (path.startsWith("/travel/employees/") ? { eyebrow: "Travel", title: "Employee travel history" } : pageMeta["/employee"]);
   useEffect(() => setMobileOpen(false), [location]);
   return (
     <div className="app-shell">
@@ -7606,6 +7613,14 @@ function AppRouter() {
     COMPANY_ADMIN: "/admin",
     PLATFORM_ADMIN: "/admin",
   };
+  if (isSupabaseEnabled) {
+    roleRoots.EMPLOYEE = "/travel/my";
+    roleRoots.APPROVER = "/travel/approvals";
+    roleRoots.TRAVEL_DESK = "/travel/search";
+    roleRoots.ADMIN = "/travel/search";
+    roleRoots.COMPANY_ADMIN = "/travel/search";
+    roleRoots.PLATFORM_ADMIN = "/travel/search";
+  }
   const path = location;
   const adminPaths = [
     "/admin",
@@ -7684,7 +7699,11 @@ function AppRouter() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const allowed = user && role ? allowedPaths[role].includes(path) : false;
+  const allowed = user && role
+    ? isSupabaseEnabled
+      ? isTravelPathAllowed(role, path) || path === "/employee/support"
+      : allowedPaths[role].includes(path)
+    : false;
 
   useEffect(() => {
     const handleAuthExpired = () => {
@@ -7737,7 +7756,8 @@ function AppRouter() {
   if (!allowed) return null;
 
   let page: ReactNode;
-  if (path === "/travel-desk/users" || path === "/admin/users") page = <UserManagement user={user} />;
+  if (isSupabaseEnabled && path.startsWith("/travel/")) page = <TravelPage path={path} user={user} />;
+  else if (path === "/travel-desk/users" || path === "/admin/users") page = <UserManagement user={user} />;
   else if (path === "/employee") page = <Dashboard user={user} />;
   else if (path === "/employee/plan-trip") page = <PlanTrip />;
   else if (path === "/employee/journeys") page = <Journeys />;
