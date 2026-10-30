@@ -64,6 +64,8 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { isSupabaseEnabled } from "./lib/supabase";
+import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
@@ -7345,9 +7347,15 @@ function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: Auth
     setLoading(true);
     setError("");
     try {
-      const data = await loginApi({ username: username.trim(), password });
-      persistAuth(data);
-      onAuthenticated(data);
+      if (isSupabaseEnabled) {
+        // Supabase keeps its own session; nothing is written to localStorage.
+        const data = await supabaseSignIn(username, password);
+        onAuthenticated(data);
+      } else {
+        const data = await loginApi({ username: username.trim(), password });
+        persistAuth(data);
+        onAuthenticated(data);
+      }
     } catch (loginError) {
       setError(
         loginError instanceof Error
@@ -7444,16 +7452,16 @@ function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: Auth
           <form onSubmit={submit} className="space-y-4">
             <label className="field block">
               <span className="block text-xs font-semibold text-[#344054] dark:text-[#E2E8F0] mb-1">
-                Username / Login ID
+                {isSupabaseEnabled ? "Work email" : "Username / Login ID"}
               </span>
               <div className="relative">
                 <input
-                  type="text"
+                  type={isSupabaseEnabled ? "email" : "text"}
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   required
-                  autoComplete="username"
-                  placeholder="e.g. AGR0001, MISPL0001, admin"
+                  autoComplete={isSupabaseEnabled ? "email" : "username"}
+                  placeholder={isSupabaseEnabled ? "name@company.com" : "e.g. AGR0001, MISPL0001, admin"}
                   className="w-full"
                 />
               </div>
@@ -7584,6 +7592,8 @@ function AppRouter() {
       clearAuth();
       return null;
     }
+    // Supabase sessions are restored asynchronously below.
+    if (isSupabaseEnabled) return null;
     const stored = getStoredUser<AuthUser>();
     return getToken() && isValidAuthUser(stored) ? stored : null;
   });
@@ -7644,11 +7654,36 @@ function AppRouter() {
     COMPANY_ADMIN: adminPaths,
     PLATFORM_ADMIN: adminPaths,
   };
+  const [restoring, setRestoring] = useState(isSupabaseEnabled && typeof window !== "undefined" && window.location.pathname !== "/login");
   const onLogout = () => {
+    if (isSupabaseEnabled) void supabaseSignOut();
     clearAuth();
     setUser(null);
     setLocation("/");
   };
+
+  useEffect(() => {
+    if (!isSupabaseEnabled) return;
+    let cancelled = false;
+    if (restoring) {
+      supabaseRestoreSession()
+        .then((restored) => {
+          if (!cancelled && restored) setUser(restored);
+        })
+        .finally(() => {
+          if (!cancelled) setRestoring(false);
+        });
+    }
+    const unsubscribe = onSupabaseSignedOut(() => {
+      setUser(null);
+      setLocation("/login");
+    });
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const allowed = user && role ? allowedPaths[role].includes(path) : false;
 
   useEffect(() => {
@@ -7662,6 +7697,7 @@ function AppRouter() {
   }, [setLocation]);
 
   useEffect(() => {
+    if (restoring) return;
     if (!user && location !== "/" && location !== "/login" && !location.startsWith("/activate")) {
       setLocation("/login");
     } else if (user && location === "/") {
@@ -7669,7 +7705,7 @@ function AppRouter() {
     } else if (user && location !== "/" && location !== "/login" && !location.startsWith("/activate") && !allowed) {
       setLocation(roleRoots[user.role]);
     }
-  }, [user, location, allowed, setLocation]);
+  }, [user, location, allowed, setLocation, restoring]);
 
   if (location === "/activate" || location.startsWith("/activate")) {
     return <ActivateAccount />;
