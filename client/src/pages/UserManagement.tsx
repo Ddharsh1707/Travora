@@ -277,7 +277,7 @@ export function UserManagement({ user }: UserManagementProps) {
           <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#14B8A6]">
             <ShieldCheck size={14} /> Administration
           </p>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
             User Management
           </h1>
           <p className="page-description text-sm text-[#94A3B8] mt-1">
@@ -312,12 +312,12 @@ export function UserManagement({ user }: UserManagementProps) {
       </div>
 
       {/* 2. Filters & Search Bar */}
-      <div className="panel p-4 flex flex-col md:flex-row items-center justify-between gap-3 bg-[#0B1528]/80 backdrop-blur border border-white/10 rounded-xl">
+      <div className="panel p-4 flex flex-col md:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs">
         <div className="relative w-full md:w-80">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#94A3B8]" />
           <input
             type="text"
-            className="w-full pl-9 pr-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-[#64748B] focus:outline-none focus:border-[#14B8A6]"
+            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-teal-500"
             placeholder="Search by name, email, employee ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -330,7 +330,7 @@ export function UserManagement({ user }: UserManagementProps) {
               <Filter size={13} /> Role:
             </span>
             <select
-              className="text-xs py-1.5 px-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+              className="text-xs py-1.5 px-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
             >
@@ -345,7 +345,7 @@ export function UserManagement({ user }: UserManagementProps) {
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#94A3B8]">Status:</span>
             <select
-              className="text-xs py-1.5 px-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+              className="text-xs py-1.5 px-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -373,16 +373,16 @@ export function UserManagement({ user }: UserManagementProps) {
       </div>
 
       {/* 3. Users Table Panel */}
-      <div className="panel table-panel bg-[#0B1528]/80 border border-white/10 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+      <div className="panel table-panel bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <UsersRound size={16} className="text-[#14B8A6]" />
-            <h2 className="text-base font-bold text-white">
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
               Organization Users ({users.length})
             </h2>
           </div>
           <span className="text-xs text-[#94A3B8]">
-            Company: <strong className="text-white">{user.companyName || user.companyCode || "Mahathi Infra Services"}</strong>
+            Company: <strong className="text-slate-900 dark:text-white">{user.companyName || user.companyCode || "Mahathi Infra Services"}</strong>
           </span>
         </div>
 
@@ -394,7 +394,7 @@ export function UserManagement({ user }: UserManagementProps) {
         ) : users.length === 0 ? (
           <div className="p-12 text-center text-[#94A3B8] flex flex-col items-center justify-center gap-2">
             <UsersRound size={36} className="text-[#64748B] mb-2" />
-            <h3 className="text-base font-bold text-white">No users found</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">No users found</h3>
             <p className="text-xs text-[#64748B] max-w-sm">
               {search || roleFilter !== "ALL" || statusFilter !== "ALL"
                 ? "No accounts matched your search filters. Try adjusting the query or reset filters."
@@ -403,8 +403,8 @@ export function UserManagement({ user }: UserManagementProps) {
           </div>
         ) : (
           <div className="responsive-table overflow-x-auto">
-            <table className="w-full text-left text-sm text-[#CBD5E1]">
-              <thead className="bg-white/[0.02] text-xs font-semibold text-[#94A3B8] uppercase tracking-wider border-b border-white/10">
+            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-300">
+              <thead className="bg-slate-50 dark:bg-slate-800/40 text-xs font-semibold text-[#94A3B8] uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <tr>
                   <th className="py-3 px-4">Employee</th>
                   <th className="py-3 px-4">Email / Login</th>
@@ -415,7 +415,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
                 {users.map((u) => {
                   const isCurrentUser = u.id === user.id;
                   const initials = (u.name || u.username || "U").slice(0, 2).toUpperCase();
@@ -428,7 +428,7 @@ export function UserManagement({ user }: UserManagementProps) {
                     : "—";
 
                   return (
-                    <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+                    <tr key={u.id} className="hover:bg-slate-50 dark:bg-slate-800/40 transition-colors">
                       {/* Name & Avatar */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
@@ -436,7 +436,7 @@ export function UserManagement({ user }: UserManagementProps) {
                             {initials}
                           </span>
                           <div>
-                            <strong className="text-white font-medium block">
+                            <strong className="text-slate-900 dark:text-white font-medium block">
                               {u.name || "Unnamed"}
                               {isCurrentUser && (
                                 <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/10 text-[#94A3B8]">
@@ -453,13 +453,13 @@ export function UserManagement({ user }: UserManagementProps) {
 
                       {/* Email */}
                       <td className="py-3 px-4">
-                        <span className="font-mono text-xs text-[#E2E8F0]">{u.username}</span>
+                        <span className="font-mono text-xs text-slate-700 dark:text-slate-300">{u.username}</span>
                       </td>
 
                       {/* Employee ID */}
                       <td className="py-3 px-4">
                         {u.employeeId ? (
-                          <span className="px-2 py-0.5 rounded text-xs font-mono bg-white/5 border border-white/10 text-white">
+                          <span className="px-2 py-0.5 rounded text-xs font-mono bg-white/5 border border-slate-200 dark:border-slate-800 text-white">
                             {u.employeeId}
                           </span>
                         ) : (
@@ -570,14 +570,14 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* ==================================================================== */}
       {createModalOpen && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-dialog max-w-lg w-full bg-[#0F172A] border border-white/15 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="confirm-dialog max-w-lg w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-[#14B8A6]/20 text-[#2DD4BF] flex items-center justify-center border border-[#14B8A6]/30">
                   <UserPlus size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Create User Account</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Create User Account</h3>
                   <p className="text-xs text-[#94A3B8]">Provision a new employee with an activation link</p>
                 </div>
               </div>
@@ -608,7 +608,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   <input
                     type="text"
                     required
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="e.g. Ramesh Chandra"
                     value={createForm.name}
                     onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
@@ -622,7 +622,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   <input
                     type="email"
                     required
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="ramesh@company.com"
                     value={createForm.email}
                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
@@ -638,7 +638,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="e.g. MISPL0105"
                     value={createForm.employeeId}
                     onChange={(e) => setCreateForm({ ...createForm, employeeId: e.target.value })}
@@ -651,7 +651,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="e.g. Operations, IT, Finance"
                     value={createForm.department}
                     onChange={(e) => setCreateForm({ ...createForm, department: e.target.value })}
@@ -667,7 +667,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="e.g. Senior Engineer"
                     value={createForm.designation}
                     onChange={(e) => setCreateForm({ ...createForm, designation: e.target.value })}
@@ -680,7 +680,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   </label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                    className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                     placeholder="e.g. Anil Kukreja"
                     value={createForm.managerName}
                     onChange={(e) => setCreateForm({ ...createForm, managerName: e.target.value })}
@@ -700,7 +700,7 @@ export function UserManagement({ user }: UserManagementProps) {
                       className={`p-2.5 rounded-lg border text-left cursor-pointer flex flex-col gap-0.5 transition-all ${
                         createForm.role === r.value
                           ? "border-[#14B8A6] bg-[#14B8A6]/10 text-white"
-                          : "border-white/10 bg-white/[0.02] text-[#94A3B8] hover:border-white/20"
+                          : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-[#94A3B8] hover:border-white/20"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -720,7 +720,7 @@ export function UserManagement({ user }: UserManagementProps) {
               </div>
 
               {/* Account Status */}
-              <div className="pt-2 flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/10">
+              <div className="pt-2 flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
                 <div>
                   <strong className="text-xs font-semibold text-white block">Account Status</strong>
                   <span className="text-[11px] text-[#94A3B8]">
@@ -738,7 +738,7 @@ export function UserManagement({ user }: UserManagementProps) {
                 </label>
               </div>
 
-              <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   className="button button-outline text-xs"
@@ -766,23 +766,23 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* ==================================================================== */}
       {activationResult && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-dialog max-w-md w-full bg-[#0F172A] border border-white/15 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
+          <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-3 mx-auto">
               <CheckCircle2 size={26} />
             </div>
-            <h3 className="text-lg font-bold text-white text-center">Account Ready for Activation</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white text-center">Account Ready for Activation</h3>
             <p className="text-xs text-[#94A3B8] text-center mt-1">
-              Account provisioned for <strong className="text-white">{activationResult.name}</strong> ({activationResult.username}).
+              Account provisioned for <strong className="text-slate-900 dark:text-white">{activationResult.name}</strong> ({activationResult.username}).
             </p>
 
-            <div className="mt-4 p-3.5 bg-white/[0.03] border border-white/10 rounded-xl space-y-2">
+            <div className="mt-4 p-3.5 bg-white/[0.03] border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#94A3B8] flex items-center gap-1">
                   <KeyRound size={13} className="text-[#14B8A6]" /> Single-Use Activation Link:
                 </span>
                 <span className="text-[10px] text-amber-400 font-mono">Expires in 48 hours</span>
               </div>
-              <div className="p-2.5 rounded-lg bg-black/40 border border-white/10 font-mono text-xs text-[#E2E8F0] break-all select-all">
+              <div className="p-2.5 rounded-lg bg-black/40 border border-slate-200 dark:border-slate-800 font-mono text-xs text-slate-700 dark:text-slate-300 break-all select-all">
                 {window.location.origin}{activationResult.activationUrl}
               </div>
             </div>
@@ -821,11 +821,11 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* ==================================================================== */}
       {editUser && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-dialog max-w-md w-full bg-[#0F172A] border border-white/15 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <Edit3 size={17} className="text-[#14B8A6]" />
-                <h3 className="text-base font-bold text-white">Edit User Profile</h3>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit User Profile</h3>
               </div>
               <button type="button" className="icon-button dialog-close" onClick={() => setEditUser(null)}>
                 <X size={18} />
@@ -847,7 +847,7 @@ export function UserManagement({ user }: UserManagementProps) {
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                 />
@@ -859,7 +859,7 @@ export function UserManagement({ user }: UserManagementProps) {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                   value={editForm.department}
                   onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                 />
@@ -871,7 +871,7 @@ export function UserManagement({ user }: UserManagementProps) {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                   value={editForm.designation}
                   onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
                 />
@@ -882,7 +882,7 @@ export function UserManagement({ user }: UserManagementProps) {
                   Assigned Role
                 </label>
                 <select
-                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#14B8A6]"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:border-teal-500"
                   value={editForm.role}
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value as Role })}
                 >
@@ -894,7 +894,7 @@ export function UserManagement({ user }: UserManagementProps) {
                 </select>
               </div>
 
-              <div className="dialog-actions flex items-center justify-end gap-2.5 pt-4 border-t border-white/10">
+              <div className="dialog-actions flex items-center justify-end gap-2.5 pt-4 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   className="button button-outline text-xs"
@@ -921,11 +921,11 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* ==================================================================== */}
       {viewUser && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-dialog max-w-md w-full bg-[#0F172A] border border-white/15 rounded-2xl p-6 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <UsersRound size={17} className="text-[#14B8A6]" />
-                <h3 className="text-base font-bold text-white">User Account Details</h3>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">User Account Details</h3>
               </div>
               <button type="button" className="icon-button dialog-close" onClick={() => setViewUser(null)}>
                 <X size={18} />
@@ -935,7 +935,7 @@ export function UserManagement({ user }: UserManagementProps) {
             <div className="mt-4 space-y-2.5 text-xs">
               <div className="flex justify-between py-1.5 border-b border-white/5">
                 <span className="text-[#94A3B8]">Full Name</span>
-                <strong className="text-white">{viewUser.name}</strong>
+                <strong className="text-slate-900 dark:text-white">{viewUser.name}</strong>
               </div>
               <div className="flex justify-between py-1.5 border-b border-white/5">
                 <span className="text-[#94A3B8]">Work Email</span>
@@ -977,7 +977,7 @@ export function UserManagement({ user }: UserManagementProps) {
               </div>
             </div>
 
-            <div className="dialog-actions flex justify-end pt-4 border-t border-white/10 mt-4">
+            <div className="dialog-actions flex justify-end pt-4 border-t border-slate-200 dark:border-slate-800 mt-4">
               <button
                 type="button"
                 className="button button-primary text-xs"
@@ -995,7 +995,7 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* ==================================================================== */}
       {confirmStatusUser && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
-          <div className="confirm-dialog max-w-sm w-full bg-[#0F172A] border border-white/15 rounded-2xl p-6 shadow-2xl text-center">
+          <div className="confirm-dialog max-w-sm w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-center">
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 border ${
                 confirmStatusUser.active
@@ -1006,18 +1006,18 @@ export function UserManagement({ user }: UserManagementProps) {
               {confirmStatusUser.active ? <UserX size={24} /> : <UserCheck size={24} />}
             </div>
 
-            <h3 className="text-base font-bold text-white">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
               {confirmStatusUser.active ? "Deactivate User Account?" : "Reactivate User Account?"}
             </h3>
 
             <p className="text-xs text-[#94A3B8] mt-2 leading-relaxed">
               {confirmStatusUser.active ? (
                 <>
-                  Deactivating <strong className="text-white">{confirmStatusUser.username}</strong> will immediately revoke access and prevent them from authenticating on any Travora service.
+                  Deactivating <strong className="text-slate-900 dark:text-white">{confirmStatusUser.username}</strong> will immediately revoke access and prevent them from authenticating on any Travora service.
                 </>
               ) : (
                 <>
-                  Reactivating <strong className="text-white">{confirmStatusUser.username}</strong> will restore their access to Travora using their existing credentials.
+                  Reactivating <strong className="text-slate-900 dark:text-white">{confirmStatusUser.username}</strong> will restore their access to Travora using their existing credentials.
                 </>
               )}
             </p>

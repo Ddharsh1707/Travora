@@ -71,7 +71,7 @@ html, body, #root { max-width: 100%; overflow-x: hidden; }
   .report-bar-row strong { white-space: normal; overflow-wrap: anywhere; }
   .modal-overlay { align-items: flex-start; padding: 12px; }
   .confirm-dialog, .booking-dialog, .admin-request-dialog { width: 100%; max-width: 100%; max-height: calc(100dvh - 24px); margin: 0; padding: 24px 20px; }
-  .booking-dialog-header h2, .confirm-dialog h2, .drawer-header h2 { font-size: 28px; }
+  .booking-dialog-header h2, .confirm-dialog h2, .drawer-header h2 { font-size: 20px; font-weight: 700; }
   .dialog-actions { justify-content: stretch; }
   .dialog-actions .button { flex: 1 1 140px; }
   .drawer-details, .booking-detail-list, .admin-request-detail-grid { grid-template-columns: 1fr; }

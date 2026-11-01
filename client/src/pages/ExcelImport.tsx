@@ -586,7 +586,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
           <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#14B8A6]">
             <ShieldCheck size={14} /> Travel Desk Operations
           </p>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
             Excel Import & Travel History
           </h1>
           <p className="page-description text-sm text-[#94A3B8] mt-1">
@@ -595,14 +595,14 @@ export function ExcelImport({ user }: ExcelImportProps) {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-2 bg-[#1A2234] p-1.5 rounded-xl border border-[#2A364F]">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
           <button
             type="button"
             onClick={() => setActiveTab("upload")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "upload"
-                ? "bg-[#14B8A6] text-white shadow-md"
-                : "text-[#94A3B8] hover:text-white"
+                ? "bg-[#0D9488] text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Upload size={14} /> Spreadsheet Upload & Preview
@@ -612,8 +612,8 @@ export function ExcelImport({ user }: ExcelImportProps) {
             onClick={() => setActiveTab("history")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "history"
-                ? "bg-[#14B8A6] text-white shadow-md"
-                : "text-[#94A3B8] hover:text-white"
+                ? "bg-[#0D9488] text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Layers size={14} /> Travel History Archive
@@ -629,7 +629,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             <div className="lg:col-span-2 panel table-panel p-6 flex flex-col justify-between">
               <div>
                 <span className="card-kicker">INGESTION ENGINE</span>
-                <h2 className="section-heading text-lg font-bold text-white mt-1">
+                <h2 className="section-heading text-lg font-bold text-slate-900 dark:text-white mt-1">
                   Upload Corporate Itinerary File
                 </h2>
                 <p className="text-xs text-[#94A3B8] mt-1">
@@ -637,7 +637,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                 </p>
               </div>
 
-              <div className="mt-5 border-2 border-dashed border-[#2A364F] hover:border-[#14B8A6] rounded-xl p-6 text-center transition-colors bg-[#0F172A]/50 flex flex-col items-center justify-center">
+              <div className="mt-5 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-500 dark:hover:border-teal-400 rounded-xl p-6 text-center transition-colors bg-slate-50/60 dark:bg-slate-900/40 flex flex-col items-center justify-center">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -670,7 +670,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   <button
                     type="button"
                     onClick={() => setUploadError("")}
-                    className="text-rose-400 hover:text-white transition-colors shrink-0 p-0.5"
+                    className="text-rose-400 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0 p-0.5"
                     aria-label="Dismiss error"
                   >
                     <X size={14} />
@@ -683,7 +683,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             <div className="panel table-panel p-6 flex flex-col justify-between">
               <div>
                 <span className="card-kicker">ACTIVE BATCH</span>
-                <h3 className="text-base font-bold text-white mt-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
                   {currentBatch ? currentBatch.originalFilename : "No File Loaded"}
                 </h3>
                 {currentBatch && (
@@ -697,17 +697,17 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
               {currentBatch ? (
                 <div className="my-4 space-y-2">
-                  <div className="flex justify-between items-center text-xs py-1 border-b border-[#1E293B]">
+                  <div className="flex justify-between items-center text-xs py-1 border-b border-slate-200 dark:border-slate-800">
                     <span className="text-[#94A3B8]">Total Extracted</span>
-                    <span className="font-bold text-white">{currentBatch.totalRows}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{currentBatch.totalRows}</span>
                   </div>
-                  <div className="flex justify-between items-center text-xs py-1 border-b border-[#1E293B]">
+                  <div className="flex justify-between items-center text-xs py-1 border-b border-slate-200 dark:border-slate-800">
                     <span className="text-[#94A3B8]">Valid / Matched</span>
                     <span className="font-bold text-emerald-400">
                       {currentBatch.validRows > 0 ? currentBatch.validRows : clientParsedRef.current?.validRows || 0}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-xs py-1 border-b border-[#1E293B]">
+                  <div className="flex justify-between items-center text-xs py-1 border-b border-slate-200 dark:border-slate-800">
                     <span className="text-[#94A3B8]">Validation Errors</span>
                     <span className="font-bold text-rose-400">
                       {currentBatch.validRows > 0 ? currentBatch.errorRows : clientParsedRef.current?.errorRows || 0}
@@ -719,7 +719,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   </div>
 
                   {currentBatch.status === "PREVIEW" && (
-                    <div className="mt-3 p-2.5 rounded-lg bg-[#0F172A] border border-[#2A364F] text-[11px] text-[#94A3B8] flex items-center gap-2">
+                    <div className="mt-3 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-[11px] text-[#94A3B8] flex items-center gap-2">
                       <Clock3 size={14} className="text-[#14B8A6] shrink-0" />
                       <span>Preview mode active. Temporary data expires in 24 hours.</span>
                     </div>
@@ -792,7 +792,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               <div className="section-title-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <span className="card-kicker">PREVIEW & SEARCH</span>
-                  <h2 className="section-heading text-lg font-bold text-white">
+                  <h2 className="section-heading text-lg font-bold text-slate-900 dark:text-white">
                     Extracted Spreadsheet Rows
                   </h2>
                 </div>
@@ -940,7 +940,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                         return (
                           <tr
                             key={r.id || rowIdx}
-                            className="hover:bg-[#1A2234]/50 cursor-pointer"
+                            className="hover:bg-slate-100 dark:bg-slate-800/50 cursor-pointer"
                             onClick={() => setSelectedRecord(r)}
                           >
                             <td className="text-xs text-[#64748B]">{r.sourceRowNumber}</td>
@@ -950,7 +950,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                                   {getPassengerInitials(displayName)}
                                 </span>
                                 <span>
-                                  <strong className="text-white text-xs flex items-center gap-1.5">
+                                  <strong className="text-slate-900 dark:text-white text-xs flex items-center gap-1.5">
                                     {displayName}
                                     {isMatched && (
                                       <span className="inline-flex items-center text-[10px] text-emerald-400 font-normal">
@@ -977,14 +977,14 @@ export function ExcelImport({ user }: ExcelImportProps) {
                                 empCode
                               )}
                             </td>
-                            <td className="text-xs text-white">{travelDate}</td>
+                            <td className="text-xs text-slate-700 dark:text-slate-200">{travelDate}</td>
                             <td className="text-xs">
-                              <span className="text-white">{fromLoc}</span>
+                              <span className="text-slate-800 dark:text-slate-200">{fromLoc}</span>
                               <span className="text-[#64748B] mx-1.5">→</span>
-                              <span className="text-white">{toLoc}</span>
+                              <span className="text-slate-800 dark:text-slate-200">{toLoc}</span>
                             </td>
                             <td className="text-xs font-mono text-[#94A3B8]">{ticketRef}</td>
-                            <td className="text-xs font-semibold text-white">
+                            <td className="text-xs font-semibold text-slate-900 dark:text-white">
                               {costVal != null ? `$${costVal}` : "—"}
                             </td>
                             <td>{getStatusBadge(rowStatus, confidence)}</td>
@@ -1012,7 +1012,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   <div className="empty-icon mx-auto mb-3">
                     <Search size={22} />
                   </div>
-                  <h3 className="font-bold text-white text-sm">No matching preview rows</h3>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm">No matching preview rows</h3>
                   <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
                     Try adjusting your search query or status filter to see other rows from this spreadsheet.
                   </p>
@@ -1021,7 +1021,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
               {/* Pagination Footer */}
               {previewTotalPages > 1 && (
-                <div className="flex items-center justify-between border-t border-[#1E293B] pt-4 mt-4 text-xs text-[#94A3B8]">
+                <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4 mt-4 text-xs text-[#94A3B8]">
                   <span>
                     Page {previewPage + 1} of {previewTotalPages}
                   </span>
@@ -1057,7 +1057,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             <div className="section-title-row flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <span className="card-kicker">HISTORICAL RECORDS</span>
-                <h2 className="section-heading text-lg font-bold text-white">
+                <h2 className="section-heading text-lg font-bold text-slate-900 dark:text-white">
                   Corporate Travel Archive Search
                 </h2>
                 <p className="text-xs text-[#94A3B8] mt-1">
@@ -1092,7 +1092,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   type="date"
                   value={historyFromDate}
                   onChange={(e) => setHistoryFromDate(e.target.value)}
-                  className="bg-[#0F172A] border border-[#2A364F] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
                 />
               </div>
 
@@ -1102,7 +1102,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   type="date"
                   value={historyToDate}
                   onChange={(e) => setHistoryToDate(e.target.value)}
-                  className="bg-[#0F172A] border border-[#2A364F] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                  className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
                 />
               </div>
 
@@ -1157,14 +1157,14 @@ export function ExcelImport({ user }: ExcelImportProps) {
                       const formattedRaw = formatPassengerName(r.rawEmployeeName);
                       const displayName = r.matchedEmployeeName || formattedRaw || r.rawEmployeeName || "—";
                       return (
-                        <tr key={r.id} className="hover:bg-[#1A2234]/50">
+                        <tr key={r.id} className="hover:bg-slate-100 dark:bg-slate-800/50">
                           <td>
                             <div className="table-journey">
                               <span className="avatar avatar-tiny">
                                 {getPassengerInitials(displayName)}
                               </span>
                               <span>
-                                <strong className="text-white text-xs">
+                                <strong className="text-slate-900 dark:text-white text-xs">
                                   {displayName}
                                 </strong>
                                 {r.matchedEmployeeName && (
@@ -1176,16 +1176,16 @@ export function ExcelImport({ user }: ExcelImportProps) {
                           <td className="text-xs font-mono font-bold text-emerald-400">
                             {r.matchedEmployeeCode || r.rawEmployeeIdentifier || "—"}
                           </td>
-                          <td className="text-xs text-white">{r.travelDate || "—"}</td>
+                          <td className="text-xs text-slate-700 dark:text-slate-200">{r.travelDate || "—"}</td>
                           <td className="text-xs">
-                            <span className="text-white">{r.fromLocation || "—"}</span>
+                            <span className="text-slate-800 dark:text-slate-200">{r.fromLocation || "—"}</span>
                             <span className="text-[#64748B] mx-1.5">→</span>
-                            <span className="text-white">{r.toLocation || "—"}</span>
+                            <span className="text-slate-800 dark:text-slate-200">{r.toLocation || "—"}</span>
                           </td>
                           <td className="text-xs font-mono text-[#94A3B8]">{r.ticketReference || "—"}</td>
                           <td className="text-xs text-[#94A3B8]">{r.travelMode || "FLIGHT"}</td>
                           <td className="text-xs text-[#94A3B8]">{r.provider || "—"}</td>
-                          <td className="text-xs font-semibold text-white">
+                          <td className="text-xs font-semibold text-slate-900 dark:text-white">
                             {r.cost != null ? `$${r.cost}` : "—"}
                           </td>
                           <td className="text-xs text-[#94A3B8]">{r.projectName || "—"}</td>
@@ -1200,7 +1200,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                 <div className="empty-icon mx-auto mb-3">
                   <Layers size={22} />
                 </div>
-                <h3 className="font-bold text-white text-sm">No historical travel records found</h3>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">No historical travel records found</h3>
                 <p className="text-xs text-[#94A3B8] max-w-sm mx-auto mt-1">
                   Upload and import spreadsheets in the "Spreadsheet Upload & Preview" tab to populate corporate travel history.
                 </p>
@@ -1209,7 +1209,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
             {/* Pagination Footer */}
             {historyTotalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-[#1E293B] pt-4 mt-4 text-xs text-[#94A3B8]">
+              <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-4 mt-4 text-xs text-[#94A3B8]">
                 <span>
                   Page {historyPage + 1} of {historyTotalPages} ({historyTotalElements} total records)
                 </span>
@@ -1252,15 +1252,15 @@ export function ExcelImport({ user }: ExcelImportProps) {
               <SlidersHorizontal size={22} />
             </div>
             <span className="card-kicker">COLUMN MAPPING CONFIGURATION</span>
-            <h2 className="text-lg font-bold text-white">Map Spreadsheet Headers to Trapple Fields</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Map Spreadsheet Headers to Trapple Fields</h2>
             <p className="text-xs text-[#94A3B8] mt-1">
               Confirm which columns in your spreadsheet match the expected travel record properties.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6 max-h-[60vh] overflow-y-auto pr-2">
               {Object.entries(FIELD_LABELS).map(([fieldKey, fieldLabel]) => (
-                <div key={fieldKey} className="bg-[#0F172A] p-3 rounded-xl border border-[#2A364F]">
-                  <label className="block text-xs font-semibold text-white mb-1.5">
+                <div key={fieldKey} className="bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <label className="block text-xs font-semibold text-slate-900 dark:text-white mb-1.5">
                     {fieldLabel}
                   </label>
                   <select
@@ -1272,7 +1272,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                         [fieldKey]: val,
                       }));
                     }}
-                    className="w-full bg-[#1A2234] border border-[#2A364F] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
                   >
                     <option value="">— Not Mapped —</option>
                     {(
@@ -1289,7 +1289,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               ))}
             </div>
 
-            <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-[#1E293B]">
+            <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 className="button button-ghost py-2 px-4 text-xs"
@@ -1325,15 +1325,15 @@ export function ExcelImport({ user }: ExcelImportProps) {
               <CheckCircle2 size={22} />
             </div>
             <span className="card-kicker">EXPLICIT CONFIRMATION</span>
-            <h2 className="text-lg font-bold text-white">Confirm Travel Records Import</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Confirm Travel Records Import</h2>
             <p className="text-xs text-[#94A3B8] mt-1">
               You are about to import historical travel data into the authoritative company database.
             </p>
 
-            <div className="my-5 p-4 rounded-xl bg-[#0F172A] border border-[#2A364F] space-y-2 text-xs">
+            <div className="my-5 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-[#94A3B8]">Target Company:</span>
-                <span className="font-bold text-white">{user.companyName || "Current Organization"}</span>
+                <span className="font-bold text-slate-900 dark:text-white">{user.companyName || "Current Organization"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#94A3B8]">Records to Import:</span>
@@ -1349,7 +1349,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               </div>
             </div>
 
-            <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-[#1E293B]">
+            <div className="dialog-actions flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 className="button button-ghost py-2 px-4 text-xs"
@@ -1385,7 +1385,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               <Eye size={22} />
             </div>
             <span className="card-kicker">RECORD INSPECTOR</span>
-            <h2 className="text-lg font-bold text-white">Row #{selectedRecord.sourceRowNumber} Details</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Row #{selectedRecord.sourceRowNumber} Details</h2>
             <div className="mt-1 flex items-center gap-2">
               {getStatusBadge(selectedRecord.status, selectedRecord.matchConfidence)}
               {selectedRecord.matchConfidence && (
@@ -1434,10 +1434,10 @@ export function ExcelImport({ user }: ExcelImportProps) {
               const providerVal = selectedRecord.provider || inspectorFallback?.provider || "—";
 
               return (
-                <div className="my-4 grid grid-cols-2 gap-3 text-xs bg-[#0F172A] p-4 rounded-xl border border-[#2A364F]">
+                <div className="my-4 grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Passenger Name</span>
-                    <span className="font-semibold text-white">{displayName}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{displayName}</span>
                     {rawName && (
                       <span className="text-[10px] text-[#64748B] block font-mono mt-0.5">
                         File: {rawName}
@@ -1446,7 +1446,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Employee ID</span>
-                    <span className="font-semibold text-white">{empCode}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{empCode}</span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Matched Employee</span>
@@ -1458,35 +1458,35 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Travel Date</span>
-                    <span className="font-semibold text-white">{travelDate}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{travelDate}</span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">From Location</span>
-                    <span className="font-semibold text-white">{fromLoc}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{fromLoc}</span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">To Location</span>
-                    <span className="font-semibold text-white">{toLoc}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{toLoc}</span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Ticket Reference / PNR</span>
-                    <span className="font-semibold text-white">{ticketRef}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{ticketRef}</span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Cost / Fare</span>
-                    <span className="font-semibold text-white">
+                    <span className="font-semibold text-slate-900 dark:text-white">
                       {costVal != null ? `$${costVal}` : "—"}
                     </span>
                   </div>
                   <div>
                     <span className="text-[#64748B] block text-[10px]">Carrier / Provider</span>
-                    <span className="font-semibold text-white">{providerVal}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{providerVal}</span>
                   </div>
                 </div>
               );
             })()}
 
-            <div className="dialog-actions flex justify-end pt-3 border-t border-[#1E293B]">
+            <div className="dialog-actions flex justify-end pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 className="button button-primary py-2 px-5 text-xs"

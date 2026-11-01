@@ -759,13 +759,31 @@ function Dashboard({ user }: { user: AuthUser }) {
               </Link>
             </div>
           </div>
-          <div className="welcome-orbit">
-            <div className="orbit-ring orbit-ring-one" />
-            <div className="orbit-ring orbit-ring-two" />
-            <div className="orbit-core"><Plane size={27} /></div>
-            <span className="orbit-label orbit-label-one">Plan</span>
-            <span className="orbit-label orbit-label-two">Approve</span>
-            <span className="orbit-label orbit-label-three">Go</span>
+          <div className="welcome-badge-panel hidden xl:flex flex-col justify-between p-4 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md w-[240px] shrink-0 text-xs">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#2DD4BF]">Corporate Desk</span>
+              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Active
+              </span>
+            </div>
+            <div className="space-y-2 py-2.5">
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-slate-400 text-[11px]">Approval SLA</span>
+                <span className="font-semibold text-white">&lt; 24h Fast Track</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-slate-400 text-[11px]">Desk Level</span>
+                <span className="font-semibold text-teal-300">Tier 1 Corporate</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-300">
+                <span className="text-slate-400 text-[11px]">Cloud Sync</span>
+                <span className="font-semibold text-emerald-400">Live</span>
+              </div>
+            </div>
+            <div className="pt-2.5 border-t border-white/10 flex items-center gap-2 text-[11px] text-slate-400">
+              <ShieldCheck size={13} className="text-[#2DD4BF] shrink-0" />
+              <span>TLS 1.3 Tenant Isolation</span>
+            </div>
           </div>
         </div>
 
@@ -1854,7 +1872,7 @@ function ApproverRequestDetailsModal({
         <div className="flex items-center justify-between gap-3 pr-8">
           <div>
             <span className="card-kicker">TRAVEL REQUEST DETAILS</span>
-            <h2 id="approver-modal-title" style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 26, margin: "4px 0 0" }}>
+            <h2 id="approver-modal-title" style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
               {journey.destination}
             </h2>
             <small style={{ color: "var(--ink-muted)", fontSize: 11 }}>Request ID: {journey.id} · Submitted by Employee</small>
@@ -2114,7 +2132,7 @@ function ApproverBookingDetailModal({
         <div className="flex items-center justify-between gap-3 pr-8">
           <div>
             <span className="card-kicker">TRAVEL DESK CONFIRMED BOOKING</span>
-            <h2 style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 26, margin: "4px 0 0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
               PNR: {booking.bookingReference || "—"}
             </h2>
             <small style={{ color: "var(--ink-muted)", fontSize: 11 }}>
@@ -2627,7 +2645,7 @@ function GroupManifestModal({
         <div className="flex items-center justify-between gap-3 pr-8">
           <div>
             <span className="card-kicker">MASS MOVEMENT VOUCHER & MANIFEST</span>
-            <h2 style={{ fontFamily: '"DM Serif Display", Georgia, serif', fontSize: 24, margin: "4px 0 0" }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", margin: "4px 0 0" }}>
               {currentBooking.title}
             </h2>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
@@ -7123,12 +7141,11 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
             <ShieldCheck size={14} /> Corporate Mobility Platform
           </div>
 
-          <h1>
-            Travel with ease.<br />
-            <em className="text-[#14B8A6]">Execute with precision.</em>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
+            Corporate mobility engineered for <span className="text-[#0D9488] dark:text-[#2DD4BF]">modern enterprise.</span>
           </h1>
 
-          <p className="text-[#475467] dark:text-[#94A3B8] leading-relaxed mt-4 max-w-md">
+          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed mt-4 max-w-lg font-normal">
             The unified corporate travel platform for Mahathi Infra Services Pvt. Ltd. Coordinate project itineraries, manager sign-offs, and flight desk ticketing with complete enterprise governance.
           </p>
 
