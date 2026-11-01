@@ -11,15 +11,6 @@ const API_BASE_URL =
   (isLocal ? "http://localhost:8080" : DEFAULT_BACKEND_URL);
 
 export function getResolvedUrl(path: string): string {
-  if (typeof window !== "undefined") {
-    const host = window.location?.hostname || "";
-    // When running on any Vercel domain (*.vercel.app), use same-origin relative path
-    // which is proxied by vercel.json server-side rewrite to https://trapple.onrender.com
-    // eliminating CORS preflight errors completely.
-    if (host.includes("vercel.app") && !(typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL)) {
-      return path;
-    }
-  }
   return `${API_BASE_URL}${path}`;
 }
 
@@ -431,9 +422,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       },
     });
 
-    // If same-origin rewrite returned HTML fallback (proxy unreachable), fallback to direct backend URL
+    // If request returned HTML fallback (proxy unreachable) or Vercel Deployment Protection intercept,
+    // fallback to direct Render backend URL
     const contentType = response.headers.get("content-type") || "";
-    if (targetUrl === path && contentType.includes("text/html")) {
+    let shouldDirectFallback =
+      targetUrl !== `${DEFAULT_BACKEND_URL}${path}` &&
+      (contentType.includes("text/html") || (response.status === 401 && !!response.headers.get("x-vercel-id")));
+
+    if (shouldDirectFallback) {
       response = await fetch(`${DEFAULT_BACKEND_URL}${path}`, {
         ...requestOptions,
         signal: controller.signal,
@@ -445,7 +441,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       });
     }
   } catch {
-    if (targetUrl === path) {
+    if (targetUrl !== `${DEFAULT_BACKEND_URL}${path}`) {
       try {
         response = await fetch(`${DEFAULT_BACKEND_URL}${path}`, {
           ...requestOptions,
@@ -504,7 +500,8 @@ export async function login(credentials: { username: string; password: string })
       method: "POST",
       body: JSON.stringify({ username: rawUser, password: rawPass }),
       skipAuth: true,
-      timeoutMs: 15000,
+      ignoreAuthFailure: true,
+      timeoutMs: 35000,
     });
     const role = String(response.role || "").toUpperCase() as Role;
     if (response.token && response.username && VALID_ROLES.includes(role) && response.id !== undefined && response.id !== null) {
@@ -1165,7 +1162,7 @@ export const importsApi = {
         body: formData,
       });
       const contentType = res.headers.get("content-type") || "";
-      if (uploadUrl === "/api/imports/upload" && contentType.includes("text/html")) {
+      if (uploadUrl !== `${DEFAULT_BACKEND_URL}/api/imports/upload` && contentType.includes("text/html")) {
         res = await fetch(`${DEFAULT_BACKEND_URL}/api/imports/upload`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1173,7 +1170,7 @@ export const importsApi = {
         });
       }
     } catch {
-      if (uploadUrl === "/api/imports/upload") {
+      if (uploadUrl !== `${DEFAULT_BACKEND_URL}/api/imports/upload`) {
         try {
           res = await fetch(`${DEFAULT_BACKEND_URL}/api/imports/upload`, {
             method: "POST",

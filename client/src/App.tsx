@@ -7107,7 +7107,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
     } catch (loginError) {
       setError(
         loginError instanceof Error
-          ? loginError.message.includes("401")
+          ? loginError.message.includes("401") || loginError.message.toLowerCase().includes("unauthorized")
             ? "Invalid username or password. Please verify your corporate credentials."
             : loginError.message
           : "Unable to sign in. Please verify your connection."
