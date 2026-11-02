@@ -64,7 +64,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
@@ -7091,10 +7091,26 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
 function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
   const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
+  const [slowLoading, setSlowLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // Pre-warm the backend on cold boot so it is awake by the time the user submits
+    fetch(getResolvedUrl("/api/health")).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      timer = setTimeout(() => setSlowLoading(true), 3500);
+    } else {
+      setSlowLoading(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -7250,7 +7266,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
               {loading ? (
                 <>
                   <RotateCcw size={16} className="animate-spin" />
-                  <span>Signing in…</span>
+                  <span>{slowLoading ? "Connecting to cloud backend…" : "Signing in…"}</span>
                 </>
               ) : (
                 <>
@@ -7259,6 +7275,11 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
                 </>
               )}
             </button>
+            {slowLoading && (
+              <p className="text-[11.5px] text-center text-[#667085] dark:text-[#94A3B8] animate-pulse">
+                Waking up cloud service from idle sleep. Please hold on a moment…
+              </p>
+            )}
           </form>
 
           <div className="login-note mt-4 pt-3 border-t border-[#E4E7EC] dark:border-[#1E293B] flex items-center gap-2 text-[11px] text-[#667085] dark:text-[#94A3B8]">

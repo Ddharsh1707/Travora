@@ -501,7 +501,7 @@ export async function login(credentials: { username: string; password: string })
       body: JSON.stringify({ username: rawUser, password: rawPass }),
       skipAuth: true,
       ignoreAuthFailure: true,
-      timeoutMs: 35000,
+      timeoutMs: 65000,
     });
     const role = String(response.role || "").toUpperCase() as Role;
     if (response.token && response.username && VALID_ROLES.includes(role) && response.id !== undefined && response.id !== null) {
@@ -515,9 +515,10 @@ export async function login(credentials: { username: string; password: string })
       msg.includes("not reached") ||
       msg.includes("failed to fetch") ||
       msg.includes("Failed to fetch") ||
-      msg.includes("NetworkError")
+      msg.includes("NetworkError") ||
+      msg.includes("aborted")
     ) {
-      throw new Error("Unable to reach the Trapple authentication service. Please check your connection or contact IT.");
+      throw new Error("Unable to reach the Trapple authentication service. The cloud server may still be spinning up from idle sleep — please wait a moment and try again.");
     }
     throw err;
   }
