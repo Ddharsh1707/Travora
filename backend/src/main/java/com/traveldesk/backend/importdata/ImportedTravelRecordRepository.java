@@ -21,6 +21,8 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
 
     List<ImportedTravelRecord> findByImportBatchIdAndImported(Long importBatchId, boolean imported);
 
+    List<ImportedTravelRecord> findByCompanyIdAndImported(Long companyId, boolean imported);
+
     long countByImportBatchIdAndStatus(Long importBatchId, String status);
 
     void deleteByImportBatchId(Long importBatchId);
@@ -92,5 +94,45 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
             @Param("travelDate") LocalDate travelDate,
             @Param("fromLoc") String fromLoc,
             @Param("toLoc") String toLoc);
+
+    // Filtered historical records for spend intelligence analytics & aggregation
+    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
+           "AND (:employeeIdentifier IS NULL OR :employeeIdentifier = '' OR r.rawEmployeeIdentifier = :employeeIdentifier OR (r.employee IS NOT NULL AND r.employee.employeeId = :employeeIdentifier)) " +
+           "AND (:department IS NULL OR :department = '' OR LOWER(r.department) = LOWER(:department)) " +
+           "AND (:provider IS NULL OR :provider = '' OR LOWER(r.provider) = LOWER(:provider)) " +
+           "AND (:travelMode IS NULL OR :travelMode = '' OR LOWER(r.travelMode) = LOWER(:travelMode)) " +
+           "AND (:fromDate IS NULL OR r.travelDate >= :fromDate) " +
+           "AND (:toDate IS NULL OR r.travelDate <= :toDate) " +
+           "AND (:search IS NULL OR :search = '' OR " +
+           "LOWER(r.rawEmployeeName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.rawEmployeeIdentifier) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.fromLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.toLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.ticketReference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(r.projectName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY r.travelDate DESC NULLS LAST, r.id DESC")
+    List<ImportedTravelRecord> findFilteredForSpendAnalysis(
+            @Param("companyId") Long companyId,
+            @Param("employeeIdentifier") String employeeIdentifier,
+            @Param("department") String department,
+            @Param("provider") String provider,
+            @Param("travelMode") String travelMode,
+            @Param("fromDate") LocalDate fromDate,
+            @Param("toDate") LocalDate toDate,
+            @Param("search") String search);
+
+    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
+           "AND (r.rawEmployeeIdentifier = :identifier OR (r.employee IS NOT NULL AND r.employee.employeeId = :identifier)) " +
+           "ORDER BY r.travelDate ASC NULLS LAST, r.id ASC")
+    List<ImportedTravelRecord> findByCompanyIdAndEmployeeIdentifier(
+            @Param("companyId") Long companyId,
+            @Param("identifier") String identifier);
+
+    @Query("SELECT DISTINCT r.department FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true AND r.department IS NOT NULL AND r.department != '' ORDER BY r.department ASC")
+    List<String> findDistinctDepartmentsByCompanyId(@Param("companyId") Long companyId);
+
+    @Query("SELECT DISTINCT r.provider FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true AND r.provider IS NOT NULL AND r.provider != '' ORDER BY r.provider ASC")
+    List<String> findDistinctProvidersByCompanyId(@Param("companyId") Long companyId);
 }
 

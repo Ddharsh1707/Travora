@@ -72,6 +72,7 @@ import { Profile } from "./pages/Profile";
 import { UserManagement } from "./pages/UserManagement";
 import { ActivateAccount } from "./pages/ActivateAccount";
 import { ExcelImport } from "./pages/ExcelImport";
+import { TravelSpendReports } from "./pages/TravelSpendReports";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
@@ -250,6 +251,9 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/admin/excel-import": { eyebrow: "Administration", title: "Excel Import & Travel History", description: "Upload spreadsheets, preview records, and manage historical corporate travel." },
   "/admin/users": { eyebrow: "Administration", title: "User Management", description: "Provision employee accounts, assign role permissions, and control tenant user access." },
   "/travel-desk/reports": { eyebrow: "Travel desk", title: "Operations Reports", description: "Ticketing status, vendor provider costs, and booking manifest extraction." },
+  "/travel-desk/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
+  "/approver/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
+  "/admin/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
 };
 
 type NavCategory = {
@@ -292,6 +296,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
       category: "INSIGHTS & SUPPORT",
       items: [
         { label: "Reports", href: "/approver/reports", icon: <BarChart3 size={16} /> },
+        { label: "Travel Spend Reports", href: "/approver/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
       ],
     },
@@ -312,6 +317,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
       category: "INSIGHTS",
       items: [
         { label: "Reports", href: "/travel-desk/reports", icon: <BarChart3 size={16} /> },
+        { label: "Travel Spend Reports", href: "/travel-desk/spend-reports", icon: <TrendingUp size={16} /> },
       ],
     },
   ],
@@ -331,6 +337,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
       category: "INSIGHTS & SYSTEM",
       items: [
         { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={16} /> },
+        { label: "Travel Spend Reports", href: "/admin/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Settings", href: "/admin/settings", icon: <Settings2 size={16} /> },
       ],
     },
@@ -7349,6 +7356,7 @@ function AppRouter() {
     "/admin/excel-import",
     "/admin/users",
     "/admin/reports",
+    "/admin/spend-reports",
     "/admin/settings",
   ];
   const allowedPaths: Record<Role, string[]> = {
@@ -7368,6 +7376,7 @@ function AppRouter() {
       "/approver/bulk-bookings",
       "/approver/history",
       "/approver/reports",
+      "/approver/spend-reports",
       "/employee/reports",
       "/employee/support",
     ],
@@ -7379,6 +7388,7 @@ function AppRouter() {
       "/travel-desk/users",
       "/travel-desk/cancellations",
       "/travel-desk/reports",
+      "/travel-desk/spend-reports",
       "/employee/reports",
     ],
     ADMIN: adminPaths,
@@ -7436,6 +7446,7 @@ function AppRouter() {
   else if (path === "/employee/expenses") page = <ExpensesPage />;
   else if (path === "/employee/profile") page = <ProfilePage user={user} />;
   else if (path === "/employee/approvals") page = <Approvals history />;
+  else if (path === "/travel-desk/spend-reports" || path === "/approver/spend-reports" || path === "/admin/spend-reports") page = <TravelSpendReports user={user} />;
   else if (path === "/employee/reports" || path === "/approver/reports" || path === "/travel-desk/reports") page = <Reports />;
   else if (path === "/employee/support") page = <Support />;
   else if (path === "/approver") page = <Approvals />;

@@ -1346,6 +1346,216 @@ export const importsApi = {
   },
 };
 
+export interface SpendFilterParams {
+  search?: string;
+  department?: string;
+  employeeId?: string;
+  provider?: string;
+  travelMode?: string;
+  financialYear?: string;
+  period?: string;
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface MonthlySpendTrend {
+  monthKey: string;
+  monthLabel: string;
+  totalSpend: number;
+  tripCount: number;
+  travelerCount: number;
+}
+
+export interface FinancialYearSpend {
+  financialYear: string;
+  totalSpend: number;
+  tripCount: number;
+  travelerCount: number;
+}
+
+export interface ExecutiveSpendOverview {
+  totalSpend: number;
+  totalTrips: number;
+  travelerCount: number;
+  avgSpendPerTrip: number;
+  avgSpendPerTraveler: number;
+  highestSpendingEmployee?: {
+    employeeIdentifier: string;
+    employeeName: string;
+    department: string;
+    totalSpend: number;
+    tripCount: number;
+  } | null;
+  highestSpendingDepartment?: {
+    department: string;
+    totalSpend: number;
+    tripCount: number;
+    travelerCount: number;
+  } | null;
+  spendByFinancialYear: FinancialYearSpend[];
+  monthOnMonthSpend: MonthlySpendTrend[];
+  dataTraceability: {
+    totalRecordsEvaluated: number;
+    recordsWithCost: number;
+    recordsWithoutCost: number;
+    dateRangeStart?: string | null;
+    dateRangeEnd?: string | null;
+    currency: string;
+  };
+}
+
+export interface EmployeeSpendSummary {
+  employeeIdentifier: string;
+  employeeName: string;
+  department: string;
+  tripCount: number;
+  totalSpend: number;
+  avgSpendPerTrip: number;
+  firstTripDate?: string | null;
+  lastTripDate?: string | null;
+  topDestination: string;
+  domesticTrips: number;
+  internationalTrips: number;
+}
+
+export interface DepartmentSpendSummary {
+  department: string;
+  totalSpend: number;
+  employeeCount: number;
+  tripCount: number;
+  avgSpendPerEmployee: number;
+  shareOfTotalSpend: number;
+}
+
+export interface DestinationMetric {
+  destination: string;
+  tripCount: number;
+  totalSpend: number;
+  avgCost: number;
+}
+
+export interface RouteMetric {
+  origin: string;
+  destination: string;
+  routeLabel: string;
+  tripCount: number;
+  totalSpend: number;
+  avgCost: number;
+}
+
+export interface DestinationAnalysis {
+  topDestinations: DestinationMetric[];
+  topRoutes: RouteMetric[];
+  domesticTrips: number;
+  domesticSpend: number;
+  internationalTrips: number;
+  internationalSpend: number;
+}
+
+export interface VendorSpendSummary {
+  provider: string;
+  totalSpend: number;
+  bookingCount: number;
+  avgBookingValue: number;
+  travelModes: string[];
+  shareOfSpend: number;
+}
+
+export interface EmployeeDetailedHistory {
+  employeeIdentifier: string;
+  employeeName: string;
+  department: string;
+  lifetimeSpend: number;
+  lifetimeTrips: number;
+  averageTripCost: number;
+  firstTripDate?: string | null;
+  lastTripDate?: string | null;
+  topDestination: string;
+  trips: ImportedRecordResponse[];
+  monthlyTrend: MonthlySpendTrend[];
+}
+
+function buildSpendQuery(params?: SpendFilterParams): string {
+  if (!params) return "";
+  const q = new URLSearchParams();
+  if (params.search) q.set("search", params.search);
+  if (params.department) q.set("department", params.department);
+  if (params.employeeId) q.set("employeeId", params.employeeId);
+  if (params.provider) q.set("provider", params.provider);
+  if (params.travelMode) q.set("travelMode", params.travelMode);
+  if (params.financialYear) q.set("financialYear", params.financialYear);
+  if (params.period) q.set("period", params.period);
+  if (params.fromDate) q.set("fromDate", params.fromDate);
+  if (params.toDate) q.set("toDate", params.toDate);
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+export const spendReportsApi = {
+  getOverview: async (params?: SpendFilterParams): Promise<ExecutiveSpendOverview> => {
+    return await apiRequest<ExecutiveSpendOverview>(`/api/reports/spend/overview${buildSpendQuery(params)}`);
+  },
+
+  getEmployees: async (params?: SpendFilterParams): Promise<EmployeeSpendSummary[]> => {
+    return await apiRequest<EmployeeSpendSummary[]>(`/api/reports/spend/employees${buildSpendQuery(params)}`);
+  },
+
+  getEmployeeDetail: async (identifier: string): Promise<EmployeeDetailedHistory> => {
+    return await apiRequest<EmployeeDetailedHistory>(`/api/reports/spend/employee/${encodeURIComponent(identifier)}`);
+  },
+
+  getDepartments: async (params?: SpendFilterParams): Promise<DepartmentSpendSummary[]> => {
+    return await apiRequest<DepartmentSpendSummary[]>(`/api/reports/spend/departments${buildSpendQuery(params)}`);
+  },
+
+  getDestinations: async (params?: SpendFilterParams): Promise<DestinationAnalysis> => {
+    return await apiRequest<DestinationAnalysis>(`/api/reports/spend/destinations${buildSpendQuery(params)}`);
+  },
+
+  getVendors: async (params?: SpendFilterParams): Promise<VendorSpendSummary[]> => {
+    return await apiRequest<VendorSpendSummary[]>(`/api/reports/spend/vendors${buildSpendQuery(params)}`);
+  },
+
+  getFilterDepartments: async (): Promise<string[]> => {
+    return await apiRequest<string[]>("/api/reports/spend/filters/departments");
+  },
+
+  getFilterProviders: async (): Promise<string[]> => {
+    return await apiRequest<string[]>("/api/reports/spend/filters/providers");
+  },
+
+  downloadReport: async (type = "EXECUTIVE_SUMMARY", params?: SpendFilterParams): Promise<void> => {
+    const q = new URLSearchParams();
+    q.set("type", type);
+    if (params?.search) q.set("search", params.search);
+    if (params?.department) q.set("department", params.department);
+    if (params?.employeeId) q.set("employeeId", params.employeeId);
+    if (params?.provider) q.set("provider", params.provider);
+    if (params?.travelMode) q.set("travelMode", params.travelMode);
+    if (params?.financialYear) q.set("financialYear", params.financialYear);
+    if (params?.period) q.set("period", params.period);
+    if (params?.fromDate) q.set("fromDate", params.fromDate);
+    if (params?.toDate) q.set("toDate", params.toDate);
+
+    const token = typeof window !== "undefined" ? (window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token")) : null;
+    const res = await fetch(`${API_BASE_URL}/api/reports/spend/export?${q.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      throw new Error("Failed to export spend report CSV.");
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `spend_report_${type.toLowerCase()}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+};
+
 export async function uploadDocument(file: File): Promise<{
   id: string;
   originalFileName: string;

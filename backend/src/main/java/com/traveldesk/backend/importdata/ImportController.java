@@ -181,7 +181,7 @@ public class ImportController {
      * Export imported travel records to CSV with formula injection protection.
      */
     @GetMapping("/travel-history/export")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
     public ResponseEntity<byte[]> exportTravelHistory(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Long employeeId,

@@ -25,6 +25,7 @@ import {
   Building2,
   CalendarDays,
   Tag,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -1065,14 +1066,23 @@ export function ExcelImport({ user }: ExcelImportProps) {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                disabled={exportingCsv || historyTotalElements === 0}
-                className="button button-primary py-2 px-4 text-xs flex items-center gap-2 disabled:opacity-50"
-              >
-                <Download size={14} /> {exportingCsv ? "Exporting…" : "Export Filtered CSV"}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <a
+                  href="/travel-desk/spend-reports"
+                  className="button button-ghost py-2 px-3 text-xs flex items-center gap-1.5 border border-slate-200 dark:border-slate-700/60 hover:bg-slate-100 dark:hover:bg-slate-800/60 rounded-lg text-slate-700 dark:text-slate-200 font-medium transition-colors"
+                >
+                  <TrendingUp size={14} className="text-[#10B981]" />
+                  <span>Travel Spend Reports →</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={exportingCsv || historyTotalElements === 0}
+                  className="button button-primary py-2 px-4 text-xs flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Download size={14} /> {exportingCsv ? "Exporting…" : "Export Filtered CSV"}
+                </button>
+              </div>
             </div>
 
             {/* Filter Toolbar */}
