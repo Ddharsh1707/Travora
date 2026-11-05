@@ -205,11 +205,11 @@ h1 { font-family: var(--font-heading, "Inter", "Plus Jakarta Sans", sans-serif);
 .password-toggle { position: absolute; top: 5px; right: 6px; display: grid; place-items: center; width: 32px; height: 32px; color: #7d938d; border-radius: 7px; background: transparent; }
 .password-toggle:hover { background: #edf2ee; color: var(--ink); }
 .dark .password-toggle:hover { background: #2c4448; color: var(--ink); }
-.login-theme-toggle { position: absolute; top: 25px; right: clamp(24px, 6vw, 85px); }
+.login-theme-toggle { position: relative; }
 .login-security { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-muted); font-size: 10px; }
 .login-security svg { color: var(--green); }
 .form-error-message { display: flex; align-items: flex-start; gap: 7px; padding: 10px 11px; color: #a75750; border: 1px solid #edcfca; border-radius: 8px; background: #fbefed; font-size: 10px; line-height: 1.45; }
-@media (max-width: 570px) { .login-theme-toggle { top: 18px; right: 18px; } }
+@media (max-width: 570px) { .login-theme-toggle { position: relative; } }
 
 .booking-dialog { position: relative; width: min(650px, 100%); max-height: min(760px, calc(100vh - 40px)); overflow-y: auto; padding: 31px; border-radius: 17px; background: var(--surface); box-shadow: 0 22px 70px rgba(24,35,41,.2); animation: modal-in .25s var(--ease) both; }
 .booking-dialog-header { padding-right: 28px; }.booking-dialog-header .confirm-icon { margin-bottom: 17px; }.booking-dialog-header h2 { margin-top: 6px; font-family: var(--font-heading, "Inter", "Plus Jakarta Sans", sans-serif); font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }.booking-dialog-header p { margin-top: 8px; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }.booking-request-summary { display: flex; align-items: center; gap: 11px; margin: 23px 0; padding: 13px; border: 1px solid var(--line); border-radius: 11px; background: #f7faf8; }.booking-request-summary > div { display: grid; min-width: 0; flex: 1; gap: 4px; }.booking-request-summary strong { font-size: 12px; }.booking-request-summary span:not(.avatar):not(.status-badge) { overflow: hidden; color: var(--ink-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.booking-form { display: grid; gap: 17px; }.booking-form .form-grid { gap: 14px; }.booking-form .field > span em { color: #b1791d; font-style: normal; }.table-action-muted { color: var(--green); cursor: default; }.dark .booking-dialog, .dark .booking-request-summary { background: var(--surface); border-color: var(--line); }.dark .booking-request-summary { background: #1b2c2e; }

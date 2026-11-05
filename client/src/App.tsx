@@ -7363,16 +7363,7 @@ function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: Auth
 
   return (
     <div className="login-page">
-      <button
-        className="login-theme-toggle icon-button"
-        aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-        onClick={toggleTheme}
-        title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-      >
-        {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-      </button>
-
-      <div className="login-brand flex flex-wrap items-center justify-between gap-3">
+      <div className="login-brand flex flex-wrap items-center justify-between gap-4">
         <div
           onClick={onBackToHome}
           className={`flex items-center gap-2.5 ${onBackToHome ? "cursor-pointer hover:opacity-85 transition-opacity" : ""}`}
@@ -7384,15 +7375,26 @@ function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: Auth
           </span>
         </div>
 
-        {onBackToHome && (
+        <div className="flex items-center gap-3">
+          {onBackToHome && (
+            <button
+              type="button"
+              onClick={onBackToHome}
+              className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <span>← Back to Website</span>
+            </button>
+          )}
+
           <button
-            type="button"
-            onClick={onBackToHome}
-            className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:text-teal-500 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-lg border border-slate-300 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            onClick={toggleTheme}
+            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
-            <span>← Back to Website</span>
+            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
           </button>
-        )}
+        </div>
       </div>
 
       <div className="login-layout">
@@ -7483,9 +7485,19 @@ function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: Auth
             </label>
 
             {error && (
-              <div className="form-error-message p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
-                <XCircle size={15} className="shrink-0 text-red-500" />
-                <span>{error}</span>
+              <div className="form-error-message p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 text-xs flex flex-col gap-2">
+                <div className="flex items-start gap-2">
+                  <XCircle size={15} className="shrink-0 text-red-500 mt-0.5" />
+                  <span className="flex-1 leading-relaxed">{error}</span>
+                </div>
+                {error.includes("spinning up") && (
+                  <button
+                    type="submit"
+                    className="self-end px-3 py-1 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <RotateCcw size={12} /> Retry Sign In
+                  </button>
+                )}
               </div>
             )}
 

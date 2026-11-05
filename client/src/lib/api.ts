@@ -427,7 +427,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     const contentType = response.headers.get("content-type") || "";
     let shouldDirectFallback =
       targetUrl !== `${DEFAULT_BACKEND_URL}${path}` &&
-      (contentType.includes("text/html") || (response.status === 401 && !!response.headers.get("x-vercel-id")));
+      contentType.includes("text/html");
 
     if (shouldDirectFallback) {
       response = await fetch(`${DEFAULT_BACKEND_URL}${path}`, {
@@ -501,7 +501,7 @@ export async function login(credentials: { username: string; password: string })
       body: JSON.stringify({ username: rawUser, password: rawPass }),
       skipAuth: true,
       ignoreAuthFailure: true,
-      timeoutMs: 65000,
+      timeoutMs: 90000,
     });
     const role = String(response.role || "").toUpperCase() as Role;
     if (response.token && response.username && VALID_ROLES.includes(role) && response.id !== undefined && response.id !== null) {
