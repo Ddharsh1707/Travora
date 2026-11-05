@@ -11,3 +11,4 @@ public record VendorSpendSummary(
         List<String> travelModes,
         double shareOfSpend
 ) {}
+

@@ -2,7 +2,6 @@ package com.traveldesk.backend.spendintelligence;
 
 import com.traveldesk.backend.auth.User;
 import com.traveldesk.backend.auth.UserRepository;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -39,6 +38,15 @@ public class TravelSpendController {
         );
     }
 
+    private LocalDate parseSafeDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) return null;
+        try {
+            return LocalDate.parse(dateStr.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private SpendFilter buildFilter(
             String search,
             String department,
@@ -47,14 +55,32 @@ public class TravelSpendController {
             String travelMode,
             String financialYear,
             String period,
-            LocalDate fromDate,
-            LocalDate toDate
+            String fromDate,
+            String toDate
     ) {
-        return new SpendFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        return new SpendFilter(search, department, employeeId, provider, travelMode, financialYear, period, parseSafeDate(fromDate), parseSafeDate(toDate));
+    }
+
+    @GetMapping("/combined")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
+    public ResponseEntity<CombinedSpendIntelligence> getCombinedIntelligence(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String travelMode,
+            @RequestParam(required = false) String financialYear,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
+    ) {
+        User user = getAuthenticatedUser();
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        return ResponseEntity.ok(spendService.getCombinedIntelligence(user, filter));
     }
 
     @GetMapping("/overview")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<ExecutiveSpendOverview> getExecutiveOverview(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String department,
@@ -63,8 +89,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
@@ -72,7 +98,7 @@ public class TravelSpendController {
     }
 
     @GetMapping("/employees")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<List<EmployeeSpendSummary>> getEmployeeAnalysis(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String department,
@@ -81,8 +107,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
@@ -90,7 +116,7 @@ public class TravelSpendController {
     }
 
     @GetMapping("/employee/{identifier}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<EmployeeDetailedHistory> getEmployeeDetailedHistory(@PathVariable String identifier) {
         User user = getAuthenticatedUser();
         try {
@@ -101,7 +127,7 @@ public class TravelSpendController {
     }
 
     @GetMapping("/departments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<List<DepartmentSpendSummary>> getDepartmentAnalysis(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String department,
@@ -110,8 +136,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
@@ -119,7 +145,7 @@ public class TravelSpendController {
     }
 
     @GetMapping("/destinations")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<DestinationAnalysis> getDestinationAnalysis(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String department,
@@ -128,8 +154,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
@@ -137,7 +163,7 @@ public class TravelSpendController {
     }
 
     @GetMapping("/vendors")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<List<VendorSpendSummary>> getVendorAnalysis(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String department,
@@ -146,8 +172,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
@@ -155,21 +181,21 @@ public class TravelSpendController {
     }
 
     @GetMapping("/filters/departments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<List<String>> getFilterDepartments() {
         User user = getAuthenticatedUser();
         return ResponseEntity.ok(spendService.getFilterDepartments(user));
     }
 
     @GetMapping("/filters/providers")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<List<String>> getFilterProviders() {
         User user = getAuthenticatedUser();
         return ResponseEntity.ok(spendService.getFilterProviders(user));
     }
 
     @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
     public ResponseEntity<byte[]> exportSpendReport(
             @RequestParam(defaultValue = "EXECUTIVE_SUMMARY") String type,
             @RequestParam(required = false) String search,
@@ -179,8 +205,8 @@ public class TravelSpendController {
             @RequestParam(required = false) String travelMode,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);

@@ -284,6 +284,44 @@ class TravelSpendControllerTest {
     }
 
     @Test
+    @DisplayName("Searching for an employee by name filters reports and shows employee name")
+    void testSearchByEmployeeName() throws Exception {
+        mockMvc.perform(get("/api/reports/spend/employees?search=suresh")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].employeeIdentifier", is("MISPL0001")))
+                .andExpect(jsonPath("$[0].employeeName", is("Suresh Babu Dangeti")))
+                .andExpect(jsonPath("$[0].totalSpend", is(27000.0)));
+
+        mockMvc.perform(get("/api/reports/spend/overview?search=suresh")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSpend", is(27000.0)))
+                .andExpect(jsonPath("$.travelerCount", is(1)))
+                .andExpect(jsonPath("$.highestSpendingEmployee.employeeName", is("Suresh Babu Dangeti")));
+    }
+
+    @Test
+    @DisplayName("Employee Detailed Trip History works with lowercase ID or employee name")
+    void testEmployeeDetailedHistoryByVariousIdentifiers() throws Exception {
+        // Lowercase ID
+        mockMvc.perform(get("/api/reports/spend/employee/mispl0001")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeIdentifier", is("MISPL0001")))
+                .andExpect(jsonPath("$.employeeName", is("Suresh Babu Dangeti")))
+                .andExpect(jsonPath("$.trips", hasSize(2)));
+
+        // Employee Name
+        mockMvc.perform(get("/api/reports/spend/employee/Suresh Babu Dangeti")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeName", is("Suresh Babu Dangeti")))
+                .andExpect(jsonPath("$.trips", hasSize(2)));
+    }
+
+    @Test
     @DisplayName("Department, Destination, and Vendor breakdowns compute accurately")
     void testDepartmentAndVendorAnalysis() throws Exception {
         // Departments
@@ -325,6 +363,28 @@ class TravelSpendControllerTest {
                 .andExpect(content().string(containsString("MISPL0001")))
                 .andExpect(content().string(containsString("Suresh Babu Dangeti")))
                 .andExpect(content().string(containsString("27000.00")));
+    }
+
+    @Test
+    @DisplayName("Combined Spend Intelligence returns all modules in single fast payload")
+    void testCombinedIntelligence() throws Exception {
+        mockMvc.perform(get("/api/reports/spend/combined")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.overview.totalSpend", is(35500.0)))
+                .andExpect(jsonPath("$.employees", hasSize(2)))
+                .andExpect(jsonPath("$.departments", hasSize(2)))
+                .andExpect(jsonPath("$.destinations.topDestinations", hasSize(3)))
+                .andExpect(jsonPath("$.vendors", hasSize(2)));
+    }
+
+    @Test
+    @DisplayName("Empty string or blank dates do not cause 400 Bad Request")
+    void testBlankDateParametersHandledGracefully() throws Exception {
+        mockMvc.perform(get("/api/reports/spend/overview?fromDate=&toDate=")
+                        .header("Authorization", "Bearer " + tokenTravelDeskA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSpend", is(35500.0)));
     }
 
     @Test

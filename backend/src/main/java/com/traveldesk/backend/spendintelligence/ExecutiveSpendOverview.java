@@ -40,3 +40,4 @@ public record ExecutiveSpendOverview(
             String currency
     ) {}
 }
+

@@ -64,7 +64,7 @@ import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
@@ -73,6 +73,7 @@ import { UserManagement } from "./pages/UserManagement";
 import { ActivateAccount } from "./pages/ActivateAccount";
 import { ExcelImport } from "./pages/ExcelImport";
 import { TravelSpendReports } from "./pages/TravelSpendReports";
+import { LandingPage } from "./pages/LandingPage";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
@@ -4150,6 +4151,10 @@ function TravelDesk() {
   const [statusTab, setStatusTab] = useState<"ALL" | "URGENT" | "READY" | "PENDING" | "BOOKED">("ALL");
   const [modeFilter, setModeFilter] = useState("ALL");
 
+  // Spend Intelligence state for Travel Desk
+  const [spendOverview, setSpendOverview] = useState<ExecutiveSpendOverview | null>(null);
+  const [spendLoading, setSpendLoading] = useState(false);
+
   useEffect(() => {
     let active = true;
     setBookingsLoading(true);
@@ -4169,6 +4174,15 @@ function TravelDesk() {
       console.warn("Failed to load bulk bookings", err);
     }).finally(() => {
       if (active) setBulkLoading(false);
+    });
+
+    setSpendLoading(true);
+    spendReportsApi.getOverview().then((data) => {
+      if (active) setSpendOverview(data);
+    }).catch((err) => {
+      console.warn("Spend intelligence overview unavailable in travel desk", err);
+    }).finally(() => {
+      if (active) setSpendLoading(false);
     });
 
     const handleSync = () => {
@@ -4849,6 +4863,12 @@ function TravelDesk() {
                 <Link href="/travel-desk/bookings" className="button button-primary">
                   Open booking queue <ArrowUpRight size={16} />
                 </Link>
+                <Link href="/travel-desk/spend-reports" className="button button-ghost" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <TrendingUp size={15} /> Travel Spend Reports
+                </Link>
+                <Link href="/travel-desk/reports" className="button button-ghost" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <BarChart3 size={15} /> Operations Reports
+                </Link>
                 <button type="button" className="button button-ghost" onClick={exportPassengerManifest}>
                   <FileSpreadsheet size={15} /> Export manifest CSV
                 </button>
@@ -5042,6 +5062,77 @@ function TravelDesk() {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Centralized Travel Spend Intelligence Spotlight in Travel Desk */}
+          <div className="panel" style={{ marginBottom: 20 }}>
+            <div className="section-title-row" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <span className="card-kicker">SPEND INTELLIGENCE & HISTORICAL LEDGER</span>
+                <h3 className="section-heading" style={{ fontSize: 18 }}>Company Travel Spend & Executive Reports</h3>
+                <p style={{ fontSize: 12, color: "var(--ink-soft)", margin: "4px 0 0" }}>
+                  Analyze corporate expenditure patterns, top traveling personnel, department budget shares, and airline vendor concentration.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Link href="/travel-desk/spend-reports" className="button button-primary" style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <TrendingUp size={14} /> Full Spend Reports
+                </Link>
+                <Link href="/travel-desk/reports" className="button button-ghost" style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <BarChart3 size={14} /> Operations Reports
+                </Link>
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                  onClick={() => spendReportsApi.downloadReport("EXECUTIVE_SUMMARY").catch(() => toast.error("Failed to export spend report"))}
+                >
+                  <Download size={14} /> Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="stats-grid desk-stats" style={{ marginTop: 14 }}>
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
+                <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)" }}>Total Evaluated Spend</small>
+                <strong style={{ display: "block", fontSize: 20, fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
+                  ₹{(spendOverview?.totalSpend || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </strong>
+                <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                  Across {spendOverview?.totalTrips || 0} corporate trips ({spendOverview?.travelerCount || 0} distinct travelers)
+                </span>
+              </div>
+
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
+                <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)" }}>Average Spend / Trip</small>
+                <strong style={{ display: "block", fontSize: 20, fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
+                  ₹{(spendOverview?.avgSpendPerTrip || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                </strong>
+                <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                  Avg ₹{(spendOverview?.avgSpendPerTraveler || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })} per traveling employee
+                </span>
+              </div>
+
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
+                <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)" }}>Top Spender</small>
+                <strong style={{ display: "block", fontSize: 16, fontWeight: 700, color: "var(--ink)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {spendOverview?.highestSpendingEmployee?.employeeName || "—"}
+                </strong>
+                <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 600 }}>
+                  {spendOverview?.highestSpendingEmployee ? `₹${spendOverview.highestSpendingEmployee.totalSpend.toLocaleString("en-IN")} (${spendOverview.highestSpendingEmployee.tripCount} trips)` : "No recorded trips"}
+                </span>
+              </div>
+
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "var(--surface-soft)", border: "1px solid var(--line)" }}>
+                <small style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--ink-muted)" }}>Top Department</small>
+                <strong style={{ display: "block", fontSize: 16, fontWeight: 700, color: "var(--ink)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {spendOverview?.highestSpendingDepartment?.department || "—"}
+                </strong>
+                <span style={{ fontSize: 11, color: "var(--ink-soft)" }}>
+                  {spendOverview?.highestSpendingDepartment ? `₹${spendOverview.highestSpendingDepartment.totalSpend.toLocaleString("en-IN")} (${spendOverview.highestSpendingDepartment.tripCount} trips)` : "No departmental records"}
+                </span>
               </div>
             </div>
           </div>
@@ -5915,17 +6006,28 @@ function Reports() {
   const [bookings, setBookings] = useState<Array<Record<string, any>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reportView, setReportView] = useState<"operations" | "spend">("operations");
 
   const fetchReports = async () => {
     setLoading(true);
     setError("");
     try {
-      const [reqData, bkData] = await Promise.all([
+      const [reqResult, bkResult] = await Promise.allSettled([
         travelRequestsApi.list(),
         bookingsApi.list(),
       ]);
-      setRequests(Array.isArray(reqData) ? (reqData as Array<Record<string, any>>) : []);
-      setBookings(Array.isArray(bkData) ? (bkData as Array<Record<string, any>>) : []);
+
+      if (reqResult.status === "fulfilled" && Array.isArray(reqResult.value)) {
+        setRequests(reqResult.value as Array<Record<string, any>>);
+      }
+      if (bkResult.status === "fulfilled" && Array.isArray(bkResult.value)) {
+        setBookings(bkResult.value as Array<Record<string, any>>);
+      }
+
+      if (reqResult.status === "rejected" && bkResult.status === "rejected") {
+        const err = reqResult.reason;
+        setError(err instanceof Error ? err.message : "Report records are unavailable.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Report records are unavailable.");
     } finally {
@@ -5988,98 +6090,138 @@ function Reports() {
         }}
       />
 
-      <div className="report-header">
-        <div>
-          <span className="card-kicker">
-            {isApprover
-              ? "TEAM INTELLIGENCE"
-              : isTravelDesk
-              ? "OPERATIONS INTELLIGENCE"
-              : "LIVE TRAVEL DATA"}
-          </span>
-          <h2>{headerTitle}</h2>
-          <p>{headerDesc}</p>
-        </div>
-        <div className="report-period">
-          <CalendarDays size={16} />{" "}
-          {isApprover
-            ? "Supervised Team"
-            : isTravelDesk
-            ? "All Operations"
-            : "Current account"}
-        </div>
+      {/* Mode Switcher: Operations vs Spend Intelligence */}
+      <div style={{ display: "flex", gap: 10, margin: "8px 0 16px", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setReportView("operations")}
+          className={`button ${reportView === "operations" ? "button-primary" : "button-ghost"}`}
+          style={{ fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          <BarChart3 size={15} /> Operations & Manifest Extraction
+        </button>
+        <button
+          type="button"
+          onClick={() => setReportView("spend")}
+          className={`button ${reportView === "spend" ? "button-primary" : "button-ghost"}`}
+          style={{ fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          <TrendingUp size={15} /> Corporate Travel Spend Reports
+        </button>
       </div>
 
-      {/* Financial Extraction Suite (PDF, Excel, Cost Breakdown, Manifest) */}
-      <ReportExtractionSuite
-        requests={requests}
-        bookings={bookings}
-        currentUser={user}
-        roleTitle={roleLabel}
-      />
+      {error && (
+        <div className="form-error-message" style={{ marginBottom: 16 }}>
+          <XCircle size={15} />
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={fetchReports}
+            style={{ marginLeft: "auto", textDecoration: "underline", background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "inherit" }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
-      {/* Corridor Map */}
-      <InteractiveRouteMap />
-
-      {/* Destination Grid & Insights */}
-      <section className="report-grid">
-        <div className="panel destination-panel">
-          <div className="section-title-row">
+      {reportView === "spend" ? (
+        <TravelSpendReports user={user || ({} as AuthUser)} />
+      ) : (
+        <>
+          <div className="report-header">
             <div>
-              <span className="card-kicker">DESTINATIONS</span>
-              <h2 className="section-heading">Where work takes you</h2>
+              <span className="card-kicker">
+                {isApprover
+                  ? "TEAM INTELLIGENCE"
+                  : isTravelDesk
+                  ? "OPERATIONS INTELLIGENCE"
+                  : "LIVE TRAVEL DATA"}
+              </span>
+              <h2>{headerTitle}</h2>
+              <p>{headerDesc}</p>
             </div>
-            <Compass size={18} className="panel-icon" />
+            <div className="report-period">
+              <CalendarDays size={16} />{" "}
+              {isApprover
+                ? "Supervised Team"
+                : isTravelDesk
+                ? "All Operations"
+                : "Current account"}
+            </div>
           </div>
-          {destinations.length ? (
-            <div className="destination-list">
-              {destinations.map((destination, index) => (
-                <Destination
-                  key={destination}
-                  name={destination}
-                  count={`${
-                    requests.filter((r) => r.toLocation === destination).length
-                  } request${
-                    requests.filter((r) => r.toLocation === destination).length === 1
-                      ? ""
-                      : "s"
-                  }`}
-                  width={`${88 - index * 14}%`}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={<Compass size={20} />}
-              title="No destination data yet"
-              description="Submit or approve a travel request to build your destination matrix."
-            />
-          )}
-        </div>
 
-        <div className="panel insight-card">
-          <div className="insight-symbol">
-            <Sparkles size={18} />
-          </div>
-          <div>
-            <span className="card-kicker">TRAPPLE SIGNAL</span>
-            <h3>
-              {loading
-                ? "Loading travel intelligence"
-                : requests.length
-                ? "Keep the request context close."
-                : "Your first request starts the signal."}
-            </h3>
-            <p>
-              {loading
-                ? "Fetching the latest request activity."
-                : requests.length
-                ? "Approval and booking teams use the same request record to keep handoffs clear and eliminate vendor invoice discrepancies."
-                : "Create a request to see destinations, statuses and travel patterns here."}
-            </p>
-          </div>
-        </div>
-      </section>
+          {/* Financial Extraction Suite (PDF, Excel, Cost Breakdown, Manifest) */}
+          <ReportExtractionSuite
+            requests={requests}
+            bookings={bookings}
+            currentUser={user}
+            roleTitle={roleLabel}
+          />
+
+          {/* Corridor Map */}
+          <InteractiveRouteMap />
+
+          {/* Destination Grid & Insights */}
+          <section className="report-grid">
+            <div className="panel destination-panel">
+              <div className="section-title-row">
+                <div>
+                  <span className="card-kicker">DESTINATIONS</span>
+                  <h2 className="section-heading">Where work takes you</h2>
+                </div>
+                <Compass size={18} className="panel-icon" />
+              </div>
+              {destinations.length ? (
+                <div className="destination-list">
+                  {destinations.map((destination, index) => (
+                    <Destination
+                      key={destination}
+                      name={destination}
+                      count={`${
+                        requests.filter((r) => r.toLocation === destination).length
+                      } request${
+                        requests.filter((r) => r.toLocation === destination).length === 1
+                          ? ""
+                          : "s"
+                      }`}
+                      width={`${88 - index * 14}%`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<Compass size={20} />}
+                  title="No destination data yet"
+                  description="Submit or approve a travel request to build your destination matrix."
+                />
+              )}
+            </div>
+
+            <div className="panel insight-card">
+              <div className="insight-symbol">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <span className="card-kicker">TRAPPLE SIGNAL</span>
+                <h3>
+                  {loading
+                    ? "Loading travel intelligence"
+                    : requests.length
+                    ? "Keep the request context close."
+                    : "Your first request starts the signal."}
+                </h3>
+                <p>
+                  {loading
+                    ? "Fetching the latest request activity."
+                    : requests.length
+                    ? "Approval and booking teams use the same request record to keep handoffs clear and eliminate vendor invoice discrepancies."
+                    : "Create a request to see destinations, statuses and travel patterns here."}
+                </p>
+              </div>
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -7095,7 +7237,7 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
     </div>
   );
 }
-function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
+function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: AuthUser) => void; onBackToHome?: () => void }) {
   const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [slowLoading, setSlowLoading] = useState(false);
@@ -7151,11 +7293,27 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void 
         {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
       </button>
 
-      <div className="login-brand">
-        <Logo />
-        <span className="text-xs font-semibold text-[#667085] dark:text-[#94A3B8]">
-          Mahathi Infra Services Pvt. Ltd. · Enterprise Travel Desk
-        </span>
+      <div className="login-brand flex flex-wrap items-center justify-between gap-3">
+        <div
+          onClick={onBackToHome}
+          className={`flex items-center gap-2.5 ${onBackToHome ? "cursor-pointer hover:opacity-85 transition-opacity" : ""}`}
+          title={onBackToHome ? "Return to Trapple Homepage" : undefined}
+        >
+          <Logo />
+          <span className="text-xs font-semibold text-[#667085] dark:text-[#94A3B8]">
+            Mahathi Infra Services Pvt. Ltd. · Enterprise Travel Desk
+          </span>
+        </div>
+
+        {onBackToHome && (
+          <button
+            type="button"
+            onClick={onBackToHome}
+            className="text-xs font-bold text-teal-600 dark:text-teal-400 hover:text-teal-500 hover:underline flex items-center gap-1 transition-colors cursor-pointer"
+          >
+            <span>← Back to Website</span>
+          </button>
+        )}
       </div>
 
       <div className="login-layout">
@@ -7347,7 +7505,7 @@ function AppRouter() {
     COMPANY_ADMIN: "/admin",
     PLATFORM_ADMIN: "/admin",
   };
-  const path = location === "/" ? (user ? roleRoots[user.role] : "/login") : location;
+  const path = location;
   const adminPaths = [
     "/admin",
     "/admin/employees",
@@ -7398,7 +7556,7 @@ function AppRouter() {
   const onLogout = () => {
     clearAuth();
     setUser(null);
-    setLocation("/login");
+    setLocation("/");
   };
   const allowed = user && role ? allowedPaths[role].includes(path) : false;
 
@@ -7413,9 +7571,11 @@ function AppRouter() {
   }, [setLocation]);
 
   useEffect(() => {
-    if (!user && location !== "/login" && !location.startsWith("/activate")) {
+    if (!user && location !== "/" && location !== "/login" && !location.startsWith("/activate")) {
       setLocation("/login");
-    } else if (user && location !== "/login" && !location.startsWith("/activate") && !allowed) {
+    } else if (user && location === "/") {
+      setLocation(roleRoots[user.role]);
+    } else if (user && location !== "/" && location !== "/login" && !location.startsWith("/activate") && !allowed) {
       setLocation(roleRoots[user.role]);
     }
   }, [user, location, allowed, setLocation]);
@@ -7424,6 +7584,17 @@ function AppRouter() {
     return <ActivateAccount />;
   }
 
+  // Public Landing Page (accessible to all unauthenticated visitors at root "/")
+  if (location === "/" && !user) {
+    return <LandingPage onSignIn={() => setLocation("/login")} />;
+  }
+
+  // Authenticated user landing on root "/" is routed to their role portal
+  if (location === "/" && user && role) {
+    return null;
+  }
+
+  // Corporate Sign In Portal
   if (location === "/login") {
     return (
       <Login
@@ -7431,6 +7602,7 @@ function AppRouter() {
           setUser(nextUser);
           setLocation(roleRoots[nextUser.role]);
         }}
+        onBackToHome={() => setLocation("/")}
       />
     );
   }

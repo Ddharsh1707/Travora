@@ -19,3 +19,4 @@ public record EmployeeDetailedHistory(
         List<ImportedRecordResponse> trips,
         List<MonthlySpendTrend> monthlyTrend
 ) {}
+

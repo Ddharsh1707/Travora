@@ -23,3 +23,4 @@ public record SpendFilter(
         if (period != null) period = period.trim();
     }
 }
+

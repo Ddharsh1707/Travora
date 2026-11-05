@@ -8,3 +8,4 @@ public record FinancialYearSpend(
         long tripCount,
         long travelerCount
 ) {}
+

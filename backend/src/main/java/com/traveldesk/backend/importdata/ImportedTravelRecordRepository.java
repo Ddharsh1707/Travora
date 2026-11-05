@@ -28,13 +28,16 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
     void deleteByImportBatchId(Long importBatchId);
 
     // Search imported travel history (only imported=true)
-    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
+    @Query("SELECT r FROM ImportedTravelRecord r LEFT JOIN r.employee emp WHERE r.company.id = :companyId AND r.imported = true " +
            "AND (:search IS NULL OR :search = '' OR " +
            "LOWER(r.rawEmployeeName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.rawEmployeeIdentifier) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.name) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.fromLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.toLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.department) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.ticketReference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.projectName) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<ImportedTravelRecord> searchTravelHistory(
@@ -43,16 +46,19 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
             Pageable pageable);
 
     // Search imported travel history with date range and employee filter
-    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
+    @Query("SELECT r FROM ImportedTravelRecord r LEFT JOIN r.employee emp WHERE r.company.id = :companyId AND r.imported = true " +
            "AND (:employeeId IS NULL OR (r.employee IS NOT NULL AND r.employee.id = :employeeId)) " +
            "AND (:fromDate IS NULL OR r.travelDate >= :fromDate) " +
            "AND (:toDate IS NULL OR r.travelDate <= :toDate) " +
            "AND (:search IS NULL OR :search = '' OR " +
            "LOWER(r.rawEmployeeName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.rawEmployeeIdentifier) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.name) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.fromLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.toLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.department) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.ticketReference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.projectName) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<ImportedTravelRecord> searchTravelHistoryFiltered(
@@ -64,16 +70,19 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
             Pageable pageable);
 
     // List for export
-    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
+    @Query("SELECT r FROM ImportedTravelRecord r LEFT JOIN r.employee emp WHERE r.company.id = :companyId AND r.imported = true " +
            "AND (:employeeId IS NULL OR (r.employee IS NOT NULL AND r.employee.id = :employeeId)) " +
            "AND (:fromDate IS NULL OR r.travelDate >= :fromDate) " +
            "AND (:toDate IS NULL OR r.travelDate <= :toDate) " +
            "AND (:search IS NULL OR :search = '' OR " +
            "LOWER(r.rawEmployeeName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.rawEmployeeIdentifier) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.name) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.fromLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.toLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.department) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.ticketReference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.projectName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "ORDER BY r.travelDate DESC NULLS LAST, r.id DESC")
@@ -96,9 +105,13 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
             @Param("toLoc") String toLoc);
 
     // Filtered historical records for spend intelligence analytics & aggregation
-    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
-           "AND (:employeeIdentifier IS NULL OR :employeeIdentifier = '' OR r.rawEmployeeIdentifier = :employeeIdentifier OR (r.employee IS NOT NULL AND r.employee.employeeId = :employeeIdentifier)) " +
-           "AND (:department IS NULL OR :department = '' OR LOWER(r.department) = LOWER(:department)) " +
+    @Query("SELECT r FROM ImportedTravelRecord r LEFT JOIN r.employee emp WHERE r.company.id = :companyId AND r.imported = true " +
+           "AND (:employeeIdentifier IS NULL OR :employeeIdentifier = '' OR " +
+           "LOWER(TRIM(r.rawEmployeeIdentifier)) = LOWER(TRIM(:employeeIdentifier)) OR " +
+           "(emp IS NOT NULL AND LOWER(TRIM(emp.employeeId)) = LOWER(TRIM(:employeeIdentifier))) OR " +
+           "LOWER(TRIM(r.rawEmployeeName)) = LOWER(TRIM(:employeeIdentifier)) OR " +
+           "(emp IS NOT NULL AND LOWER(TRIM(emp.name)) = LOWER(TRIM(:employeeIdentifier)))) " +
+           "AND (:department IS NULL OR :department = '' OR LOWER(r.department) = LOWER(:department) OR (emp IS NOT NULL AND LOWER(emp.department) = LOWER(:department))) " +
            "AND (:provider IS NULL OR :provider = '' OR LOWER(r.provider) = LOWER(:provider)) " +
            "AND (:travelMode IS NULL OR :travelMode = '' OR LOWER(r.travelMode) = LOWER(:travelMode)) " +
            "AND (:fromDate IS NULL OR r.travelDate >= :fromDate) " +
@@ -106,9 +119,12 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
            "AND (:search IS NULL OR :search = '' OR " +
            "LOWER(r.rawEmployeeName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.rawEmployeeIdentifier) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.name) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.employeeId) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.fromLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.toLocation) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "(emp IS NOT NULL AND LOWER(emp.department) LIKE LOWER(CONCAT('%', :search, '%'))) OR " +
            "LOWER(r.ticketReference) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(r.projectName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
            "ORDER BY r.travelDate DESC NULLS LAST, r.id DESC")
@@ -122,8 +138,13 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
             @Param("toDate") LocalDate toDate,
             @Param("search") String search);
 
-    @Query("SELECT r FROM ImportedTravelRecord r WHERE r.company.id = :companyId AND r.imported = true " +
-           "AND (r.rawEmployeeIdentifier = :identifier OR (r.employee IS NOT NULL AND r.employee.employeeId = :identifier)) " +
+    @Query("SELECT r FROM ImportedTravelRecord r LEFT JOIN r.employee emp WHERE r.company.id = :companyId AND r.imported = true " +
+           "AND (" +
+           "LOWER(TRIM(r.rawEmployeeIdentifier)) = LOWER(TRIM(:identifier)) " +
+           "OR (emp IS NOT NULL AND LOWER(TRIM(emp.employeeId)) = LOWER(TRIM(:identifier))) " +
+           "OR LOWER(TRIM(r.rawEmployeeName)) = LOWER(TRIM(:identifier)) " +
+           "OR (emp IS NOT NULL AND LOWER(TRIM(emp.name)) = LOWER(TRIM(:identifier)))" +
+           ") " +
            "ORDER BY r.travelDate ASC NULLS LAST, r.id ASC")
     List<ImportedTravelRecord> findByCompanyIdAndEmployeeIdentifier(
             @Param("companyId") Long companyId,

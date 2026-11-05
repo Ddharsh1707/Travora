@@ -2,16 +2,18 @@ package com.traveldesk.backend.spendintelligence;
 
 import com.traveldesk.backend.auth.User;
 import com.traveldesk.backend.company.Company;
+import com.traveldesk.backend.company.CompanyRepository;
 import com.traveldesk.backend.importdata.ImportedRecordResponse;
 import com.traveldesk.backend.importdata.ImportedTravelRecord;
 import com.traveldesk.backend.importdata.ImportedTravelRecordRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class TravelSpendService {
 
     private final ImportedTravelRecordRepository recordRepository;
+    private final CompanyRepository companyRepository;
 
     private static final DateTimeFormatter MONTH_LABEL_FORMAT = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter MONTH_KEY_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM", Locale.ENGLISH);
@@ -36,15 +39,25 @@ public class TravelSpendService {
             "SAN FRANCISCO", "SFO", "DALLAS", "DFW", "AMSTERDAM", "AMS", "ZURICH", "ZRH"
     );
 
-    public TravelSpendService(ImportedTravelRecordRepository recordRepository) {
+    public TravelSpendService(
+            ImportedTravelRecordRepository recordRepository,
+            CompanyRepository companyRepository
+    ) {
         this.recordRepository = recordRepository;
+        this.companyRepository = companyRepository;
     }
 
     private Company getRequiredCompany(User currentUser) {
-        if (currentUser == null || currentUser.getCompany() == null) {
-            throw new IllegalArgumentException("User account is not associated with an active company tenant.");
+        if (currentUser == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User account is not authenticated.");
         }
-        return currentUser.getCompany();
+        if (currentUser.getCompany() != null) {
+            return currentUser.getCompany();
+        }
+        // Fallback for administrative users or initial setups
+        return companyRepository.findByCode("MISPL")
+                .or(() -> companyRepository.findAll().stream().findFirst())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "User account is not associated with an active company tenant."));
     }
 
     /**
@@ -113,83 +126,41 @@ public class TravelSpendService {
         return new ResolvedDates(fromDate, toDate);
     }
 
+    /**
+     * Efficient database-level filtered travel records using SQL indexes.
+     */
     private List<ImportedTravelRecord> getFilteredRecords(User currentUser, SpendFilter filter) {
         Company company = getRequiredCompany(currentUser);
         ResolvedDates dates = resolveDates(filter);
-        List<ImportedTravelRecord> allRecords = recordRepository.findByCompanyIdAndImported(company.getId(), true);
 
-        return allRecords.stream()
-                .filter(r -> {
-                    // Employee ID filter
-                    if (filter.employeeId() != null && !filter.employeeId().isBlank()) {
-                        String filterEmp = filter.employeeId().trim();
-                        boolean matchIdent = r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().equalsIgnoreCase(filterEmp);
-                        boolean matchLinked = r.getEmployee() != null && r.getEmployee().getEmployeeId() != null && r.getEmployee().getEmployeeId().equalsIgnoreCase(filterEmp);
-                        if (!matchIdent && !matchLinked) return false;
-                    }
+        String empId = (filter.employeeId() != null && !filter.employeeId().isBlank()) ? filter.employeeId().trim() : null;
+        String dept = (filter.department() != null && !filter.department().isBlank()) ? filter.department().trim() : null;
+        String prov = (filter.provider() != null && !filter.provider().isBlank()) ? filter.provider().trim() : null;
+        String mode = (filter.travelMode() != null && !filter.travelMode().isBlank()) ? filter.travelMode().trim() : null;
+        String search = (filter.search() != null && !filter.search().isBlank()) ? filter.search().trim() : null;
 
-                    // Department filter
-                    if (filter.department() != null && !filter.department().isBlank()) {
-                        if (r.getDepartment() == null || !r.getDepartment().trim().equalsIgnoreCase(filter.department().trim())) {
-                            return false;
-                        }
-                    }
-
-                    // Provider / Carrier filter
-                    if (filter.provider() != null && !filter.provider().isBlank()) {
-                        if (r.getProvider() == null || !r.getProvider().trim().equalsIgnoreCase(filter.provider().trim())) {
-                            return false;
-                        }
-                    }
-
-                    // Travel mode filter
-                    if (filter.travelMode() != null && !filter.travelMode().isBlank()) {
-                        if (r.getTravelMode() == null || !r.getTravelMode().trim().equalsIgnoreCase(filter.travelMode().trim())) {
-                            return false;
-                        }
-                    }
-
-                    // Date range filter
-                    if (dates.fromDate() != null) {
-                        if (r.getTravelDate() == null || r.getTravelDate().isBefore(dates.fromDate())) {
-                            return false;
-                        }
-                    }
-                    if (dates.toDate() != null) {
-                        if (r.getTravelDate() == null || r.getTravelDate().isAfter(dates.toDate())) {
-                            return false;
-                        }
-                    }
-
-                    // Text search filter
-                    if (filter.search() != null && !filter.search().isBlank()) {
-                        String s = filter.search().toLowerCase();
-                        boolean matchesName = r.getRawEmployeeName() != null && r.getRawEmployeeName().toLowerCase().contains(s);
-                        boolean matchesId = r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().toLowerCase().contains(s);
-                        boolean matchesFrom = r.getFromLocation() != null && r.getFromLocation().toLowerCase().contains(s);
-                        boolean matchesTo = r.getToLocation() != null && r.getToLocation().toLowerCase().contains(s);
-                        boolean matchesDept = r.getDepartment() != null && r.getDepartment().toLowerCase().contains(s);
-                        boolean matchesTicket = r.getTicketReference() != null && r.getTicketReference().toLowerCase().contains(s);
-                        boolean matchesProject = r.getProjectName() != null && r.getProjectName().toLowerCase().contains(s);
-                        if (!matchesName && !matchesId && !matchesFrom && !matchesTo && !matchesDept && !matchesTicket && !matchesProject) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                })
-                .sorted(Comparator.comparing(ImportedTravelRecord::getTravelDate, Comparator.nullsLast(Comparator.reverseOrder()))
-                        .thenComparing(ImportedTravelRecord::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-                .toList();
+        return recordRepository.findFilteredForSpendAnalysis(
+                company.getId(),
+                empId,
+                dept,
+                prov,
+                mode,
+                dates.fromDate(),
+                dates.toDate(),
+                search
+        );
     }
 
     /**
      * Executive Overview: Core metrics, Month-on-Month trends, Financial Year distribution.
      */
     public ExecutiveSpendOverview getExecutiveOverview(User currentUser, SpendFilter filter) {
-        List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
         ResolvedDates dates = resolveDates(filter);
+        List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+        return buildExecutiveOverview(records, dates);
+    }
 
+    public ExecutiveSpendOverview buildExecutiveOverview(List<ImportedTravelRecord> records, ResolvedDates dates) {
         long totalRecordsEvaluated = records.size();
         long recordsWithCost = 0;
         BigDecimal totalSpend = BigDecimal.ZERO;
@@ -215,11 +186,23 @@ public class TravelSpendService {
         Map<String, Set<String>> monthTravelersMap = new HashMap<>();
 
         for (ImportedTravelRecord r : records) {
-            String empId = r.getRawEmployeeIdentifier() != null && !r.getRawEmployeeIdentifier().isBlank()
-                    ? r.getRawEmployeeIdentifier()
-                    : (r.getRawEmployeeName() != null ? r.getRawEmployeeName() : "UNKNOWN");
-            String empName = r.getRawEmployeeName() != null && !r.getRawEmployeeName().isBlank() ? r.getRawEmployeeName() : empId;
-            String dept = r.getDepartment() != null && !r.getDepartment().isBlank() ? r.getDepartment() : "General";
+            String empId = (r.getRawEmployeeIdentifier() != null && !r.getRawEmployeeIdentifier().isBlank())
+                    ? r.getRawEmployeeIdentifier().trim()
+                    : (r.getEmployee() != null && r.getEmployee().getEmployeeId() != null && !r.getEmployee().getEmployeeId().isBlank()
+                        ? r.getEmployee().getEmployeeId().trim()
+                        : (r.getRawEmployeeName() != null && !r.getRawEmployeeName().isBlank() ? r.getRawEmployeeName().trim() : "UNKNOWN"));
+
+            String empName = (r.getRawEmployeeName() != null && !r.getRawEmployeeName().isBlank() && !r.getRawEmployeeName().equals("—"))
+                    ? r.getRawEmployeeName().trim()
+                    : (r.getEmployee() != null && r.getEmployee().getName() != null && !r.getEmployee().getName().isBlank()
+                        ? r.getEmployee().getName().trim()
+                        : empId);
+
+            String dept = (r.getDepartment() != null && !r.getDepartment().isBlank())
+                    ? r.getDepartment().trim()
+                    : (r.getEmployee() != null && r.getEmployee().getDepartment() != null && !r.getEmployee().getDepartment().isBlank()
+                        ? r.getEmployee().getDepartment().trim()
+                        : "General");
 
             distinctTravelers.add(empId);
 
@@ -323,10 +306,14 @@ public class TravelSpendService {
         List<MonthlySpendTrend> monthList = monthTripCountMap.keySet().stream()
                 .sorted()
                 .map(monthKey -> {
-                    LocalDate sample = LocalDate.parse(monthKey + "-01");
+                    String monthLabel = monthKey;
+                    try {
+                        LocalDate sample = LocalDate.parse(monthKey + "-01");
+                        monthLabel = sample.format(MONTH_LABEL_FORMAT);
+                    } catch (Exception ignored) {}
                     return new MonthlySpendTrend(
                             monthKey,
-                            sample.format(MONTH_LABEL_FORMAT),
+                            monthLabel,
                             monthSpendMap.getOrDefault(monthKey, BigDecimal.ZERO),
                             monthTripCountMap.getOrDefault(monthKey, 0L),
                             monthTravelersMap.getOrDefault(monthKey, Collections.emptySet()).size()
@@ -362,11 +349,26 @@ public class TravelSpendService {
      */
     public List<EmployeeSpendSummary> getEmployeeSpendAnalysis(User currentUser, SpendFilter filter) {
         List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+        return buildEmployeeSpendAnalysis(records);
+    }
 
+    public List<EmployeeSpendSummary> buildEmployeeSpendAnalysis(List<ImportedTravelRecord> records) {
         Map<String, List<ImportedTravelRecord>> byEmployee = records.stream()
-                .collect(Collectors.groupingBy(r -> r.getRawEmployeeIdentifier() != null && !r.getRawEmployeeIdentifier().isBlank()
-                        ? r.getRawEmployeeIdentifier()
-                        : (r.getRawEmployeeName() != null ? r.getRawEmployeeName() : "UNKNOWN")));
+                .collect(Collectors.groupingBy(r -> {
+                    if (r.getRawEmployeeIdentifier() != null && !r.getRawEmployeeIdentifier().isBlank()) {
+                        return r.getRawEmployeeIdentifier().trim();
+                    }
+                    if (r.getEmployee() != null && r.getEmployee().getEmployeeId() != null && !r.getEmployee().getEmployeeId().isBlank()) {
+                        return r.getEmployee().getEmployeeId().trim();
+                    }
+                    if (r.getRawEmployeeName() != null && !r.getRawEmployeeName().isBlank() && !r.getRawEmployeeName().equals("—")) {
+                        return r.getRawEmployeeName().trim();
+                    }
+                    if (r.getEmployee() != null && r.getEmployee().getName() != null && !r.getEmployee().getName().isBlank()) {
+                        return r.getEmployee().getName().trim();
+                    }
+                    return "UNKNOWN";
+                }));
 
         List<EmployeeSpendSummary> result = new ArrayList<>();
 
@@ -375,13 +377,29 @@ public class TravelSpendService {
             List<ImportedTravelRecord> empRecords = entry.getValue();
 
             String name = empRecords.stream()
-                    .map(ImportedTravelRecord::getRawEmployeeName)
+                    .map(r -> {
+                        if (r.getRawEmployeeName() != null && !r.getRawEmployeeName().isBlank() && !r.getRawEmployeeName().equals("—")) {
+                            return r.getRawEmployeeName().trim();
+                        }
+                        if (r.getEmployee() != null && r.getEmployee().getName() != null && !r.getEmployee().getName().isBlank()) {
+                            return r.getEmployee().getName().trim();
+                        }
+                        return null;
+                    })
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElse(empId);
 
             String dept = empRecords.stream()
-                    .map(ImportedTravelRecord::getDepartment)
+                    .map(r -> {
+                        if (r.getDepartment() != null && !r.getDepartment().isBlank()) {
+                            return r.getDepartment().trim();
+                        }
+                        if (r.getEmployee() != null && r.getEmployee().getDepartment() != null && !r.getEmployee().getDepartment().isBlank()) {
+                            return r.getEmployee().getDepartment().trim();
+                        }
+                        return null;
+                    })
                     .filter(Objects::nonNull)
                     .findFirst()
                     .orElse("General");
@@ -450,7 +468,10 @@ public class TravelSpendService {
      */
     public List<DepartmentSpendSummary> getDepartmentSpendAnalysis(User currentUser, SpendFilter filter) {
         List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+        return buildDepartmentSpendAnalysis(records);
+    }
 
+    public List<DepartmentSpendSummary> buildDepartmentSpendAnalysis(List<ImportedTravelRecord> records) {
         BigDecimal companyTotalSpend = records.stream()
                 .map(ImportedTravelRecord::getCost)
                 .filter(Objects::nonNull)
@@ -506,7 +527,10 @@ public class TravelSpendService {
      */
     public DestinationAnalysis getDestinationAnalysis(User currentUser, SpendFilter filter) {
         List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+        return buildDestinationAnalysis(records);
+    }
 
+    public DestinationAnalysis buildDestinationAnalysis(List<ImportedTravelRecord> records) {
         // Top destinations
         Map<String, List<ImportedTravelRecord>> byDest = records.stream()
                 .filter(r -> r.getToLocation() != null && !r.getToLocation().isBlank())
@@ -582,7 +606,10 @@ public class TravelSpendService {
      */
     public List<VendorSpendSummary> getVendorAnalysis(User currentUser, SpendFilter filter) {
         List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+        return buildVendorAnalysis(records);
+    }
 
+    public List<VendorSpendSummary> buildVendorAnalysis(List<ImportedTravelRecord> records) {
         BigDecimal companyTotalSpend = records.stream()
                 .map(ImportedTravelRecord::getCost)
                 .filter(Objects::nonNull)
@@ -635,24 +662,63 @@ public class TravelSpendService {
     }
 
     /**
+     * Combined Spend Intelligence: Computes overview, employees, departments, destinations,
+     * and vendors from a single database query.
+     */
+    public CombinedSpendIntelligence getCombinedIntelligence(User currentUser, SpendFilter filter) {
+        ResolvedDates dates = resolveDates(filter);
+        List<ImportedTravelRecord> records = getFilteredRecords(currentUser, filter);
+
+        ExecutiveSpendOverview overview = buildExecutiveOverview(records, dates);
+        List<EmployeeSpendSummary> employees = buildEmployeeSpendAnalysis(records);
+        List<DepartmentSpendSummary> departments = buildDepartmentSpendAnalysis(records);
+        DestinationAnalysis destinations = buildDestinationAnalysis(records);
+        List<VendorSpendSummary> vendors = buildVendorAnalysis(records);
+
+        return new CombinedSpendIntelligence(overview, employees, departments, destinations, vendors);
+    }
+
+    /**
      * Employee Detailed History: Lifetime travel record ledger for an individual employee.
      */
     public EmployeeDetailedHistory getEmployeeDetailedHistory(User currentUser, String employeeIdentifier) {
         Company company = getRequiredCompany(currentUser);
-        List<ImportedTravelRecord> records = recordRepository.findByCompanyIdAndImported(company.getId(), true).stream()
-                .filter(r -> (r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().equalsIgnoreCase(employeeIdentifier))
-                        || (r.getEmployee() != null && r.getEmployee().getEmployeeId() != null && r.getEmployee().getEmployeeId().equalsIgnoreCase(employeeIdentifier)))
-                .sorted(Comparator.comparing(ImportedTravelRecord::getTravelDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                        .thenComparing(ImportedTravelRecord::getId, Comparator.nullsLast(Comparator.naturalOrder())))
-                .toList();
+        String trimmedIdentifier = employeeIdentifier != null ? employeeIdentifier.trim() : "";
+        List<ImportedTravelRecord> records = recordRepository.findByCompanyIdAndEmployeeIdentifier(company.getId(), trimmedIdentifier);
+
+        if (records.isEmpty()) {
+            // Resilient fallback: search by identifier/name across company imported records
+            records = recordRepository.findFilteredForSpendAnalysis(
+                    company.getId(), null, null, null, null, null, null, trimmedIdentifier
+            );
+        }
 
         if (records.isEmpty()) {
             throw new IllegalArgumentException("No travel history found for employee identifier: " + employeeIdentifier);
         }
 
         ImportedTravelRecord first = records.get(0);
-        String name = first.getRawEmployeeName() != null ? first.getRawEmployeeName() : employeeIdentifier;
-        String dept = records.stream().map(ImportedTravelRecord::getDepartment).filter(Objects::nonNull).findFirst().orElse("General");
+        String name = (first.getRawEmployeeName() != null && !first.getRawEmployeeName().isBlank() && !first.getRawEmployeeName().equals("—"))
+                ? first.getRawEmployeeName().trim()
+                : (first.getEmployee() != null && first.getEmployee().getName() != null && !first.getEmployee().getName().isBlank()
+                    ? first.getEmployee().getName().trim()
+                    : trimmedIdentifier);
+
+        String dept = records.stream()
+                .map(r -> {
+                    if (r.getDepartment() != null && !r.getDepartment().isBlank()) return r.getDepartment().trim();
+                    if (r.getEmployee() != null && r.getEmployee().getDepartment() != null && !r.getEmployee().getDepartment().isBlank()) return r.getEmployee().getDepartment().trim();
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("General");
+
+        String resolvedIdentifier = (first.getRawEmployeeIdentifier() != null && !first.getRawEmployeeIdentifier().isBlank())
+                ? first.getRawEmployeeIdentifier().trim()
+                : (first.getEmployee() != null && first.getEmployee().getEmployeeId() != null && !first.getEmployee().getEmployeeId().isBlank()
+                    ? first.getEmployee().getEmployeeId().trim()
+                    : trimmedIdentifier);
 
         long tripCount = records.size();
         BigDecimal lifetimeSpend = records.stream()
@@ -692,10 +758,14 @@ public class TravelSpendService {
         }
 
         List<MonthlySpendTrend> monthlyTrend = monthTrips.keySet().stream().sorted().map(key -> {
-            LocalDate sample = LocalDate.parse(key + "-01");
+            String monthLabel = key;
+            try {
+                LocalDate sample = LocalDate.parse(key + "-01");
+                monthLabel = sample.format(MONTH_LABEL_FORMAT);
+            } catch (Exception ignored) {}
             return new MonthlySpendTrend(
                     key,
-                    sample.format(MONTH_LABEL_FORMAT),
+                    monthLabel,
                     monthSpend.getOrDefault(key, BigDecimal.ZERO),
                     monthTrips.getOrDefault(key, 0L),
                     1L
@@ -707,7 +777,7 @@ public class TravelSpendService {
                 .toList();
 
         return new EmployeeDetailedHistory(
-                employeeIdentifier,
+                resolvedIdentifier,
                 name,
                 dept,
                 lifetimeSpend,
@@ -722,28 +792,16 @@ public class TravelSpendService {
     }
 
     /**
-     * Distinct departments and providers for dropdown filter options.
+     * Distinct departments and providers for dropdown filter options via indexed DB queries.
      */
     public List<String> getFilterDepartments(User currentUser) {
         Company company = getRequiredCompany(currentUser);
-        return recordRepository.findByCompanyIdAndImported(company.getId(), true).stream()
-                .map(ImportedTravelRecord::getDepartment)
-                .filter(d -> d != null && !d.isBlank())
-                .map(String::trim)
-                .distinct()
-                .sorted()
-                .toList();
+        return recordRepository.findDistinctDepartmentsByCompanyId(company.getId());
     }
 
     public List<String> getFilterProviders(User currentUser) {
         Company company = getRequiredCompany(currentUser);
-        return recordRepository.findByCompanyIdAndImported(company.getId(), true).stream()
-                .map(ImportedTravelRecord::getProvider)
-                .filter(p -> p != null && !p.isBlank())
-                .map(String::trim)
-                .distinct()
-                .sorted()
-                .toList();
+        return recordRepository.findDistinctProvidersByCompanyId(company.getId());
     }
 
     /**

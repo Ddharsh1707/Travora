@@ -17,3 +17,4 @@ CREATE INDEX IF NOT EXISTS idx_imported_records_provider
 
 CREATE INDEX IF NOT EXISTS idx_imported_records_locations 
     ON imported_travel_records(company_id, imported, to_location, from_location);
+

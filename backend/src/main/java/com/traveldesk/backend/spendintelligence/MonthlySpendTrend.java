@@ -9,3 +9,4 @@ public record MonthlySpendTrend(
         long tripCount,
         long travelerCount
 ) {}
+

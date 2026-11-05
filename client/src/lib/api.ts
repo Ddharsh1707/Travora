@@ -1475,6 +1475,14 @@ export interface EmployeeDetailedHistory {
   monthlyTrend: MonthlySpendTrend[];
 }
 
+export interface CombinedSpendIntelligence {
+  overview: ExecutiveSpendOverview;
+  employees: EmployeeSpendSummary[];
+  departments: DepartmentSpendSummary[];
+  destinations: DestinationAnalysis;
+  vendors: VendorSpendSummary[];
+}
+
 function buildSpendQuery(params?: SpendFilterParams): string {
   if (!params) return "";
   const q = new URLSearchParams();
@@ -1492,6 +1500,10 @@ function buildSpendQuery(params?: SpendFilterParams): string {
 }
 
 export const spendReportsApi = {
+  getCombined: async (params?: SpendFilterParams): Promise<CombinedSpendIntelligence> => {
+    return await apiRequest<CombinedSpendIntelligence>(`/api/reports/spend/combined${buildSpendQuery(params)}`);
+  },
+
   getOverview: async (params?: SpendFilterParams): Promise<ExecutiveSpendOverview> => {
     return await apiRequest<ExecutiveSpendOverview>(`/api/reports/spend/overview${buildSpendQuery(params)}`);
   },

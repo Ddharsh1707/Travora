@@ -27,3 +27,4 @@ public record DestinationAnalysis(
             BigDecimal avgCost
     ) {}
 }
+

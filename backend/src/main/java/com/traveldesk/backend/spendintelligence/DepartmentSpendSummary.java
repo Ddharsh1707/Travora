@@ -10,3 +10,4 @@ public record DepartmentSpendSummary(
         BigDecimal avgSpendPerEmployee,
         double shareOfTotalSpend
 ) {}
+

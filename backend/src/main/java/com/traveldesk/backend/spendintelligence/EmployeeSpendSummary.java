@@ -16,3 +16,4 @@ public record EmployeeSpendSummary(
         long domesticTrips,
         long internationalTrips
 ) {}
+
