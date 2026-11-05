@@ -3741,14 +3741,64 @@ function Approvals({ history = false }: { history?: boolean }) {
   return (
     <div className="page-stack animate-page">
       <PageTitle meta={pageMeta[history ? "/approver/history" : "/approver"]} />
-      <div className="summary-strip">
-        <div>
-          <span className="card-kicker">{history ? "DECISION LOG" : "NEEDS YOUR REVIEW"}</span>
-          <strong>{String(rows.length).padStart(2, "0")}</strong>
-          <span>{history ? "decisions recorded" : "requests waiting"}</span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E131F] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#14B8A6] block mb-0.5">
+              {history ? "DECISION ARCHIVE" : "NEEDS YOUR REVIEW"}
+            </span>
+            <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
+              {String(rows.length).padStart(2, "0")}
+            </div>
+            <span className="text-[11px] text-slate-500">
+              {history ? "decisions recorded" : "requests awaiting action"}
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+            <FileCheck2 size={20} />
+          </div>
         </div>
-        <div className="strip-icon">
-          <FileCheck2 size={22} />
+
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E131F] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+              DECISION SLA TARGET
+            </span>
+            <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
+              &lt; 24h
+            </div>
+            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Fast-Track Enabled
+            </span>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+            <ShieldCheck size={20} />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E131F] shadow-xs flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+              WORKFLOW MODE
+            </span>
+            <div className="text-sm font-bold text-slate-900 dark:text-white mt-1">
+              {history ? "Audit Log View" : "Active Review Desk"}
+            </div>
+            <div className="mt-1">
+              {history ? (
+                <Link href="/approver" className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
+                  Switch to Pending Queue <ArrowUpRight size={12} />
+                </Link>
+              ) : (
+                <Link href="/approver/history" className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
+                  View Decision History <ArrowUpRight size={12} />
+                </Link>
+              )}
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <Clock3 size={20} />
+          </div>
         </div>
       </div>
 
@@ -3781,6 +3831,7 @@ function Approvals({ history = false }: { history?: boolean }) {
           <div className="approval-list">
             {rows.map((request) => {
               const emp = request.employee || { name: request.passenger || "Employee", employeeId: "EMP", department: "General Operations", designation: "Employee" };
+              const urgency = getDepartureUrgency(request);
               return (
                 <div className="approval-item approval-item-rich" key={request.id}>
                   <div className="approval-identity">
@@ -3800,6 +3851,14 @@ function Approvals({ history = false }: { history?: boolean }) {
                   <div className="approval-route">
                     <strong>{request.from} → {request.to}</strong>
                     <span>{request.dates} · {request.tripType}</span>
+                    {urgency.badgeText && (
+                      <div style={{ marginTop: 2 }}>
+                        <span className={urgency.isUrgent ? "urgent-badge-pill" : "meta-chip"} style={{ fontSize: 10 }}>
+                          {urgency.isUrgent && <AlertTriangle size={11} className="shrink-0" />}
+                          <span>{urgency.badgeText}</span>
+                        </span>
+                      </div>
+                    )}
                     {request.reason && (
                       <small style={{ color: "var(--ink-muted)", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
                         "{request.reason}"
@@ -6895,13 +6954,33 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
 
       <section className="admin-hero">
         <div>
-          <span className="card-kicker">ORGANIZATION VIEW</span>
-          <h2>Travel, with the bigger picture in view.</h2>
-          <p>Monitor people, requests and bookings from the authenticated admin workspace.</p>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
+              Mahathi Infra Services Pvt. Ltd.
+            </span>
+            <span className="text-[11px] text-[#94A3B8]">· Tenant Code: MISPL</span>
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> TLS 1.3 Tenant Isolation
+            </span>
+          </div>
+          <h2>Company Administration & Directory Control</h2>
+          <p>Oversee enterprise users, verify role permissions, manage multi-tenant mobility policies, and inspect organizational travel records.</p>
+          <div className="flex flex-wrap items-center gap-2.5 mt-3.5">
+            <Link href="/admin/users" className="button button-ghost button-small">
+              <UsersRound size={13} /> User & Role Management
+            </Link>
+            <Link href="/admin/settings" className="button button-ghost button-small">
+              <SlidersHorizontal size={13} /> Travel Policy Controls
+            </Link>
+            <Link href="/admin/spend-reports" className="button button-primary button-small">
+              <BarChart3 size={13} /> Spend Intelligence BI
+            </Link>
+          </div>
         </div>
-        <div className="admin-orbit">
-          <ShieldCheck size={22} />
-          <span>Policy-aware workspace</span>
+        <div className="admin-orbit hidden sm:flex flex-col items-center justify-center p-3 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md">
+          <ShieldCheck size={24} className="text-[#2DD4BF] mb-1" />
+          <span className="text-[10.5px] font-bold text-white uppercase tracking-wider">RBAC SECURED</span>
+          <small className="text-[9.5px] text-[#94A3B8]">Audit Trail Active</small>
         </div>
       </section>
 
