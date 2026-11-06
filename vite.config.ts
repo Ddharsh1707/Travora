@@ -203,7 +203,37 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+/** Development-only plugins never reach a production build. */
+function devOnly(p: Plugin | Plugin[]): Plugin[] {
+  return (Array.isArray(p) ? p : [p]).map((x) => ({ ...x, apply: "serve" as const }));
+}
+
+/**
+ * The debug collector script lives in client/public so the dev server can serve
+ * it; it is removed from the production output so it is never deployed.
+ */
+function dropDevFilesFromBuild(): Plugin {
+  return {
+    name: "drop-dev-files-from-build",
+    apply: "build",
+    closeBundle() {
+      fs.rmSync(path.resolve(import.meta.dirname, "dist/public/__manus__"), { recursive: true, force: true });
+    },
+  };
+}
+
+// Production gets only React and Tailwind. The editor runtime (a large inline
+// script that listens for postMessage), the browser log collector, the source
+// location attributes and the storage proxy are for local development only.
+const plugins = [
+  react(),
+  tailwindcss(),
+  ...devOnly(jsxLocPlugin() as Plugin),
+  ...devOnly(vitePluginManusRuntime() as Plugin | Plugin[]),
+  ...devOnly(vitePluginManusDebugCollector()),
+  ...devOnly(vitePluginStorageProxy()),
+  dropDevFilesFromBuild(),
+];
 
 export default defineConfig({
   plugins,

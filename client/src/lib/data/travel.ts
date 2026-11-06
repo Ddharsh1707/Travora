@@ -243,6 +243,6 @@ export async function decideRequest(id: string, decision: "approved" | "rejected
   if (error) throw friendlyError(error, "Could not record the decision.");
 }
 
-export async function recordReportGenerated(report: "employee_travel_history" | "travel_search", employeeId?: string): Promise<void> {
+export async function recordReportGenerated(report: "employee_travel_history" | "travel_search" | "travel_report", employeeId?: string): Promise<void> {
   await getSupabase().rpc("record_report_generated", { p_report: report, p_employee: employeeId ?? null });
 }

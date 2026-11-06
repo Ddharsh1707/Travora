@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
+import { openAttachment } from "./lib/safeHtml";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -587,7 +588,7 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         >
           {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <NotificationBell />
+        {!isSupabaseEnabled && <NotificationBell />}
         <div className="topbar-divider" />
         <Link href="/employee/profile" className="topbar-user hover:opacity-90 transition-opacity">
           <div className="avatar avatar-small">{initials}</div>
@@ -2757,11 +2758,7 @@ function GroupManifestModal({
                   className="button button-ghost"
                   style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
                   onClick={() => {
-                    const w = window.open("");
-                    if (w) {
-                      w.document.write(`<iframe src="${currentBooking.attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
-                      w.document.title = currentBooking.attachmentName || "Group Voucher PDF";
-                    }
+                    if (!openAttachment(currentBooking.attachmentData, currentBooking.attachmentName || "Group Voucher PDF")) toast.error("This attachment cannot be previewed. Allow pop-ups, or upload it again as a PDF or image.");
                   }}
                 >
                   <Eye size={13} /> View PDF
@@ -3664,11 +3661,7 @@ function BulkBookingDialog({
                       className="button button-ghost"
                       style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
                       onClick={() => {
-                        const w = window.open("");
-                        if (w) {
-                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
-                          w.document.title = attachmentName || "Attachment Preview";
-                        }
+                        if (!openAttachment(attachmentData, attachmentName || "Attachment Preview")) toast.error("This attachment cannot be previewed. Allow pop-ups, or upload it again as a PDF or image.");
                       }}
                       title="Preview PDF in new window"
                     >
@@ -4140,11 +4133,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
                   className="button button-ghost"
                   style={{ padding: "4px 10px", fontSize: 11, gap: 5 }}
                   onClick={() => {
-                    const w = window.open("");
-                    if (w) {
-                      w.document.write(`<iframe src="${booking.attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
-                      w.document.title = booking.attachmentName || "Ticket Document Preview";
-                    }
+                    if (!openAttachment(booking.attachmentData, booking.attachmentName || "Ticket Document Preview")) toast.error("This attachment cannot be previewed. Allow pop-ups, or upload it again as a PDF or image.");
                   }}
                 >
                   <Eye size={13} /> View PDF
@@ -5714,11 +5703,7 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
                       className="button button-ghost"
                       style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
                       onClick={() => {
-                        const w = window.open("");
-                        if (w) {
-                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
-                          w.document.title = attachmentName || "Ticket Document Preview";
-                        }
+                        if (!openAttachment(attachmentData, attachmentName || "Ticket Document Preview")) toast.error("This attachment cannot be previewed. Allow pop-ups, or upload it again as a PDF or image.");
                       }}
                       title="Preview document in new window"
                     >
@@ -5983,11 +5968,7 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
                       className="button button-ghost"
                       style={{ padding: "4px 8px", fontSize: 11, gap: 4 }}
                       onClick={() => {
-                        const w = window.open("");
-                        if (w) {
-                          w.document.write(`<iframe src="${attachmentData}" style="width:100vw; height:100vh; border:none;" />`);
-                          w.document.title = attachmentName || "Ticket Document Preview";
-                        }
+                        if (!openAttachment(attachmentData, attachmentName || "Ticket Document Preview")) toast.error("This attachment cannot be previewed. Allow pop-ups, or upload it again as a PDF or image.");
                       }}
                       title="Preview document in new window"
                     >
@@ -7614,12 +7595,12 @@ function AppRouter() {
     PLATFORM_ADMIN: "/admin",
   };
   if (isSupabaseEnabled) {
-    roleRoots.EMPLOYEE = "/travel/my";
-    roleRoots.APPROVER = "/travel/approvals";
-    roleRoots.TRAVEL_DESK = "/travel/search";
-    roleRoots.ADMIN = "/travel/search";
-    roleRoots.COMPANY_ADMIN = "/travel/search";
-    roleRoots.PLATFORM_ADMIN = "/travel/search";
+    roleRoots.EMPLOYEE = "/travel/overview";
+    roleRoots.APPROVER = "/travel/overview";
+    roleRoots.TRAVEL_DESK = "/travel/overview";
+    roleRoots.ADMIN = "/travel/overview";
+    roleRoots.COMPANY_ADMIN = "/travel/overview";
+    roleRoots.PLATFORM_ADMIN = "/travel/overview";
   }
   const path = location;
   const adminPaths = [
