@@ -173,8 +173,12 @@ export async function supabaseSignUp(input: SignUpInput): Promise<{ needsConfirm
     if (msg.includes("rate limit") || error.status === 429) {
       throw new Error("Too many attempts right now. Please wait a few minutes and try again.");
     }
+    if (msg.includes("sending") && msg.includes("email")) {
+      throw new Error("Your account was created, but the confirmation email could not be sent. The site's email settings need attention (Supabase > Authentication > Emails).");
+    }
     if (msg.includes("password")) throw new Error(error.message);
-    throw new Error("Could not create your account. Please try again.");
+    // Show Supabase's own reason so setup problems are easy to spot.
+    throw new Error(`Could not create your account: ${error.message}`);
   }
   // Email confirmation switched off in Supabase: the user is signed in already.
   if (data.session) return { needsConfirmation: false, user: await loadMyProfile() };
