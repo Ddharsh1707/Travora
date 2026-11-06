@@ -40,19 +40,19 @@ public class ImportBatch {
     private String status = "PREVIEW"; // PREVIEW, IMPORTING, COMPLETED, FAILED, EXPIRED
 
     @Column(name = "total_rows", nullable = false)
-    private int totalRows = 0;
+    private Integer totalRows = 0;
 
     @Column(name = "valid_rows", nullable = false)
-    private int validRows = 0;
+    private Integer validRows = 0;
 
     @Column(name = "imported_rows", nullable = false)
-    private int importedRows = 0;
+    private Integer importedRows = 0;
 
     @Column(name = "skipped_rows", nullable = false)
-    private int skippedRows = 0;
+    private Integer skippedRows = 0;
 
     @Column(name = "error_rows", nullable = false)
-    private int errorRows = 0;
+    private Integer errorRows = 0;
 
     @Column(name = "column_mapping", columnDefinition = "TEXT")
     private String columnMapping; // JSON string
@@ -107,20 +107,20 @@ public class ImportBatch {
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 
-    public int getTotalRows() { return totalRows; }
-    public void setTotalRows(int totalRows) { this.totalRows = totalRows; }
+    public Integer getTotalRows() { return totalRows != null ? totalRows : 0; }
+    public void setTotalRows(Integer totalRows) { this.totalRows = totalRows != null ? totalRows : 0; }
 
-    public int getValidRows() { return validRows; }
-    public void setValidRows(int validRows) { this.validRows = validRows; }
+    public Integer getValidRows() { return validRows != null ? validRows : 0; }
+    public void setValidRows(Integer validRows) { this.validRows = validRows != null ? validRows : 0; }
 
-    public int getImportedRows() { return importedRows; }
-    public void setImportedRows(int importedRows) { this.importedRows = importedRows; }
+    public Integer getImportedRows() { return importedRows != null ? importedRows : 0; }
+    public void setImportedRows(Integer importedRows) { this.importedRows = importedRows != null ? importedRows : 0; }
 
-    public int getSkippedRows() { return skippedRows; }
-    public void setSkippedRows(int skippedRows) { this.skippedRows = skippedRows; }
+    public Integer getSkippedRows() { return skippedRows != null ? skippedRows : 0; }
+    public void setSkippedRows(Integer skippedRows) { this.skippedRows = skippedRows != null ? skippedRows : 0; }
 
-    public int getErrorRows() { return errorRows; }
-    public void setErrorRows(int errorRows) { this.errorRows = errorRows; }
+    public Integer getErrorRows() { return errorRows != null ? errorRows : 0; }
+    public void setErrorRows(Integer errorRows) { this.errorRows = errorRows != null ? errorRows : 0; }
 
     public String getColumnMapping() { return columnMapping; }
     public void setColumnMapping(String columnMapping) { this.columnMapping = columnMapping; }

@@ -21,7 +21,7 @@ public class Notification {
     @Enumerated(EnumType.STRING) @Column(nullable = false) private NotificationType type;
     private Long travelRequestId;
     private Long bookingId;
-    @Column(name = "read", nullable = false) private boolean read = false;
+    @Column(name = "read", nullable = false) private Boolean read = false;
     @Column(nullable = false) private LocalDateTime createdAt = LocalDateTime.now();
     public Long getId() { return id; }
     public Company getCompany() { return company; }
@@ -38,8 +38,9 @@ public class Notification {
     public void setTravelRequestId(Long travelRequestId) { this.travelRequestId = travelRequestId; }
     public Long getBookingId() { return bookingId; }
     public void setBookingId(Long bookingId) { this.bookingId = bookingId; }
-    public boolean isRead() { return read; }
-    public void setRead(boolean read) { this.read = read; }
+    public Boolean isRead() { return Boolean.TRUE.equals(read); }
+    public Boolean getRead() { return Boolean.TRUE.equals(read); }
+    public void setRead(Boolean read) { this.read = read != null ? read : false; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

@@ -38,7 +38,7 @@ public class AIConversation {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     @Column(name = "is_deleted", nullable = false)
-    private boolean isDeleted = false;
+    private Boolean isDeleted = false;
 
     public AIConversation() {
     }
@@ -120,11 +120,15 @@ public class AIConversation {
         this.updatedAt = updatedAt;
     }
 
-    public boolean isDeleted() {
-        return isDeleted;
+    public Boolean isDeleted() {
+        return Boolean.TRUE.equals(isDeleted);
     }
 
-    public void setDeleted(boolean deleted) {
-        isDeleted = deleted;
+    public Boolean getIsDeleted() {
+        return Boolean.TRUE.equals(isDeleted);
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.isDeleted = deleted != null ? deleted : false;
     }
 }

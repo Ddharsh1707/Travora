@@ -34,7 +34,7 @@ public class Employee {
     private String contactNumber;
 
     @Column(nullable = false)
-    private boolean active = true;
+    private Boolean active = true;
 
     @Column(name = "verification_status")
     private String verificationStatus = "VERIFIED"; // VERIFIED, IMPORTED_UNVERIFIED
@@ -135,12 +135,12 @@ public class Employee {
         this.contactNumber = contactNumber;
     }
 
-    public boolean isActive() {
-        return active;
+    public Boolean isActive() {
+        return Boolean.TRUE.equals(active);
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void setActive(Boolean active) {
+        this.active = active != null ? active : true;
     }
 
     public String getVerificationStatus() {

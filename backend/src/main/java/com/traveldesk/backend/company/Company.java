@@ -20,7 +20,7 @@ public class Company {
     private String domain;
 
     @Column(nullable = false)
-    private boolean active = true;
+    private Boolean active = true;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -67,12 +67,12 @@ public class Company {
         this.domain = domain;
     }
 
-    public boolean isActive() {
-        return active;
+    public Boolean isActive() {
+        return Boolean.TRUE.equals(active);
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void setActive(Boolean active) {
+        this.active = active != null ? active : true;
     }
 
     public LocalDateTime getCreatedAt() {

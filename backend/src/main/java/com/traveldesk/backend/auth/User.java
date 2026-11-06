@@ -28,7 +28,7 @@ public class User {
     private Role role;
 
     @Column(nullable = false)
-    private boolean active = true;
+    private Boolean active = true;
 
     private String employeeId;
 
@@ -81,12 +81,12 @@ public class User {
         this.role = role;
     }
 
-    public boolean isActive() {
-        return active;
+    public Boolean isActive() {
+        return Boolean.TRUE.equals(active);
     }
 
-    public void setActive(boolean active) {
-        this.active = active;
+    public void setActive(Boolean active) {
+        this.active = active != null ? active : true;
     }
 
     public String getEmployeeId() {

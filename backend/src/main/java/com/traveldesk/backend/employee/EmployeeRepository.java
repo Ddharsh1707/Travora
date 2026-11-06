@@ -26,12 +26,12 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
     Page<Employee> findByCompanyIdAndEmployeeId(Long companyId, String employeeId, Pageable pageable);
 
     @Query("SELECT e FROM Employee e WHERE e.company.id = :companyId " +
-           "AND (:active IS NULL OR e.active = :active) " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(COALESCE(e.email, '')) LIKE LOWER(CONCAT('%', :search, '%')))")
+           "AND (cast(:active as Boolean) IS NULL OR e.active = :active) " +
+           "AND (cast(:search as String) IS NULL OR cast(:search as String) = '' OR " +
+           "LOWER(e.name) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(e.department) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(COALESCE(e.email, '')) LIKE LOWER(CONCAT('%', cast(:search as String), '%')))")
     Page<Employee> searchEmployees(
             @Param("companyId") Long companyId,
             @Param("active") Boolean active,
@@ -39,13 +39,13 @@ public interface EmployeeRepository extends JpaRepository<Employee, Long> {
             Pageable pageable
     );
 
-    @Query("SELECT e FROM Employee e WHERE (:companyId IS NULL OR e.company.id = :companyId) " +
-           "AND (:active IS NULL OR e.active = :active) " +
-           "AND (:search IS NULL OR :search = '' OR " +
-           "LOWER(e.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(e.department) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(COALESCE(e.email, '')) LIKE LOWER(CONCAT('%', :search, '%')))")
+    @Query("SELECT e FROM Employee e WHERE (cast(:companyId as Long) IS NULL OR e.company.id = :companyId) " +
+           "AND (cast(:active as Boolean) IS NULL OR e.active = :active) " +
+           "AND (cast(:search as String) IS NULL OR cast(:search as String) = '' OR " +
+           "LOWER(e.name) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(e.employeeId) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(e.department) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) OR " +
+           "LOWER(COALESCE(e.email, '')) LIKE LOWER(CONCAT('%', cast(:search as String), '%')))")
     Page<Employee> searchEmployeesPlatformAdmin(
             @Param("companyId") Long companyId,
             @Param("active") Boolean active,
