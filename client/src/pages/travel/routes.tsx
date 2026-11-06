@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ClipboardCheck, FileSpreadsheet, FileText, History, Plane, ScanLine, Search, UsersRound } from "lucide-react";
+import { BarChart3, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, ScanLine, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -10,6 +10,8 @@ import ApprovalQueue from "./ApprovalQueue";
 import ImportTravel from "./ImportTravel";
 import Documents from "./Documents";
 import BulkBookings from "./BulkBookings";
+import Reports from "./Reports";
+import Overview from "./Overview";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -24,6 +26,7 @@ const OVERSIGHT: Role[] = ["APPROVER", "TRAVEL_DESK", "ADMIN"];
 type TravelRoute = { href: string; label: string; icon: ReactNode; roles: Role[] };
 
 const ROUTES: TravelRoute[] = [
+  { href: "/travel/overview", label: "Overview", icon: <LayoutDashboard size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/requests", label: "My requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER", "ADMIN"] },
@@ -31,10 +34,13 @@ const ROUTES: TravelRoute[] = [
   { href: "/travel/employees", label: "Employees", icon: <UsersRound size={16} />, roles: OVERSIGHT },
   { href: "/travel/import", label: "Excel / CSV import", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: OVERSIGHT },
+  { href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
 ];
 
 export const travelPageMeta: Record<string, { eyebrow: string; title: string; description?: string }> = {
+  "/travel/overview": { eyebrow: "Travel", title: "Overview" },
+  "/travel/reports": { eyebrow: "Travel", title: "Reports" },
   "/travel/my": { eyebrow: "Travel", title: "My travel history" },
   "/travel/requests": { eyebrow: "Travel", title: "My requests" },
   "/travel/approvals": { eyebrow: "Travel", title: "Approvals" },
@@ -66,6 +72,10 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     return <EmployeeHistory key={employeeMatch[1]} employeeId={employeeMatch[1]} canManage={canManage} showBack />;
   }
   switch (path) {
+    case "/travel/overview":
+      return <Overview role={user.role} name={(user as SupabaseAuthUser).fullName ?? ""} />;
+    case "/travel/reports":
+      return <Reports scopeLabel={canManage ? "everyone" : user.role === "APPROVER" ? "you and your team" : "your own trips"} />;
     case "/travel/my":
       return <EmployeeHistory employeeId={profileId} canManage={false} showBack={false} />;
     case "/travel/requests":

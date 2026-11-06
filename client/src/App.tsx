@@ -7614,12 +7614,12 @@ function AppRouter() {
     PLATFORM_ADMIN: "/admin",
   };
   if (isSupabaseEnabled) {
-    roleRoots.EMPLOYEE = "/travel/my";
-    roleRoots.APPROVER = "/travel/approvals";
-    roleRoots.TRAVEL_DESK = "/travel/search";
-    roleRoots.ADMIN = "/travel/search";
-    roleRoots.COMPANY_ADMIN = "/travel/search";
-    roleRoots.PLATFORM_ADMIN = "/travel/search";
+    roleRoots.EMPLOYEE = "/travel/overview";
+    roleRoots.APPROVER = "/travel/overview";
+    roleRoots.TRAVEL_DESK = "/travel/overview";
+    roleRoots.ADMIN = "/travel/overview";
+    roleRoots.COMPANY_ADMIN = "/travel/overview";
+    roleRoots.PLATFORM_ADMIN = "/travel/overview";
   }
   const path = location;
   const adminPaths = [

@@ -74,3 +74,24 @@ approvers. Nothing to deploy beyond `supabase db push`.
   trip, so the scanner and its privacy rules apply to them too.
 - Tables are read-only to the API; `bulk_save`, `bulk_cancel` and
   `bulk_review` do all writes and are audited.
+
+## Phase 6: reports, dashboard and live updates
+
+Nothing to deploy beyond `supabase db push`. In the Supabase dashboard,
+Realtime must be enabled for the project (it is by default); the migration adds
+`travel_records`, `travel_requests`, `documents` and `bulk_bookings` to the
+`supabase_realtime` publication.
+
+- **Overview** (`/travel/overview`) is the new home page in Supabase mode:
+  next trip and the counts that need the user's attention
+  (`dashboard_counts()`).
+- **Reports** (`/travel/reports`) for every role: spend and trips by month,
+  department, mode, top routes, travellers and providers, with period
+  (financial year, last 12 months, custom), department and mode filters, and a
+  CSV download (audited, formula-injection safe).
+- `travel_report()`, `dashboard_counts()` and the `report_*` views run with the
+  caller's permissions, so an employee's report covers their own trips, an
+  approver's their team, and Travel Desk / Admin everyone.
+- Live updates: pages listen for changes and re-run their own queries.
+  Realtime applies RLS before sending a change, and the change itself is not
+  used for display.

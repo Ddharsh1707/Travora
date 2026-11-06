@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Ban, CheckCircle2, FileUp, Pencil, Plus, UsersRound, X } from "lucide-react";
 import { toast } from "sonner";
+import { useLiveRefresh } from "../../lib/data/reports";
 import { Link } from "wouter";
 import {
   MAX_TRAVELLERS, cancelBulkBooking, getBulkBooking, listBulkBookings, parseEmployeeCodes, reviewBulkBooking, saveBulkBooking,
@@ -35,6 +36,7 @@ export default function BulkBookings({ canManage, canReview }: { canManage: bool
       .catch((err) => { setList([]); setError(err instanceof Error ? err.message : "Could not load bulk bookings."); });
   }, [filter]);
   useEffect(load, [load]);
+  useLiveRefresh(["bulk_bookings"], load);
 
   if (openId) {
     return (

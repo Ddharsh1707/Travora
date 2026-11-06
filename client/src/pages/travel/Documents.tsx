@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Eye, FileUp, ScanLine, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { useLiveRefresh } from "../../lib/data/reports";
 import {
   DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, confirmDocument, deleteDocument, getDocumentUrl, listDocuments, scanDocument, uploadDocument,
   type ConfirmFields, type DocumentType, type Extraction, type ExtractedFields, type FieldFlag, type TravelDocument,
@@ -36,6 +37,7 @@ export default function Documents({ profileId, canManage }: { profileId: string;
       .catch((err) => { setDocs([]); setError(err instanceof Error ? err.message : "Could not load documents."); });
   }, [canManage, profileId, tab]);
   useEffect(load, [load]);
+  useLiveRefresh(["documents"], load);
 
   async function view(doc: TravelDocument) {
     try {
