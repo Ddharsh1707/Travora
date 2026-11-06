@@ -57,10 +57,26 @@ public class DataInitializer {
             EmployeeRepository employeeRepository,
             CompanyRepository companyRepository,
             PasswordEncoder passwordEncoder,
+            javax.sql.DataSource dataSource,
             @Value("${TRAVORA_ADMIN_USERNAME:admin}") String adminUsername,
             @Value("${TRAVORA_ADMIN_PASSWORD:password}") String adminPassword
     ) {
         return args -> {
+            // Sanitize legacy null values in imported travel ledger if table exists
+            if (dataSource != null) {
+                try (var conn = dataSource.getConnection();
+                     var stmt = conn.createStatement()) {
+                    stmt.executeUpdate("UPDATE imported_travel_records SET leg_sequence = 1 WHERE leg_sequence IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET is_credit_note = FALSE WHERE is_credit_note IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET is_zero_fare_transit = FALSE WHERE is_zero_fare_transit IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET travel_category = 'DOMESTIC_FLIGHT' WHERE travel_category IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET original_currency = 'INR' WHERE original_currency IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET source_row_number = 1 WHERE source_row_number IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET imported = FALSE WHERE imported IS NULL");
+                    stmt.executeUpdate("UPDATE imported_travel_records SET net_cost = cost WHERE net_cost IS NULL AND cost IS NOT NULL");
+                } catch (Exception ignored) {}
+            }
+
             // 0. Seed Default Company (MISPL)
             Company defaultCompany = companyRepository.findByCode("MISPL").orElseGet(() -> {
                 Company c = new Company("Mahathi Infra Services Pvt. Ltd.", "MISPL", "mahathiinfra.com");

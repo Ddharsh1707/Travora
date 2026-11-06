@@ -50,7 +50,7 @@ public class DerivedJourney {
     private LocalDate endDate;
 
     @Column(name = "total_legs", nullable = false)
-    private int totalLegs = 1;
+    private Integer totalLegs = 1;
 
     @Column(name = "gross_spend", nullable = false)
     private BigDecimal grossSpend = BigDecimal.ZERO;
@@ -116,8 +116,8 @@ public class DerivedJourney {
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
-    public int getTotalLegs() { return totalLegs; }
-    public void setTotalLegs(int totalLegs) { this.totalLegs = totalLegs; }
+    public int getTotalLegs() { return totalLegs != null ? totalLegs : 1; }
+    public void setTotalLegs(Integer totalLegs) { this.totalLegs = totalLegs != null ? totalLegs : 1; }
 
     public BigDecimal getGrossSpend() { return grossSpend; }
     public void setGrossSpend(BigDecimal grossSpend) { this.grossSpend = grossSpend; }
