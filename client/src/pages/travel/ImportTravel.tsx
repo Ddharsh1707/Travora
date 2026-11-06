@@ -13,14 +13,17 @@ type Step = "upload" | "map" | "preview" | "done";
 
 async function parseFile(file: File, kind: "csv" | "xlsx"): Promise<{ headers: string[]; rows: CellValue[][] }> {
   let all: CellValue[][];
+  const XLSX = await import("xlsx");
   if (kind === "xlsx") {
-    const { default: readXlsxFile } = await import("read-excel-file");
-    all = (await readXlsxFile(file)) as CellValue[][];
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    all = XLSX.utils.sheet_to_json(ws, { header: 1 }) as CellValue[][];
   } else {
-    const Papa = (await import("papaparse")).default;
     const text = await file.text();
-    const result = Papa.parse<string[]>(text, { skipEmptyLines: "greedy" });
-    all = result.data as CellValue[][];
+    const wb = XLSX.read(text, { type: "string" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    all = XLSX.utils.sheet_to_json(ws, { header: 1 }) as CellValue[][];
   }
   const nonBlank = all.filter((r) => Array.isArray(r) && !isBlankRow(r));
   if (nonBlank.length < 2) throw new Error("The file needs a header row and at least one data row.");

@@ -1642,5 +1642,90 @@ export const usersApi = {
   },
 };
 
+// ==========================================================
+// Trapple AI Assistant Client API
+// ==========================================================
+
+export type AIConversationItem = {
+  id: number;
+  title: string;
+  userRole: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+};
+
+export type AIMessageItem = {
+  id: number;
+  conversationId: number;
+  senderType: "USER" | "ASSISTANT" | "SYSTEM" | "TOOL";
+  content: string;
+  structuredData?: any;
+  toolCalls?: any;
+  tokensIn?: number;
+  tokensOut?: number;
+  model?: string;
+  provider?: string;
+  createdAt: string;
+};
+
+export type AIChatResult = {
+  conversationId: number;
+  messageId: number;
+  answerText: string;
+  responseType: string;
+  structuredData?: any;
+  charts?: any[];
+  sources?: string[];
+  reportingPeriod?: string;
+  filtersApplied?: string;
+  calculationBasis?: string;
+  limitations?: string[];
+  requiresConfirmation?: boolean;
+  usageMetadata?: {
+    provider: string;
+    model: string;
+    tokensIn: number;
+    tokensOut: number;
+    totalTokens: number;
+  };
+};
+
+export const aiAssistantApi = {
+  chat: async (message: string, conversationId?: number | null): Promise<AIChatResult> => {
+    return await apiRequest<AIChatResult>("/api/ai/chat", {
+      method: "POST",
+      body: JSON.stringify({ message, conversationId }),
+      timeoutMs: 60000,
+    });
+  },
+  getConversations: async (page = 0, size = 30): Promise<{ content: AIConversationItem[]; totalElements: number; totalPages: number }> => {
+    return await apiRequest<{ content: AIConversationItem[]; totalElements: number; totalPages: number }>(`/api/ai/conversations?page=${page}&size=${size}`);
+  },
+  getMessages: async (conversationId: number): Promise<AIMessageItem[]> => {
+    return await apiRequest<AIMessageItem[]>(`/api/ai/conversations/${conversationId}`);
+  },
+  renameConversation: async (conversationId: number, title: string): Promise<AIConversationItem> => {
+    return await apiRequest<AIConversationItem>(`/api/ai/conversations/${conversationId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ title }),
+    });
+  },
+  deleteConversation: async (conversationId: number): Promise<void> => {
+    await apiRequest<void>(`/api/ai/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+  },
+  sendFeedback: async (messageId: number, rating: "THUMBS_UP" | "THUMBS_DOWN", feedbackText?: string): Promise<void> => {
+    await apiRequest<void>("/api/ai/feedback", {
+      method: "POST",
+      body: JSON.stringify({ messageId, rating, feedbackText }),
+    });
+  },
+  getHealth: async (): Promise<Record<string, any>> => {
+    return await apiRequest<Record<string, any>>("/api/ai/health");
+  },
+};
+
 
 

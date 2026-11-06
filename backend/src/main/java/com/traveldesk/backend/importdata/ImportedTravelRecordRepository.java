@@ -23,6 +23,8 @@ public interface ImportedTravelRecordRepository extends JpaRepository<ImportedTr
 
     List<ImportedTravelRecord> findByCompanyIdAndImported(Long companyId, boolean imported);
 
+    List<ImportedTravelRecord> findByCompanyId(Long companyId);
+
     long countByImportBatchIdAndStatus(Long importBatchId, String status);
 
     void deleteByImportBatchId(Long importBatchId);

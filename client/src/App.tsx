@@ -76,6 +76,7 @@ import { UserManagement } from "./pages/UserManagement";
 import { ActivateAccount } from "./pages/ActivateAccount";
 import { ExcelImport } from "./pages/ExcelImport";
 import { TravelSpendReports } from "./pages/TravelSpendReports";
+import { AIAssistant } from "./pages/AIAssistant";
 import { LandingPage } from "./pages/LandingPage";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
@@ -258,6 +259,10 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/travel-desk/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
   "/approver/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
   "/admin/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
+  "/employee/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Role-aware corporate travel intelligence, policy guidance, and personal travel assistant." },
+  "/approver/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Department spend intelligence, approval queue queries, and budget analytics." },
+  "/travel-desk/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Operations intelligence, route analytics, vendor breakdown, and audit assistant." },
+  "/admin/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Executive travel spend intelligence, anomaly detection, and organization analytics." },
 };
 
 type NavCategory = {
@@ -279,6 +284,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "FINANCE & INSIGHTS",
       items: [
+        { label: "AI Assistant", href: "/employee/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={16} /> },
         { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
         { label: "Profile", href: "/employee/profile", icon: <UserRound size={16} /> },
@@ -299,6 +305,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS & SUPPORT",
       items: [
+        { label: "AI Assistant", href: "/approver/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/approver/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/approver/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
@@ -320,6 +327,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS",
       items: [
+        { label: "AI Assistant", href: "/travel-desk/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/travel-desk/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/travel-desk/spend-reports", icon: <TrendingUp size={16} /> },
       ],
@@ -340,6 +348,7 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS & SYSTEM",
       items: [
+        { label: "AI Assistant", href: "/admin/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/admin/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Settings", href: "/admin/settings", icon: <Settings2 size={16} /> },
@@ -7765,6 +7774,7 @@ function AppRouter() {
   else if (path === "/employee/expenses") page = <ExpensesPage />;
   else if (path === "/employee/profile") page = <ProfilePage user={user} />;
   else if (path === "/employee/approvals") page = <Approvals history />;
+  else if (path === "/employee/ai-assistant" || path === "/approver/ai-assistant" || path === "/travel-desk/ai-assistant" || path === "/admin/ai-assistant") page = <AIAssistant user={user} />;
   else if (path === "/travel-desk/spend-reports" || path === "/approver/spend-reports" || path === "/admin/spend-reports") page = <TravelSpendReports user={user} />;
   else if (path === "/employee/reports" || path === "/approver/reports" || path === "/travel-desk/reports") page = <Reports />;
   else if (path === "/employee/support") page = <Support />;
