@@ -1,5 +1,5 @@
 import type { AuthUser, Role } from "./api";
-import { getSupabase } from "./supabase";
+import { getSupabase, supabaseUrlForDisplay } from "./supabase";
 
 /**
  * Supabase sign-in for the existing UI.
@@ -82,6 +82,11 @@ export async function supabaseSignIn(email: string, password: string): Promise<S
     }
     if (msg.includes("api key")) {
       throw new Error("The site's Supabase key is wrong (Invalid API key). Check VITE_SUPABASE_ANON_KEY in the hosting settings.");
+    }
+    if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed") || error.status === 0) {
+      throw new Error(
+        `Could not reach Supabase at "${supabaseUrlForDisplay}". Check that this exact address opens in your browser (add /auth/v1/health), that the project is not paused, and that VITE_SUPABASE_URL in Amplify is your Project URL (ends in .supabase.co). Redeploy after changing it.`
+      );
     }
     // Anything else is a setup or network problem: show Supabase's reason.
     throw new Error(`Could not sign in: ${error.message}`);
