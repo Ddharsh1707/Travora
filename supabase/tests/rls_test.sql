@@ -7,7 +7,7 @@
 begin;
 
 create schema t;
-grant usage on schema t to authenticated, anon;
+grant usage on schema t to authenticated, anon, service_role;
 
 create function t.ok(cond boolean, label text) returns void language plpgsql as $$
 begin
@@ -38,7 +38,7 @@ end $$;
 create function t.login(uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
-grant execute on all functions in schema t to authenticated, anon;
+grant execute on all functions in schema t to authenticated, anon, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures (as the database owner)
@@ -574,6 +574,43 @@ select t.ok((select bool_and(coalesce(reloptions::text, '') like '%security_invo
              where relname in ('report_spend_monthly', 'report_routes_monthly')), 'reports: views run with caller permissions');
 select t.ok((select prosecdef from pg_proc where proname = 'travel_report') = false
             and (select prosecdef from pg_proc where proname = 'dashboard_counts') = false, 'reports: report functions run with caller permissions');
+
+-- ---------------------------------------------------------------------------
+-- Phase 7: AI assistant
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$select public.ai_record_exchange('10000000-0000-0000-0000-0000000000e1', '50000000-0000-0000-0000-0000000000e1', 'q', 'forged answer', '{}')$$,
+                'assistant: browser cannot record assistant answers');
+select t.throws($$insert into public.ai_messages (conversation_id, role, content) values ('50000000-0000-0000-0000-0000000000e1', 'assistant', 'forged')$$,
+                'assistant: browser still cannot insert messages');
+update public.ai_conversations set title = 'My trips' where id = '50000000-0000-0000-0000-0000000000e1';
+select t.ok((select title from public.ai_conversations where id = '50000000-0000-0000-0000-0000000000e1') = 'My trips', 'assistant: owner can rename a conversation');
+select t.throws($$update public.ai_conversations set user_id = '10000000-0000-0000-0000-0000000000e2' where id = '50000000-0000-0000-0000-0000000000e1'$$,
+                'assistant: conversation owner cannot be changed');
+select t.ok((select count(*) filter (where not ok) from (select public.consume_rate_limit('ai_assistant') as ok from generate_series(1, 51)) s) = 1,
+            'assistant: the 51st question in a day is refused');
+
+set local role service_role;
+select t.throws($$select public.ai_record_exchange('10000000-0000-0000-0000-0000000000e2', '50000000-0000-0000-0000-0000000000e1', 'q', 'a', '{}')$$,
+                'assistant: answers cannot be filed into someone else''s conversation');
+select t.throws($$select public.ai_record_exchange('10000000-0000-0000-0000-0000000000e1', '50000000-0000-0000-0000-0000000000e1', 'q', 'a', '{"drop table"}')$$,
+                'assistant: tool names are checked');
+select public.ai_record_exchange('10000000-0000-0000-0000-0000000000e1', '50000000-0000-0000-0000-0000000000e1',
+  'Where did I travel on 14 October 2026?', 'You flew Chennai to Delhi.', '{get_travel_by_date}');
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok(t.cnt($$select 1 from public.ai_messages where conversation_id = '50000000-0000-0000-0000-0000000000e1'$$) = 2, 'assistant: owner sees the question and answer');
+select t.ok((select tools_used from public.ai_messages where role = 'assistant' and conversation_id = '50000000-0000-0000-0000-0000000000e1') = '{get_travel_by_date}',
+            'assistant: tools used are recorded');
+select t.login('10000000-0000-0000-0000-0000000000e2');
+select t.ok(t.cnt($$select 1 from public.ai_messages$$) = 0, 'assistant: other users cannot read the conversation');
+select t.login('10000000-0000-0000-0000-0000000000a1');
+select t.ok(t.cnt($$select 1 from public.ai_messages$$) = 0, 'assistant: even admins cannot read other people''s chats');
+select t.ok((select count(*) from public.audit_logs where action = 'ai_question') = 1, 'assistant: questions are audited');
+select t.ok(not exists (select 1 from public.audit_logs where action = 'ai_question' and metadata::text ~* '(october|chennai|delhi)'),
+            'assistant: audit log holds no question or answer text');
+reset role;
 
 -- Even the database owner cannot rewrite history.
 select t.throws($$delete from public.audit_logs$$, 'audit logs are append-only for the owner too');

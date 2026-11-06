@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, ScanLine, Search, UsersRound } from "lucide-react";
+import { BarChart3, Bot, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, ScanLine, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -12,6 +12,7 @@ import Documents from "./Documents";
 import BulkBookings from "./BulkBookings";
 import Reports from "./Reports";
 import Overview from "./Overview";
+import Assistant from "./Assistant";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -34,6 +35,7 @@ const ROUTES: TravelRoute[] = [
   { href: "/travel/employees", label: "Employees", icon: <UsersRound size={16} />, roles: OVERSIGHT },
   { href: "/travel/import", label: "Excel / CSV import", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: OVERSIGHT },
+  { href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
   { href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"] },
 ];
@@ -41,6 +43,7 @@ const ROUTES: TravelRoute[] = [
 export const travelPageMeta: Record<string, { eyebrow: string; title: string; description?: string }> = {
   "/travel/overview": { eyebrow: "Travel", title: "Overview" },
   "/travel/reports": { eyebrow: "Travel", title: "Reports" },
+  "/travel/assistant": { eyebrow: "Travel", title: "Ask the assistant" },
   "/travel/my": { eyebrow: "Travel", title: "My travel history" },
   "/travel/requests": { eyebrow: "Travel", title: "My requests" },
   "/travel/approvals": { eyebrow: "Travel", title: "Approvals" },
@@ -76,6 +79,8 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
       return <Overview role={user.role} name={(user as SupabaseAuthUser).fullName ?? ""} />;
     case "/travel/reports":
       return <Reports scopeLabel={canManage ? "everyone" : user.role === "APPROVER" ? "you and your team" : "your own trips"} />;
+    case "/travel/assistant":
+      return <Assistant canSeeOthers={user.role !== "EMPLOYEE"} />;
     case "/travel/my":
       return <EmployeeHistory employeeId={profileId} canManage={false} showBack={false} />;
     case "/travel/requests":

@@ -1,4 +1,4 @@
-# Supabase (Phase 1)
+# Supabase
 
 Database, Row Level Security, private storage and Edge Functions for Trapple.
 The full plan, including which credentials are needed and where they go, is in
@@ -95,3 +95,30 @@ Realtime must be enabled for the project (it is by default); the migration adds
 - Live updates: pages listen for changes and re-run their own queries.
   Realtime applies RLS before sending a change, and the change itself is not
   used for display.
+
+## Phase 7: AI assistant
+
+```bash
+supabase db push
+supabase functions deploy ai-assistant
+# uses the same ANTHROPIC_API_KEY secret as the document scanner (Phase 4)
+```
+
+- **Ask the assistant** (`/travel/assistant`) for every role. Questions such as
+  "who is travelling to Mumbai next week?", "which requests are waiting for my
+  approval?" or "travel spend by department this quarter".
+- The model never writes SQL and never sees a key. It can only ask for one of
+  nine fixed, read-only tools (`supabase/functions/_shared/assistantTools.ts`).
+  Every tool call is checked in code (unknown tools, extra arguments, bad dates
+  and filter characters are refused) and then runs a fixed query **with the
+  user's own token**, so RLS limits the answer exactly as it limits the screens.
+- Results sent to the model are trimmed (no emails, no ticket numbers) and
+  capped at 50 rows per lookup. Tool results are treated as data, not
+  instructions.
+- Conversations belong to one user. The browser can read, rename and delete its
+  own conversations but cannot write messages: the function saves each
+  question and answer through `ai_record_exchange()`, which only the service
+  role may call. This is the function's only service-role call.
+- Rate limit: 50 questions per user per day (`consume_rate_limit`).
+- The audit log records that a question was asked and which tools ran, never
+  the question or the answer.
