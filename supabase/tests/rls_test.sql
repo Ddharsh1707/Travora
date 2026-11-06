@@ -428,6 +428,88 @@ select t.ok((select count(*) from public.audit_logs where action = 'document_con
 select t.ok(not exists (select 1 from public.audit_logs where action = 'document_confirmed' and metadata::text ~ '(TKT777|5400|Pune)'),
             'scanner: audit log holds no booking details');
 
+-- ---------------------------------------------------------------------------
+-- Phase 5: bulk / group bookings
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$select public.bulk_save(null, '{"title":"x","group_reference":"G1","origin":"A","destination":"B","departure_date":"2026-12-10"}', '[{"employee_code":"EMP001"}]')$$,
+                'bulk: employee cannot create a bulk booking');
+select t.throws($$insert into public.bulk_bookings (title, group_reference, origin, destination, departure_date) values ('x','y','a','b','2026-12-10')$$,
+                'bulk: tables are not writable directly');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.throws($$select public.bulk_save(null, '{"title":"x","group_reference":"G1","origin":"A","destination":"B","departure_date":"2026-12-10"}', '[{"employee_code":"EMP001"}]')$$,
+                'bulk: approver cannot create a bulk booking');
+
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10"}', '[]')$$, 'bulk: needs at least one traveller');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10"}', '[{"employee_code":"EMP001"},{"employee_code":"NOPE"}]')$$, 'bulk: unknown employee rejected');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10"}', '[{"employee_code":"EMP001"},{"employee_code":"emp001"}]')$$, 'bulk: same traveller twice rejected');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10"}', '[{"employee_code":"EMP099"}]')$$, 'bulk: deactivated employee rejected');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10","return_date":"2026-12-01"}', '[{"employee_code":"EMP001"}]')$$, 'bulk: return before travel rejected');
+select t.throws($$select public.bulk_save(null, '{"title":"Offsite","group_reference":"G1","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10"}', (select jsonb_agg(jsonb_build_object('employee_code', 'E' || g)) from generate_series(1, 501) g))$$, 'bulk: more than 500 travellers rejected');
+
+create temp table bulk1 as select public.bulk_save(null,
+  '{"title":"Goa offsite","group_reference":"grp-goa-26","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10","return_date":"2026-12-13","booking_type":"Flight","provider":"IndiGo","total_cost":"30000","currency":"INR"}',
+  '[{"employee_code":"EMP001","seat_or_coach":"12A"},{"employee_id":"00000000-0000-0000-0000-0000000000e2","seat_or_coach":"12B"},{"employee_code":"EMP003","amount":"12000","booking_reference":"OWNPNR"}]') as id;
+grant select on bulk1 to authenticated;
+select t.ok(t.cnt($$select 1 from public.bulk_booking_members where bulk_booking_id = (select id from bulk1)$$) = 3, 'bulk: manifest saved');
+select t.ok(t.cnt($$select 1 from public.travel_records where source = 'bulk_booking' and destination = 'Goa'$$) = 3, 'bulk: every traveller gets their own trip');
+select t.ok((select amount from public.travel_records r join public.profiles p on p.id = r.employee_id where p.employee_id = 'EMP003' and r.destination = 'Goa' and r.departure_date = '2026-12-10') = 12000, 'bulk: per-traveller amount kept');
+select t.ok((select amount from public.travel_records r join public.profiles p on p.id = r.employee_id where p.employee_id = 'EMP001' and r.destination = 'Goa' and r.departure_date = '2026-12-10') = 10000, 'bulk: total split evenly when no amount given');
+select t.ok((select booking_reference from public.travel_records r join public.profiles p on p.id = r.employee_id where p.employee_id = 'EMP001' and r.destination = 'Goa' and r.departure_date = '2026-12-10') = 'GRP-GOA-26', 'bulk: group reference used as PNR by default');
+select t.ok(t.cnt($$select 1 from public.travel_records_search where employee_code = 'EMP001' and destination = 'Goa'$$) = 1, 'bulk: trip appears in travel search immediately');
+
+-- Visibility
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok(t.cnt($$select 1 from public.bulk_bookings where id = (select id from bulk1)$$) = 1, 'bulk: traveller sees the booking they are on');
+select t.ok(t.cnt($$select 1 from public.bulk_booking_members where bulk_booking_id = (select id from bulk1)$$) = 1, 'bulk: traveller sees only their own manifest row');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.ok(t.cnt($$select 1 from public.bulk_booking_members where bulk_booking_id = (select id from bulk1)$$) = 1, 'bulk: approver sees only their team on the manifest');
+select t.login('10000000-0000-0000-0000-0000000000f1');
+select t.ok(t.cnt($$select 1 from public.bulk_bookings$$) = 0, 'bulk: deactivated account sees nothing');
+select t.login('10000000-0000-0000-0000-0000000000aa');
+select t.ok(t.cnt($$select 1 from public.bulk_bookings$$) = 0, 'bulk: login without a profile sees nothing');
+
+-- Review
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$select public.bulk_review((select id from bulk1), 'approved')$$, 'bulk: employee cannot review');
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.throws($$select public.bulk_review((select id from bulk1), 'approved')$$, 'bulk: travel desk cannot approve its own booking');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.throws($$select public.bulk_review((select id from bulk1), 'rubber-stamp')$$, 'bulk: unknown decision rejected');
+select public.bulk_review((select id from bulk1), 'approved', 'Within budget');
+select t.ok((select review_status from public.bulk_bookings where id = (select id from bulk1)) = 'approved', 'bulk: approver with a team member on board can approve');
+
+-- Update: remove a traveller, change the cost
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select public.bulk_save((select id from bulk1),
+  '{"title":"Goa offsite","group_reference":"grp-goa-26","origin":"Chennai","destination":"Goa","departure_date":"2026-12-10","return_date":"2026-12-13","booking_type":"Flight","provider":"IndiGo","total_cost":"24000"}',
+  '[{"employee_code":"EMP001","seat_or_coach":"14C"},{"employee_code":"EMP002"}]');
+select t.ok(t.cnt($$select 1 from public.bulk_booking_members where bulk_booking_id = (select id from bulk1)$$) = 2, 'bulk: removed traveller leaves the manifest');
+select t.ok((select r.status from public.travel_records r join public.profiles p on p.id = r.employee_id where p.employee_id = 'EMP003' and r.destination = 'Goa' and r.departure_date = '2026-12-10') = 'cancelled', 'bulk: removed traveller''s trip is cancelled');
+select t.ok((select amount from public.travel_records r join public.profiles p on p.id = r.employee_id where p.employee_id = 'EMP002' and r.destination = 'Goa' and r.departure_date = '2026-12-10') = 12000, 'bulk: remaining trips re-priced');
+select t.ok((select review_status from public.bulk_bookings where id = (select id from bulk1)) = 'pending_review', 'bulk: cost change sends the booking back for review');
+
+-- Per-traveller ticket attached to their own trip
+insert into public.documents (employee_id, travel_record_id, document_type, storage_path, original_filename, mime_type)
+select '00000000-0000-0000-0000-0000000000e2', m.travel_record_id, 'flight_ticket',
+       '00000000-0000-0000-0000-0000000000e2/' || gen_random_uuid() || '.pdf', 'bina-goa.pdf', 'application/pdf'
+  from public.bulk_booking_members m where m.bulk_booking_id = (select id from bulk1) and m.employee_id = '00000000-0000-0000-0000-0000000000e2';
+select t.login('10000000-0000-0000-0000-0000000000e2');
+select t.ok(t.cnt($$select 1 from public.documents d join public.bulk_booking_members m on m.travel_record_id = d.travel_record_id$$) = 1, 'bulk: traveller sees the ticket on their own trip');
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok(t.cnt($$select 1 from public.documents where original_filename = 'bina-goa.pdf'$$) = 0, 'bulk: other travellers cannot see it');
+
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$select public.bulk_cancel((select id from bulk1))$$, 'bulk: employee cannot cancel');
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select public.bulk_cancel((select id from bulk1), 'Event postponed');
+select t.ok(t.cnt($$select 1 from public.travel_records where source = 'bulk_booking' and destination = 'Goa' and status <> 'cancelled'$$) = 0, 'bulk: cancelling cancels every traveller''s trip');
+select t.throws($$select public.bulk_save((select id from bulk1), '{"title":"x","group_reference":"G","origin":"A","destination":"B","departure_date":"2026-12-10"}', '[{"employee_code":"EMP001"}]')$$, 'bulk: cancelled booking cannot be edited');
+reset role;
+select t.ok((select count(*) from public.audit_logs where action in ('bulk_created', 'bulk_updated', 'bulk_reviewed', 'bulk_cancelled')) = 4, 'bulk: changes are audited');
+
 -- Even the database owner cannot rewrite history.
 select t.throws($$delete from public.audit_logs$$, 'audit logs are append-only for the owner too');
 

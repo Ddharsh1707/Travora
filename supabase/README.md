@@ -53,3 +53,24 @@ and Admin can upload for any employee, scan, and confirm.
   not use the service-role key.
 - What is sent to Anthropic: the document text (or file, when it has no text
   layer). Nothing else from the database.
+
+## Phase 5: bulk / group bookings
+
+**Bulk & group bookings** (`/travel/bulk`) is for Travel Desk, Admin and
+approvers. Nothing to deploy beyond `supabase db push`.
+
+- Travellers are real employees (add by name or paste employee IDs, up to
+  500). Each one gets their own travel record (`source = 'bulk_booking'`), so
+  the trip appears in their history, search and totals straight away. An
+  existing trip with the same person, date and PNR is re-used, not duplicated.
+- Cost is split evenly unless a traveller has their own amount; PNR defaults
+  to the group reference.
+- Removing a traveller cancels their trip; cancelling the booking cancels all
+  of them. Changing cost, date or destination sends it back for review.
+- Approvers review the group budget for bookings with their team on board,
+  and see only their own team on the manifest. Employees see only their own
+  row. Nobody reviews a booking they created.
+- Tickets per traveller are normal documents attached to that traveller's
+  trip, so the scanner and its privacy rules apply to them too.
+- Tables are read-only to the API; `bulk_save`, `bulk_cancel` and
+  `bulk_review` do all writes and are audited.
