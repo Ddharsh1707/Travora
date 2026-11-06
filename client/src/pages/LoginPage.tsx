@@ -219,7 +219,8 @@ export function LoginPage({
 }) {
   const { theme, toggleTheme } = useTheme();
   const reduce = useReducedMotion();
-  const canSignUp = isSupabaseEnabled;
+  // Self sign-up is hidden unless VITE_ENABLE_SIGNUP=true is set at build time.
+  const canSignUp = isSupabaseEnabled && import.meta.env.VITE_ENABLE_SIGNUP === "true";
 
   const [mode, setMode] = useState<Mode>(() => {
     if (typeof window === "undefined") return "signin";
