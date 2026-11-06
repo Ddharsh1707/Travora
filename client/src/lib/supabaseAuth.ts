@@ -72,8 +72,19 @@ export async function supabaseSignIn(email: string, password: string): Promise<S
 
   const { error } = await getSupabase().auth.signInWithPassword({ email: cleanEmail, password });
   if (error) {
+    const msg = error.message.toLowerCase();
     // Same message for unknown user and wrong password (no account probing).
-    throw new Error("Invalid email or password.");
+    if (msg.includes("invalid login credentials") || (error as { code?: string }).code === "invalid_credentials") {
+      throw new Error("Invalid email or password.");
+    }
+    if (msg.includes("email not confirmed")) {
+      throw new Error("This email address has not been confirmed yet. Use the link in the confirmation email, or ask an administrator.");
+    }
+    if (msg.includes("api key")) {
+      throw new Error("The site's Supabase key is wrong (Invalid API key). Check VITE_SUPABASE_ANON_KEY in the hosting settings.");
+    }
+    // Anything else is a setup or network problem: show Supabase's reason.
+    throw new Error(`Could not sign in: ${error.message}`);
   }
   return loadMyProfile();
 }
