@@ -112,7 +112,7 @@ export async function listDocuments(opts: { employeeId?: string; status?: Extrac
   return ((data ?? []) as unknown as TravelDocument[]).map((d) => ({ ...d, profile: Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile }));
 }
 
-export async function uploadDocument(employeeId: string, file: File, documentType: DocumentType): Promise<TravelDocument> {
+export async function uploadDocument(employeeId: string, file: File, documentType: DocumentType, travelRecordId?: string | null): Promise<TravelDocument> {
   const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
   const check = checkDocumentFile(file.name, file.size, head);
   if (!check.ok) throw new Error(check.error);
@@ -126,6 +126,7 @@ export async function uploadDocument(employeeId: string, file: File, documentTyp
     .from("documents")
     .insert({
       employee_id: employeeId,
+      travel_record_id: travelRecordId ?? null,
       document_type: documentType,
       storage_path: path,
       original_filename: file.name.slice(0, 255),
