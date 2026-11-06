@@ -11,17 +11,19 @@ max_rows = 1000
 
 [auth]
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://travora-ashy.vercel.app/login", "http://localhost:3000/login"]
+additional_redirect_urls = ["https://main.d27refhdsen811.amplifyapp.com", "https://main.d27refhdsen811.amplifyapp.com/login", "https://travora-ashy.vercel.app/login", "http://localhost:3000", "http://localhost:3000/login"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
-# Invite-only: employees cannot create their own accounts.
-enable_signup = false
+# People can create their own account from the login page. New accounts
+# only get the 'employee' role (see migration 20261106000600_self_signup.sql).
+enable_signup = true
 minimum_password_length = 12
 password_requirements = "lower_upper_letters_digits"
 
 [auth.email]
-enable_signup = false
+enable_signup = true
+# Must stay true: sign-ups are only linked once the email is confirmed.
 enable_confirmations = true
 secure_password_change = true
 

@@ -3,7 +3,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
 import { __test__ } from "../lib/supabase.ts";
-import { profileToAuthUser } from "../lib/supabaseAuth.ts";
+import { passwordProblems, passwordStrength, profileToAuthUser, validateSignUp } from "../lib/supabaseAuth.ts";
 
 const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
 
@@ -52,5 +52,37 @@ test("profile to UI user mapping", async (t) => {
     const u = profileToAuthUser({ ...base, role: "admin" });
     assert.ok(Number.isFinite(u.id) && u.id > 0);
     assert.strictEqual(u.profileId, base.id);
+  });
+});
+
+test("self sign-up form checks", async (t) => {
+  const ok = { fullName: "Arun Kumar", email: "arun@company.com", password: "Travel2026Desk", confirmPassword: "Travel2026Desk" };
+
+  await t.test("accepts a valid sign-up", () => {
+    assert.strictEqual(validateSignUp(ok), null);
+  });
+
+  await t.test("password rules match the Supabase settings", () => {
+    assert.deepStrictEqual(passwordProblems("Travel2026Desk"), []);
+    assert.ok(passwordProblems("short1A").includes("at least 12 characters"));
+    assert.ok(passwordProblems("alllowercase1234").includes("an upper-case letter"));
+    assert.ok(validateSignUp({ ...ok, password: "nouppercase123", confirmPassword: "nouppercase123" }));
+  });
+
+  await t.test("rejects mismatched passwords, bad emails and empty names", () => {
+    assert.match(validateSignUp({ ...ok, confirmPassword: "Different2026X" }) ?? "", /do not match/);
+    assert.match(validateSignUp({ ...ok, email: "not-an-email" }) ?? "", /email/);
+    assert.match(validateSignUp({ ...ok, fullName: " " }) ?? "", /name/);
+  });
+
+  await t.test("a password that breaks the rules never shows as Good or Strong", () => {
+    assert.ok(passwordStrength("Travel2026x") <= 2);
+    assert.ok(passwordStrength("Travel2026Desk") >= 3);
+  });
+
+  await t.test("the sign-up request never sends a role", () => {
+    const src = fs.readFileSync(path.resolve(process.cwd(), "client/src/lib/supabaseAuth.ts"), "utf-8");
+    const block = src.slice(src.indexOf("auth.signUp("), src.indexOf("auth.signUp(") + 400);
+    assert.ok(!/role/i.test(block));
   });
 });

@@ -61,6 +61,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
@@ -70,6 +71,8 @@ import { TravelPage, isTravelPathAllowed, travelNavCategory, travelPageMeta } fr
 import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
+import { Logo } from "./components/Logo";
+import { LoginPage } from "./pages/LoginPage";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { Expenses } from "./pages/Expenses";
 import { Profile } from "./pages/Profile";
@@ -373,14 +376,6 @@ const roleLabels: Record<Role, string> = {
   PLATFORM_ADMIN: "Platform Administrator",
 };
 
-function Logo({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className={`brand-lockup ${compact ? "brand-lockup-compact" : ""}`} aria-label="Trapple">
-      <span className="brand-mark"><Plane size={16} strokeWidth={2.4} /></span>
-      {!compact && <span className="brand-name">trapple</span>}
-    </div>
-  );
-}
 
 function StatusBadge({ status }: { status: Journey["status"] | "Booking pending" | "Rejected" }) {
   const tone = status.toLowerCase().replaceAll(" ", "-");
@@ -476,6 +471,13 @@ function Sidebar({
                     className={`nav-item ${active ? "active" : ""}`}
                     title={collapsed ? item.label : undefined}
                   >
+                    {active && (
+                      <motion.span
+                        layoutId="nav-active-pill"
+                        className="nav-active-pill"
+                        transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                      />
+                    )}
                     {item.icon}
                     {!collapsed && <span>{item.label}</span>}
                     {!collapsed && active && <ChevronRight size={14} className="nav-chevron" />}
@@ -655,21 +657,37 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} user={user} onLogout={onLogout} />
       <div className={`sidebar-overlay ${mobileOpen ? "visible" : ""}`} onClick={() => setMobileOpen(false)} />
       <div className={`sidebar-drawer ${mobileOpen ? "open" : ""}`}>
-        <Sidebar role={role} path={path} user={user} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
+        <LayoutGroup id="mobile-nav">
+          <Sidebar role={role} path={path} user={user} onLogout={onLogout} onClose={() => setMobileOpen(false)} />
+        </LayoutGroup>
       </div>
       <div className={`desktop-sidebar ${collapsed ? "collapsed" : ""}`}>
-        <Sidebar
-          role={role}
-          path={path}
-          user={user}
-          onLogout={onLogout}
-          collapsed={collapsed}
-          onToggleCollapse={toggleCollapse}
-        />
+        <LayoutGroup id="desktop-nav">
+          <Sidebar
+            role={role}
+            path={path}
+            user={user}
+            onLogout={onLogout}
+            collapsed={collapsed}
+            onToggleCollapse={toggleCollapse}
+          />
+        </LayoutGroup>
       </div>
       <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
         <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
-        <main className="content-wrap">{children}</main>
+        <main className="content-wrap">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.14 } }}
+              transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       </div>
     </div>
   );
@@ -7306,249 +7324,6 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
     </div>
   );
 }
-function Login({ onAuthenticated, onBackToHome }: { onAuthenticated: (user: AuthUser) => void; onBackToHome?: () => void }) {
-  const { theme, toggleTheme } = useTheme();
-  const [loading, setLoading] = useState(false);
-  const [slowLoading, setSlowLoading] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    // Pre-warm the backend on cold boot so it is awake by the time the user submits
-    fetch(getResolvedUrl("/api/health")).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (loading) {
-      timer = setTimeout(() => setSlowLoading(true), 3500);
-    } else {
-      setSlowLoading(false);
-    }
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      if (isSupabaseEnabled) {
-        // Supabase keeps its own session; nothing is written to localStorage.
-        const data = await supabaseSignIn(username, password);
-        onAuthenticated(data);
-      } else {
-        const data = await loginApi({ username: username.trim(), password });
-        persistAuth(data);
-        onAuthenticated(data);
-      }
-    } catch (loginError) {
-      setError(
-        loginError instanceof Error
-          ? loginError.message.includes("401") || loginError.message.toLowerCase().includes("unauthorized")
-            ? "Invalid username or password. Please verify your corporate credentials."
-            : loginError.message
-          : "Unable to sign in. Please verify your connection."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="login-page">
-      <div className="login-brand flex flex-wrap items-center justify-between gap-4">
-        <div
-          onClick={onBackToHome}
-          className={`flex items-center gap-2.5 ${onBackToHome ? "cursor-pointer hover:opacity-85 transition-opacity" : ""}`}
-          title={onBackToHome ? "Return to Trapple Homepage" : undefined}
-        >
-          <Logo />
-          <span className="text-xs font-semibold text-[#667085] dark:text-[#94A3B8]">
-            Mahathi Infra Services Pvt. Ltd. · Enterprise Travel Desk
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {onBackToHome && (
-            <button
-              type="button"
-              onClick={onBackToHome}
-              className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-            >
-              <span>← Back to Website</span>
-            </button>
-          )}
-
-          <button
-            className="w-9 h-9 rounded-lg border border-slate-300 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-            onClick={toggleTheme}
-            title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-          >
-            {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
-        </div>
-      </div>
-
-      <div className="login-layout">
-        <div className="login-story">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] border border-[#14B8A6]/25 mb-4">
-            <ShieldCheck size={14} /> Corporate Mobility Platform
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
-            Corporate mobility engineered for <span className="text-[#0D9488] dark:text-[#2DD4BF]">modern enterprise.</span>
-          </h1>
-
-          <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base leading-relaxed mt-4 max-w-lg font-normal">
-            The unified corporate travel platform for Mahathi Infra Services Pvt. Ltd. Coordinate project itineraries, manager sign-offs, and flight desk ticketing with complete enterprise governance.
-          </p>
-
-          <div className="login-trust-tags flex flex-wrap gap-2.5 mt-8">
-            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
-              <ShieldCheck size={13} className="text-[#16A34A]" /> Role-Based Access
-            </span>
-            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
-              <RotateCcw size={13} className="text-[#14B8A6]" /> Multi-Device Cloud Sync
-            </span>
-            <span className="login-trust-tag flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/80 dark:bg-[#111827]/80 border border-[#E4E7EC] dark:border-[#1E293B] shadow-xs">
-              <Lock size={13} className="text-[#2563EB]" /> Audit & Policy Trail
-            </span>
-          </div>
-
-          <div className="login-story-footer mt-8 flex items-center gap-3 text-xs text-[#667085] dark:text-[#94A3B8]">
-            <div className="story-line w-8 h-[2px] bg-[#14B8A6]" />
-            <span>Mahathi Infra Services Pvt. Ltd. Authorized Staff & Contractors</span>
-          </div>
-        </div>
-
-        <div className="login-card">
-          <div className="flex items-center justify-between mb-1">
-            <span className="card-kicker text-[#14B8A6]">ENTERPRISE PORTAL</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#F2F4F7] dark:bg-[#1E293B] text-[#475467] dark:text-[#94A3B8]">
-              v2.4 LTS
-            </span>
-          </div>
-          <h2>Sign in to Trapple</h2>
-          <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-1 mb-6">
-            Enter your employee credentials to access your dedicated workspace.
-          </p>
-
-          <form onSubmit={submit} className="space-y-4">
-            <label className="field block">
-              <span className="block text-xs font-semibold text-[#344054] dark:text-[#E2E8F0] mb-1">
-                {isSupabaseEnabled ? "Work email" : "Username / Login ID"}
-              </span>
-              <div className="relative">
-                <input
-                  type={isSupabaseEnabled ? "email" : "text"}
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  required
-                  autoComplete={isSupabaseEnabled ? "email" : "username"}
-                  placeholder={isSupabaseEnabled ? "name@company.com" : "e.g. AGR0001, MISPL0001, admin"}
-                  className="w-full"
-                />
-              </div>
-            </label>
-
-            <label className="field block">
-              <span className="block text-xs font-semibold text-[#344054] dark:text-[#E2E8F0] mb-1">
-                Password
-              </span>
-              <div className="password-field relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  required
-                  autoComplete="current-password"
-                  placeholder="Enter your password"
-                  className="w-full pr-10"
-                />
-                <button
-                  type="button"
-                  className="password-toggle absolute right-3 top-1/2 -translate-y-1/2 text-[#667085] hover:text-[#101828] dark:hover:text-white"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((visible) => !visible)}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </label>
-
-            {error && (
-              <div className="form-error-message p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 text-red-700 dark:text-red-300 text-xs flex flex-col gap-2">
-                <div className="flex items-start gap-2">
-                  <XCircle size={15} className="shrink-0 text-red-500 mt-0.5" />
-                  <span className="flex-1 leading-relaxed">{error}</span>
-                </div>
-                {error.includes("spinning up") && (
-                  <button
-                    type="submit"
-                    className="self-end px-3 py-1 rounded-md bg-red-600 hover:bg-red-500 text-white font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                  >
-                    <RotateCcw size={12} /> Retry Sign In
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div className="login-options flex items-center justify-between text-xs pt-1">
-              <span className="login-security flex items-center gap-1.5 text-[#667085] dark:text-[#94A3B8]">
-                <ShieldCheck size={14} className="text-[#14B8A6]" /> Role-based access control
-              </span>
-              <button
-                type="button"
-                className="inline-link text-[#14B8A6] hover:underline font-semibold"
-                onClick={() => toast("Contact your system administrator or IT helpdesk for password resets.")}
-              >
-                Need help?
-              </button>
-            </div>
-
-            <button
-              type="submit"
-              className="button button-primary button-wide w-full flex items-center justify-center gap-2 py-3"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <RotateCcw size={16} className="animate-spin" />
-                  <span>{slowLoading ? "Connecting to cloud backend…" : "Signing in…"}</span>
-                </>
-              ) : (
-                <>
-                  <span>Sign in to Workspace</span>
-                  <ArrowUpRight size={16} />
-                </>
-              )}
-            </button>
-            {slowLoading && (
-              <p className="text-[11.5px] text-center text-[#667085] dark:text-[#94A3B8] animate-pulse">
-                Waking up cloud service from idle sleep. Please hold on a moment…
-              </p>
-            )}
-          </form>
-
-          <div className="login-note mt-4 pt-3 border-t border-[#E4E7EC] dark:border-[#1E293B] flex items-center gap-2 text-[11px] text-[#667085] dark:text-[#94A3B8]">
-            <ShieldCheck size={14} className="text-[#14B8A6] shrink-0" />
-            <span>Mahathi Infra Services Pvt. Ltd. single sign-on & TLS 1.3 encryption active.</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="login-bottom flex items-center justify-between text-xs text-[#667085] dark:text-[#94A3B8] pt-6 border-t border-[#E4E7EC] dark:border-[#1E293B]">
-        <span>Trapple Enterprise · Mahathi Infra Services Pvt. Ltd.</span>
-        <span>Corporate Travel Desk Support: desk@mahathiinfra.com</span>
-      </div>
-    </div>
-  );
-}
-
 function TravelCalendarPage() {
   const user = getStoredUser<AuthUser>();
   const { journeys } = useTravelRequests(user);
@@ -7724,7 +7499,7 @@ function AppRouter() {
   // Corporate Sign In Portal
   if (location === "/login") {
     return (
-      <Login
+      <LoginPage
         onAuthenticated={(nextUser) => {
           setUser(nextUser);
           setLocation(roleRoots[nextUser.role]);
@@ -7769,8 +7544,10 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <Toaster position="bottom-right" />
-        <AppRouter />
+        <MotionConfig reducedMotion="user">
+          <Toaster position="bottom-right" />
+          <AppRouter />
+        </MotionConfig>
       </ThemeProvider>
     </ErrorBoundary>
   );

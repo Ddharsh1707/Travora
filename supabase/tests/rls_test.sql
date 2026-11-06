@@ -655,5 +655,50 @@ select t.ok(not exists (select 1 from pg_tables where schemaname = 'private' and
                           and has_table_privilege('authenticated', 'private.rate_limits', 'select,insert,update,delete')),
   'users cannot touch their own rate-limit counters');
 
+-- ---------------------------------------------------------------------------
+-- Self sign-up (website "Create account")
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claims', '', true);
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
+  ('10000000-0000-0000-0000-00000000005a', 'newbie@example.com', null,
+   '{"signup_source":"self","full_name":"  Nia <b>New</b>  ","role":"admin"}');
+select t.ok(not exists (select 1 from public.profiles where email = 'newbie@example.com'),
+  'self sign-up gets no profile before the email is confirmed');
+update auth.users set email_confirmed_at = now() where id = '10000000-0000-0000-0000-00000000005a';
+select t.ok((select role from public.profiles where user_id = '10000000-0000-0000-0000-00000000005a') = 'employee',
+  'confirmed self sign-up becomes an employee, ignoring any role in sign-up data');
+select t.ok((select full_name from public.profiles where user_id = '10000000-0000-0000-0000-00000000005a') = 'Nia bNew/b',
+  'sign-up name is cleaned of markup characters');
+select t.ok((select employee_id from public.profiles where user_id = '10000000-0000-0000-0000-00000000005a') like 'SELF-%',
+  'self sign-up gets a generated employee id');
+select t.ok(exists (select 1 from public.audit_logs where action = 'self_signup'),
+  'self sign-up is written to the audit log');
+
+-- Signing up with an email an admin already set up links to that profile and keeps its role.
+insert into public.profiles (id, employee_id, full_name, email, role) values
+  ('00000000-0000-0000-0000-0000000000b9', 'EMP900', 'Pre Made', 'premade@example.com', 'approver');
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
+  ('10000000-0000-0000-0000-0000000000b9', 'premade@example.com', null, '{"signup_source":"self","full_name":"X"}');
+update auth.users set email_confirmed_at = now() where id = '10000000-0000-0000-0000-0000000000b9';
+select t.ok((select user_id from public.profiles where employee_id = 'EMP900') = '10000000-0000-0000-0000-0000000000b9'
+            and (select count(*) from public.profiles where email = 'premade@example.com') = 1,
+  'sign-up with an existing employee email links to that profile instead of making a new one');
+
+-- Domain allowlist.
+insert into private.signup_allowed_domains (domain) values ('company.com');
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
+  ('10000000-0000-0000-0000-0000000000c7', 'outsider@gmail.test', now(), '{"signup_source":"self"}'),
+  ('10000000-0000-0000-0000-0000000000c8', 'insider@Company.com', now(), '{"signup_source":"self"}');
+select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-0000000000c7'),
+  'sign-ups from domains outside the allowlist get no profile');
+select t.ok(exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-0000000000c8'),
+  'sign-ups from an allowed domain get a profile');
+delete from private.signup_allowed_domains;
+select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-0000000000aa'),
+  'confirmed logins that did not come from sign-up are still not given a profile');
+select t.ok(not has_table_privilege('authenticated', 'private.signup_allowed_domains', 'select,insert,update,delete'),
+  'users cannot change the sign-up domain allowlist');
+
 \echo 'ALL AUTHORIZATION TESTS PASSED'
 rollback;

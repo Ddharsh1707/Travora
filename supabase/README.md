@@ -16,6 +16,11 @@ Then run `bootstrap_first_admin.sql` in the SQL Editor and invite that email
 from Authentication > Users. In Vercel set `VITE_AUTH_PROVIDER=supabase`,
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon key only).
 
+## Self sign-up
+
+People can create their own account from the login page; they always start as
+`employee`. Dashboard steps are in `docs/SIGNUP.md`.
+
 ## Tests
 
 `pnpm test:rls` starts a throwaway PostgreSQL, loads small stand-ins for the
