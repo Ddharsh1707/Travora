@@ -67,7 +67,7 @@ import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { isSupabaseEnabled } from "./lib/supabase";
-import { TravelPage, isTravelPathAllowed, travelNavCategory, travelPageMeta } from "./pages/travel/routes";
+import { TravelPage, isTravelPathAllowed, travelHomeFor, travelNavCategories, travelPageMeta } from "./pages/travel/routes";
 import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
@@ -371,7 +371,8 @@ const roleLabels: Record<Role, string> = {
   EMPLOYEE: "Employee",
   APPROVER: "Approver",
   TRAVEL_DESK: "Travel desk",
-  ADMIN: "Administrator",
+  // In Supabase mode the admin role is the company's CEO.
+  ADMIN: isSupabaseEnabled ? "CEO" : "Administrator",
   COMPANY_ADMIN: "Company Administrator",
   PLATFORM_ADMIN: "Platform Administrator",
 };
@@ -416,11 +417,11 @@ function Sidebar({
   const baseCategories = categorizedNavByRole[role] || [
     { category: "WORKSPACE", items: navByRole[role] },
   ];
-  const travelCategory = isSupabaseEnabled ? travelNavCategory(role) : null;
-  // In Supabase mode only screens that already run on Supabase are offered;
-  // the rest move over in later phases.
-  const categories = travelCategory
-    ? [travelCategory, { category: "HELP", items: [{ label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> }] }]
+  const travelCategories = isSupabaseEnabled ? travelNavCategories(role) : [];
+  // In Supabase mode only screens that already run on Supabase are offered:
+  // a separate Employee portal and CEO portal (see pages/travel/routes.tsx).
+  const categories = travelCategories.length
+    ? [...travelCategories, { category: "HELP", items: [{ label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> }] }]
     : baseCategories;
 
   return (
@@ -7370,12 +7371,7 @@ function AppRouter() {
     PLATFORM_ADMIN: "/admin",
   };
   if (isSupabaseEnabled) {
-    roleRoots.EMPLOYEE = "/travel/overview";
-    roleRoots.APPROVER = "/travel/overview";
-    roleRoots.TRAVEL_DESK = "/travel/overview";
-    roleRoots.ADMIN = "/travel/overview";
-    roleRoots.COMPANY_ADMIN = "/travel/overview";
-    roleRoots.PLATFORM_ADMIN = "/travel/overview";
+    for (const r of Object.keys(roleRoots) as Role[]) roleRoots[r] = travelHomeFor(r);
   }
   const path = location;
   const adminPaths = [
