@@ -150,45 +150,100 @@ public class TravelSpendService {
         Company company = getRequiredCompany(currentUser);
         ResolvedDates dates = resolveDates(filter);
 
-        String empId = (filter.employeeId() != null && !filter.employeeId().isBlank()) ? filter.employeeId().trim() : null;
-        String dept = (filter.department() != null && !filter.department().isBlank()) ? filter.department().trim() : null;
-        String prov = (filter.provider() != null && !filter.provider().isBlank()) ? filter.provider().trim() : null;
-        String mode = (filter.travelMode() != null && !filter.travelMode().isBlank()) ? filter.travelMode().trim() : null;
-        String search = (filter.search() != null && !filter.search().isBlank()) ? filter.search().trim() : null;
+        List<ImportedTravelRecord> records = recordRepository.findByCompanyIdAndImported(company.getId(), true);
+        java.util.stream.Stream<ImportedTravelRecord> stream = records.stream();
 
-        List<ImportedTravelRecord> records = recordRepository.findFilteredForSpendAnalysis(
-                company.getId(),
-                empId,
-                dept,
-                prov,
-                mode,
-                dates.fromDate(),
-                dates.toDate(),
-                search
-        );
+        // 1. Employee identifier filter
+        if (filter.employeeId() != null && !filter.employeeId().isBlank()) {
+            String empTarget = filter.employeeId().trim().toLowerCase();
+            stream = stream.filter(r -> {
+                if (r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().trim().equalsIgnoreCase(empTarget)) return true;
+                if (r.getRawEmployeeName() != null && r.getRawEmployeeName().trim().equalsIgnoreCase(empTarget)) return true;
+                if (r.getEmployee() != null) {
+                    if (r.getEmployee().getEmployeeId() != null && r.getEmployee().getEmployeeId().trim().equalsIgnoreCase(empTarget)) return true;
+                    if (r.getEmployee().getName() != null && r.getEmployee().getName().trim().equalsIgnoreCase(empTarget)) return true;
+                }
+                return false;
+            });
+        }
 
-        // Memory filtering for new optional dimensions
+        // 2. Department filter
+        if (filter.department() != null && !filter.department().isBlank()) {
+            String deptTarget = filter.department().trim().toLowerCase();
+            stream = stream.filter(r -> {
+                if (r.getDepartment() != null && r.getDepartment().trim().equalsIgnoreCase(deptTarget)) return true;
+                if (r.getEmployee() != null && r.getEmployee().getDepartment() != null && r.getEmployee().getDepartment().trim().equalsIgnoreCase(deptTarget)) return true;
+                return false;
+            });
+        }
+
+        // 3. Provider filter
+        if (filter.provider() != null && !filter.provider().isBlank()) {
+            String provTarget = filter.provider().trim().toLowerCase();
+            stream = stream.filter(r -> r.getProvider() != null && r.getProvider().trim().equalsIgnoreCase(provTarget));
+        }
+
+        // 4. Travel Mode filter
+        if (filter.travelMode() != null && !filter.travelMode().isBlank()) {
+            String modeTarget = filter.travelMode().trim().toLowerCase();
+            stream = stream.filter(r -> r.getTravelMode() != null && r.getTravelMode().trim().equalsIgnoreCase(modeTarget));
+        }
+
+        // 5. From Date filter
+        if (dates.fromDate() != null) {
+            LocalDate fDate = dates.fromDate();
+            stream = stream.filter(r -> r.getTravelDate() != null && !r.getTravelDate().isBefore(fDate));
+        }
+
+        // 6. To Date filter
+        if (dates.toDate() != null) {
+            LocalDate tDate = dates.toDate();
+            stream = stream.filter(r -> r.getTravelDate() != null && !r.getTravelDate().isAfter(tDate));
+        }
+
+        // 7. General search term
+        if (filter.search() != null && !filter.search().isBlank()) {
+            String s = filter.search().trim().toLowerCase();
+            stream = stream.filter(r -> {
+                if (r.getRawEmployeeName() != null && r.getRawEmployeeName().toLowerCase().contains(s)) return true;
+                if (r.getRawEmployeeIdentifier() != null && r.getRawEmployeeIdentifier().toLowerCase().contains(s)) return true;
+                if (r.getEmployee() != null) {
+                    if (r.getEmployee().getName() != null && r.getEmployee().getName().toLowerCase().contains(s)) return true;
+                    if (r.getEmployee().getEmployeeId() != null && r.getEmployee().getEmployeeId().toLowerCase().contains(s)) return true;
+                    if (r.getEmployee().getDepartment() != null && r.getEmployee().getDepartment().toLowerCase().contains(s)) return true;
+                }
+                if (r.getFromLocation() != null && r.getFromLocation().toLowerCase().contains(s)) return true;
+                if (r.getToLocation() != null && r.getToLocation().toLowerCase().contains(s)) return true;
+                if (r.getDepartment() != null && r.getDepartment().toLowerCase().contains(s)) return true;
+                if (r.getTicketReference() != null && r.getTicketReference().toLowerCase().contains(s)) return true;
+                if (r.getProjectName() != null && r.getProjectName().toLowerCase().contains(s)) return true;
+                if (r.getProject() != null && r.getProject().getProjectName() != null && r.getProject().getProjectName().toLowerCase().contains(s)) return true;
+                return false;
+            });
+        }
+
+        // 8. Project Name filter
         if (filter.projectName() != null && !filter.projectName().isBlank()) {
             String pName = filter.projectName().trim().toLowerCase();
-            records = records.stream()
-                    .filter(r -> (r.getProjectName() != null && r.getProjectName().toLowerCase().contains(pName)) ||
-                                 (r.getProject() != null && r.getProject().getProjectName().toLowerCase().contains(pName)))
-                    .collect(Collectors.toList());
-        }
-        if (filter.travelCategory() != null && !filter.travelCategory().isBlank()) {
-            String cat = filter.travelCategory().trim().toUpperCase();
-            records = records.stream()
-                    .filter(r -> r.getTravelCategory() != null && r.getTravelCategory().equalsIgnoreCase(cat))
-                    .collect(Collectors.toList());
-        }
-        if (filter.isCreditNote() != null) {
-            boolean cnOnly = filter.isCreditNote();
-            records = records.stream()
-                    .filter(r -> r.isCreditNote() == cnOnly)
-                    .collect(Collectors.toList());
+            stream = stream.filter(r -> (r.getProjectName() != null && r.getProjectName().toLowerCase().contains(pName)) ||
+                                        (r.getProject() != null && r.getProject().getProjectName() != null && r.getProject().getProjectName().toLowerCase().contains(pName)));
         }
 
-        return records;
+        // 9. Travel Category filter
+        if (filter.travelCategory() != null && !filter.travelCategory().isBlank()) {
+            String cat = filter.travelCategory().trim().toUpperCase();
+            stream = stream.filter(r -> r.getTravelCategory() != null && r.getTravelCategory().equalsIgnoreCase(cat));
+        }
+
+        // 10. Credit Note filter
+        if (filter.isCreditNote() != null) {
+            boolean cnOnly = filter.isCreditNote();
+            stream = stream.filter(r -> r.isCreditNote() == cnOnly);
+        }
+
+        return stream.sorted(Comparator.comparing(ImportedTravelRecord::getTravelDate, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(Comparator.comparing(ImportedTravelRecord::getId, Comparator.nullsLast(Comparator.reverseOrder()))))
+                .collect(Collectors.toList());
     }
 
     /**
@@ -1108,9 +1163,7 @@ public class TravelSpendService {
         List<ImportedTravelRecord> records = recordRepository.findByCompanyIdAndEmployeeIdentifier(company.getId(), trimmedIdentifier);
 
         if (records.isEmpty()) {
-            records = recordRepository.findFilteredForSpendAnalysis(
-                    company.getId(), null, null, null, null, null, null, trimmedIdentifier
-            );
+            records = getFilteredRecords(currentUser, new SpendFilter(trimmedIdentifier, null, null, null, null, null, null, null, null, null, null, null));
         }
 
         if (records.isEmpty()) {
