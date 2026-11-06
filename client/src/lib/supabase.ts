@@ -31,8 +31,30 @@ const env = ((typeof import.meta !== "undefined" && import.meta.env) || {}) as R
 
 export const AUTH_PROVIDER: AuthProvider = env.VITE_AUTH_PROVIDER === "supabase" ? "supabase" : "legacy";
 
-const SUPABASE_URL = env.VITE_SUPABASE_URL?.trim() || "";
-const SUPABASE_ANON_KEY = env.VITE_SUPABASE_ANON_KEY?.trim() || "";
+/** Strips spaces and wrapping quotes that hosting dashboards sometimes keep. */
+function cleanValue(value: string | undefined): string {
+  return (value ?? "").trim().replace(/^["']+|["']+$/g, "").trim();
+}
+
+/**
+ * Accepts the common ways a project URL gets pasted ("abcd.supabase.co",
+ * "https://abcd.supabase.co/", ".../rest/v1") and returns "https://abcd.supabase.co".
+ */
+export function normalizeSupabaseUrl(value: string | undefined): string {
+  let url = cleanValue(value);
+  if (!url) return "";
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  url = url.replace(/\/(rest|auth)\/v1\/?$/i, "").replace(/\/+$/, "");
+  try {
+    return new URL(url).origin;
+  } catch {
+    return "";
+  }
+}
+
+const RAW_SUPABASE_URL = cleanValue(env.VITE_SUPABASE_URL);
+const SUPABASE_URL = normalizeSupabaseUrl(RAW_SUPABASE_URL);
+const SUPABASE_ANON_KEY = cleanValue(env.VITE_SUPABASE_ANON_KEY);
 
 function looksLikeServiceRoleKey(key: string): boolean {
   // New-style secret keys, or legacy JWTs whose payload says role=service_role.
@@ -60,7 +82,10 @@ export function getSupabase(): SupabaseClient {
   }
   if (client) return client;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+    const problem = RAW_SUPABASE_URL && !SUPABASE_URL
+      ? "VITE_SUPABASE_URL is not a valid URL. Use the Project URL from Supabase, like https://abcd1234.supabase.co."
+      : "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.";
+    throw new Error(`Supabase is not configured. ${problem} Then rebuild the site.`);
   }
   if (looksLikeServiceRoleKey(SUPABASE_ANON_KEY)) {
     // Refuse to run rather than ship an all-powerful key to every visitor.
@@ -80,4 +105,4 @@ export function getSupabase(): SupabaseClient {
   return client;
 }
 
-export const __test__ = { looksLikeServiceRoleKey };
+export const __test__ = { looksLikeServiceRoleKey, normalizeSupabaseUrl };

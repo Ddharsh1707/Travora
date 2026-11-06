@@ -86,3 +86,15 @@ test("self sign-up form checks", async (t) => {
     assert.ok(!/role/i.test(block));
   });
 });
+
+test("Supabase URL is cleaned up from common paste mistakes", () => {
+  const n = __test__.normalizeSupabaseUrl;
+  const want = "https://abcd1234.supabase.co";
+  assert.strictEqual(n("https://abcd1234.supabase.co"), want);
+  assert.strictEqual(n("  abcd1234.supabase.co  "), want);
+  assert.strictEqual(n('"https://abcd1234.supabase.co/"'), want);
+  assert.strictEqual(n("https://abcd1234.supabase.co/rest/v1/"), want);
+  assert.strictEqual(n(""), "");
+  assert.strictEqual(n(undefined), "");
+  assert.strictEqual(n("not a url at all"), "");
+});
