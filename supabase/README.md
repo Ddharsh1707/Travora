@@ -122,3 +122,12 @@ supabase functions deploy ai-assistant
 - Rate limit: 50 questions per user per day (`consume_rate_limit`).
 - The audit log records that a question was asked and which tools ran, never
   the question or the answer.
+
+## Phase 8: security hardening
+
+```bash
+supabase db push   # 20261106000500_hardening.sql
+```
+
+See [`docs/SECURITY.md`](../docs/SECURITY.md) for the controls, the test list,
+the go-live checklist and the plan for retiring the Spring Boot backend.

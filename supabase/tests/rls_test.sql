@@ -620,5 +620,40 @@ select t.ok(not exists (select 1 from pg_tables where schemaname = 'public' and 
             'RLS enabled on every public table');
 select t.ok((select not public from storage.buckets where id = 'travel-documents'), 'document bucket is private');
 
+-- Phase 8: catalogue-wide checks, so a future migration cannot quietly weaken them.
+select t.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('public', 'private') and p.prosecdef
+     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%')),
+  'every security definer function pins its search_path');
+select t.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute')),
+  'signed-out visitors cannot call any public function');
+select t.ok(not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind in ('r', 'v', 'm')
+     and (has_table_privilege('anon', c.oid, 'select') or has_table_privilege('anon', c.oid, 'insert')
+          or has_table_privilege('anon', c.oid, 'update') or has_table_privilege('anon', c.oid, 'delete'))),
+  'signed-out visitors cannot read or write any table or view');
+select t.ok(not exists (
+  select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'v'
+     and not coalesce((select bool_or(o = 'security_invoker=true') from unnest(c.reloptions) o), false)),
+  'every public view runs with the caller''s permissions (security_invoker)');
+select t.ok(not has_schema_privilege('authenticated', 'private', 'usage') or not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'private' and has_function_privilege('authenticated', p.oid, 'execute')
+     and p.proname in ('bulk_sync_records', 'write_audit')),
+  'internal helpers that write data cannot be called directly by users');
+select t.ok(not exists (
+  select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname in ('ai_record_exchange')
+     and has_function_privilege('authenticated', p.oid, 'execute')),
+  'only the server can store assistant messages');
+select t.ok(not exists (select 1 from pg_tables where schemaname = 'private' and tablename = 'rate_limits'
+                          and has_table_privilege('authenticated', 'private.rate_limits', 'select,insert,update,delete')),
+  'users cannot touch their own rate-limit counters');
+
 \echo 'ALL AUTHORIZATION TESTS PASSED'
 rollback;
