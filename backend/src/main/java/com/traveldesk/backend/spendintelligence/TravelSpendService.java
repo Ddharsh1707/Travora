@@ -1045,9 +1045,10 @@ public class TravelSpendService {
         if (journeyRepository == null) return Collections.emptyList();
 
         ResolvedDates dates = resolveDates(filter);
+        String searchParam = (filter.search() != null && !filter.search().isBlank()) ? filter.search().trim() : null;
         List<DerivedJourney> journeys = journeyRepository.searchJourneys(
                 company.getId(),
-                filter.search(),
+                searchParam,
                 dates.fromDate(),
                 dates.toDate(),
                 org.springframework.data.domain.PageRequest.of(0, 100)
