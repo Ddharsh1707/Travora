@@ -167,11 +167,14 @@ export async function supabaseSignUp(input: SignUpInput): Promise<{ needsConfirm
   });
   if (error) {
     const msg = error.message.toLowerCase();
-    if (msg.includes("signup") && msg.includes("disabled")) {
+    if ((msg.includes("signup") || msg.includes("sign up")) && (msg.includes("disabled") || msg.includes("not allowed"))) {
       throw new Error("New sign-ups are switched off. Ask an administrator for an invite.");
     }
     if (msg.includes("rate limit") || error.status === 429) {
       throw new Error("Too many attempts right now. Please wait a few minutes and try again.");
+    }
+    if (msg.includes("email address not authorized")) {
+      throw new Error("Sign-up emails can't be sent to this address yet. The site needs its own email sender (Supabase > Authentication > Emails > SMTP Settings).");
     }
     if (msg.includes("sending") && msg.includes("email")) {
       throw new Error("Your account was created, but the confirmation email could not be sent. The site's email settings need attention (Supabase > Authentication > Emails).");
