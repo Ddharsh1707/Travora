@@ -510,6 +510,71 @@ select t.throws($$select public.bulk_save((select id from bulk1), '{"title":"x",
 reset role;
 select t.ok((select count(*) from public.audit_logs where action in ('bulk_created', 'bulk_updated', 'bulk_reviewed', 'bulk_cancelled')) = 4, 'bulk: changes are audited');
 
+-- ---------------------------------------------------------------------------
+-- Phase 6: reports and dashboard
+-- ---------------------------------------------------------------------------
+create temp table rep_truth as
+  select r.employee_id, count(*) as trips, coalesce(sum(r.amount), 0) as spend
+    from public.travel_records r where r.status <> 'cancelled' and r.departure_date between '2026-01-01' and '2026-12-31'
+   group by 1;
+grant select on rep_truth to authenticated;
+
+set local role anon;
+select t.throws($$select public.travel_report('2026-01-01', '2026-12-31')$$, 'reports: logged-out callers blocked');
+select t.throws($$select * from public.report_spend_monthly$$, 'reports: views closed to logged-out callers');
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000aa');
+select t.throws($$select public.travel_report('2026-01-01', '2026-12-31')$$, 'reports: login without a profile blocked');
+select t.ok(t.cnt($$select 1 from public.report_spend_monthly$$) = 0, 'reports: views empty without a profile');
+
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31') -> 'totals' ->> 'trips')::int) = (select sum(trips) from rep_truth),
+            'reports: travel desk report counts every trip');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31') -> 'totals' ->> 'spend')::numeric) = (select sum(spend) from rep_truth),
+            'reports: spend total matches the records');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31', 'Finance') -> 'totals' ->> 'trips')::int)
+            = (select coalesce(sum(trips), 0) from rep_truth x join public.profiles p on p.id = x.employee_id where p.department = 'Finance'),
+            'reports: department filter works');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31', null, 'train') -> 'totals' ->> 'trips')::int)
+            = (select count(*) from public.travel_records where status <> 'cancelled' and booking_type = 'train' and departure_date between '2026-01-01' and '2026-12-31'),
+            'reports: mode filter works');
+select t.throws($$select public.travel_report('2026-12-31', '2026-01-01')$$, 'reports: reversed range rejected');
+select t.throws($$select public.travel_report('2010-01-01', '2026-12-31')$$, 'reports: range over five years rejected');
+select t.throws($$select public.travel_report('2026-01-01', '2026-12-31', null, 'flight''; drop table x; --')$$, 'reports: unknown mode rejected');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31', 'x''); delete from public.travel_records; --') -> 'totals' ->> 'trips')::int) = 0
+            and t.cnt('select 1 from public.travel_records') > 0, 'reports: department text is a value, never SQL');
+
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31') -> 'totals' ->> 'trips')::int)
+            = (select trips from rep_truth where employee_id = '00000000-0000-0000-0000-0000000000e1'), 'reports: employee report covers only their own trips');
+select t.ok((select jsonb_array_length(public.travel_report('2026-01-01', '2026-12-31') -> 'top_travellers')) = 1, 'reports: employee sees no one else in top travellers');
+select t.ok((select sum(trips) from public.report_spend_monthly where month between '2026-01-01' and '2026-12-01')
+            = (select trips from rep_truth where employee_id = '00000000-0000-0000-0000-0000000000e1'), 'reports: monthly view respects RLS');
+
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.ok((select (public.travel_report('2026-01-01', '2026-12-31') -> 'totals' ->> 'trips')::int)
+            = (select sum(trips) from rep_truth where employee_id in ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000b1')),
+            'reports: approver report covers their team only');
+select t.ok(not exists (select 1 from jsonb_array_elements(public.travel_report('2026-01-01', '2026-12-31') -> 'top_travellers') e
+                         where e ->> 'employee_code' = 'EMP002'), 'reports: other teams never appear');
+
+-- Dashboard
+select t.ok((public.dashboard_counts() ->> 'requests_to_book') is null, 'dashboard: approver gets no desk-only counts');
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok((public.dashboard_counts() ->> 'my_upcoming_trips')::int
+            = (select count(*) from public.travel_records where employee_id = '00000000-0000-0000-0000-0000000000e1' and status <> 'cancelled' and departure_date >= current_date),
+            'dashboard: upcoming trips counted for the employee');
+select t.ok((public.dashboard_counts() ->> 'documents_to_review') is null, 'dashboard: employee gets no desk-only counts');
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.ok((public.dashboard_counts() ->> 'documents_to_review') is not null, 'dashboard: travel desk sees its work queue');
+select t.login('10000000-0000-0000-0000-0000000000f1');
+select t.throws($$select public.dashboard_counts()$$, 'dashboard: deactivated account blocked');
+reset role;
+select t.ok((select bool_and(coalesce(reloptions::text, '') like '%security_invoker=true%') from pg_class
+             where relname in ('report_spend_monthly', 'report_routes_monthly')), 'reports: views run with caller permissions');
+select t.ok((select prosecdef from pg_proc where proname = 'travel_report') = false
+            and (select prosecdef from pg_proc where proname = 'dashboard_counts') = false, 'reports: report functions run with caller permissions');
+
 -- Even the database owner cannot rewrite history.
 select t.throws($$delete from public.audit_logs$$, 'audit logs are append-only for the owner too');
 
