@@ -19,16 +19,16 @@ public interface DerivedJourneyRepository extends JpaRepository<DerivedJourney, 
     List<DerivedJourney> findByCompanyIdAndEmployeeId(Long companyId, Long employeeId);
 
     @Query("SELECT j FROM DerivedJourney j WHERE j.company.id = :companyId " +
-           "AND (cast(:search as String) IS NULL OR :search = '' " +
-           "     OR LOWER(j.passengerName) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) " +
-           "     OR LOWER(j.origin) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) " +
-           "     OR LOWER(j.destination) LIKE LOWER(CONCAT('%', cast(:search as String), '%')) " +
-           "     OR LOWER(j.primaryPnr) LIKE LOWER(CONCAT('%', cast(:search as String), '%'))) " +
+           "AND (cast(:searchPattern as String) IS NULL " +
+           "     OR LOWER(j.passengerName) LIKE cast(:searchPattern as String) " +
+           "     OR LOWER(j.origin) LIKE cast(:searchPattern as String) " +
+           "     OR LOWER(j.destination) LIKE cast(:searchPattern as String) " +
+           "     OR LOWER(j.primaryPnr) LIKE cast(:searchPattern as String)) " +
            "AND (cast(:fromDate as LocalDate) IS NULL OR j.startDate >= :fromDate) " +
            "AND (cast(:toDate as LocalDate) IS NULL OR j.startDate <= :toDate)")
     Page<DerivedJourney> searchJourneys(
             @Param("companyId") Long companyId,
-            @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             Pageable pageable
