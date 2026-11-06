@@ -3,11 +3,17 @@ package com.traveldesk.backend;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 public class HealthController {
 
-    @GetMapping("/api/health")
-    public String health() {
-        return "TravelDesk backend is running";
+    @GetMapping({"/", "/api/health"})
+    public Map<String, Object> health() {
+        return Map.of(
+                "status", "UP",
+                "service", "Trapple Enterprise Traveldesk Backend",
+                "version", "2.4.0-LTS"
+        );
     }
 }

@@ -73,7 +73,7 @@ public class ImportedTravelRecord {
     @JoinColumn(name = "journey_id")
     private DerivedJourney journey;
 
-    @Column(name = "is_credit_note", nullable = false)
+    @Column(name = "is_credit_note")
     private boolean isCreditNote = false;
 
     @Column(name = "original_ticket_reference")
@@ -82,13 +82,13 @@ public class ImportedTravelRecord {
     @Column(name = "net_cost")
     private BigDecimal netCost;
 
-    @Column(name = "is_zero_fare_transit", nullable = false)
+    @Column(name = "is_zero_fare_transit")
     private boolean isZeroFareTransit = false;
 
     @Column(name = "leg_sequence")
     private int legSequence = 1;
 
-    @Column(name = "travel_category", length = 50, nullable = false)
+    @Column(name = "travel_category", length = 50)
     private String travelCategory = "DOMESTIC_FLIGHT";
 
     @Column(name = "source_worksheet")

@@ -36,7 +36,7 @@ public class Employee {
     @Column(nullable = false)
     private boolean active = true;
 
-    @Column(name = "verification_status", nullable = false)
+    @Column(name = "verification_status")
     private String verificationStatus = "VERIFIED"; // VERIFIED, IMPORTED_UNVERIFIED
 
     @Column(name = "source_import_batch_id")

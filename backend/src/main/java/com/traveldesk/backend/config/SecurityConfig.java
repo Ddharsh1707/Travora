@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         .requestMatchers(
+                                "/",
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/activate",
