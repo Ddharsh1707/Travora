@@ -55,7 +55,14 @@ months; a small site like this usually costs a few dollars a month after that.
    | `VITE_SUPABASE_URL` | your Supabase Project URL |
    | `VITE_SUPABASE_ANON_KEY` | your Supabase anon public key |
 
+   Type the values with no quotes and no spaces. The URL must start with
+   `https://` and end with `.supabase.co`.
+
 4. Click **Next**, then **Save and deploy**.
+
+> **Changed a variable later?** The values are baked into the site when it is
+> built, so saving them is not enough. Go to the **main** branch page and click
+> **Redeploy this version**, then wait for the new build to finish.
 
 ## Step 4. Wait for the first build
 
