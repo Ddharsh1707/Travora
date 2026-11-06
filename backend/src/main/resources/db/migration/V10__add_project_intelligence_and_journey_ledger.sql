@@ -4,7 +4,7 @@
 -- ==========================================================================
 
 -- 1. Projects & Cost Centers
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
     id              BIGSERIAL PRIMARY KEY,
     company_id      BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     project_code    VARCHAR(50) NOT NULL,
@@ -19,11 +19,11 @@ CREATE TABLE projects (
     CONSTRAINT uk_projects_company_code UNIQUE (company_id, project_code)
 );
 
-CREATE INDEX idx_projects_company_status ON projects(company_id, status);
-CREATE INDEX idx_projects_company_name   ON projects(company_id, project_name);
+CREATE INDEX IF NOT EXISTS idx_projects_company_status ON projects(company_id, status);
+CREATE INDEX IF NOT EXISTS idx_projects_company_name   ON projects(company_id, project_name);
 
 -- 2. Travel Record Project Allocations (Decision 1 - Option B)
-CREATE TABLE travel_record_project_allocations (
+CREATE TABLE IF NOT EXISTS travel_record_project_allocations (
     id                          BIGSERIAL PRIMARY KEY,
     company_id                  BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     imported_travel_record_id   BIGINT NOT NULL REFERENCES imported_travel_records(id) ON DELETE CASCADE,
@@ -35,11 +35,11 @@ CREATE TABLE travel_record_project_allocations (
     updated_at                  TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_allocations_company_proj   ON travel_record_project_allocations(company_id, project_id);
-CREATE INDEX idx_allocations_record         ON travel_record_project_allocations(imported_travel_record_id);
+CREATE INDEX IF NOT EXISTS idx_allocations_company_proj   ON travel_record_project_allocations(company_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_allocations_record         ON travel_record_project_allocations(imported_travel_record_id);
 
 -- 3. Canonical Passenger Alias Mapping
-CREATE TABLE imported_passenger_aliases (
+CREATE TABLE IF NOT EXISTS imported_passenger_aliases (
     id                  BIGSERIAL PRIMARY KEY,
     company_id          BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     raw_name_string     VARCHAR(500) NOT NULL,
@@ -53,11 +53,11 @@ CREATE TABLE imported_passenger_aliases (
     CONSTRAINT uk_passenger_alias_company_raw UNIQUE (company_id, raw_name_string)
 );
 
-CREATE INDEX idx_passenger_aliases_lookup  ON imported_passenger_aliases(company_id, raw_name_string);
-CREATE INDEX idx_passenger_aliases_emp     ON imported_passenger_aliases(company_id, employee_id);
+CREATE INDEX IF NOT EXISTS idx_passenger_aliases_lookup  ON imported_passenger_aliases(company_id, raw_name_string);
+CREATE INDEX IF NOT EXISTS idx_passenger_aliases_emp     ON imported_passenger_aliases(company_id, employee_id);
 
 -- 4. Derived Multi-Leg Journeys (Decision 4 - Option A)
-CREATE TABLE derived_journeys (
+CREATE TABLE IF NOT EXISTS derived_journeys (
     id                  BIGSERIAL PRIMARY KEY,
     company_id          BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
     journey_uid         VARCHAR(100) NOT NULL,
@@ -79,9 +79,9 @@ CREATE TABLE derived_journeys (
     CONSTRAINT uk_journeys_company_uid UNIQUE (company_id, journey_uid)
 );
 
-CREATE INDEX idx_journeys_company_dates     ON derived_journeys(company_id, start_date, end_date);
-CREATE INDEX idx_journeys_company_passenger ON derived_journeys(company_id, passenger_name);
-CREATE INDEX idx_journeys_company_emp       ON derived_journeys(company_id, employee_id);
+CREATE INDEX IF NOT EXISTS idx_journeys_company_dates     ON derived_journeys(company_id, start_date, end_date);
+CREATE INDEX IF NOT EXISTS idx_journeys_company_passenger ON derived_journeys(company_id, passenger_name);
+CREATE INDEX IF NOT EXISTS idx_journeys_company_emp       ON derived_journeys(company_id, employee_id);
 
 -- 5. Extend employees for Safe Unverified Identity Staging (Decision 2 - Option B)
 ALTER TABLE employees ADD COLUMN IF NOT EXISTS verification_status VARCHAR(30) NOT NULL DEFAULT 'VERIFIED';
