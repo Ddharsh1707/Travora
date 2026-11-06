@@ -32,6 +32,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
+@Transactional(readOnly = true)
 public class ImportService {
 
     private static final Logger log = LoggerFactory.getLogger(ImportService.class);
