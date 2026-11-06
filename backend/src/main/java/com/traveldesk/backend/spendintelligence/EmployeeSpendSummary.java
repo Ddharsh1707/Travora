@@ -8,12 +8,15 @@ public record EmployeeSpendSummary(
         String employeeName,
         String department,
         long tripCount,
-        BigDecimal totalSpend,
-        BigDecimal avgSpendPerTrip,
+        BigDecimal totalSpend,       // Net spend (backwards compatibility)
+        BigDecimal grossSpend,       // Gross billed spend
+        BigDecimal creditNotesSpend, // Credits / refunds
+        BigDecimal netSpend,         // Net spend (Gross - Credits)
+        BigDecimal avgSpendPerTrip,  // Excludes zero-fare transit legs
         LocalDate firstTripDate,
         LocalDate lastTripDate,
         String topDestination,
         long domesticTrips,
-        long internationalTrips
+        long internationalTrips,
+        String verificationStatus    // VERIFIED, IMPORTED_UNVERIFIED
 ) {}
-

@@ -59,6 +59,18 @@ class ImportControllerTest {
     private ImportedTravelRecordRepository recordRepository;
 
     @Autowired
+    private com.traveldesk.backend.journey.DerivedJourneyRepository journeyRepository;
+
+    @Autowired
+    private com.traveldesk.backend.employee.ImportedPassengerAliasRepository aliasRepository;
+
+    @Autowired
+    private com.traveldesk.backend.project.TravelRecordProjectAllocationRepository allocationRepository;
+
+    @Autowired
+    private com.traveldesk.backend.project.ProjectRepository projectRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -81,10 +93,14 @@ class ImportControllerTest {
 
     @BeforeEach
     void setup() {
+        allocationRepository.deleteAll();
         recordRepository.deleteAll();
+        journeyRepository.deleteAll();
+        aliasRepository.deleteAll();
         batchRepository.deleteAll();
         userRepository.deleteAll();
         employeeRepository.deleteAll();
+        projectRepository.deleteAll();
         companyRepository.deleteAll();
 
         companyA = new Company();
@@ -119,10 +135,14 @@ class ImportControllerTest {
 
     @AfterEach
     void tearDown() {
+        allocationRepository.deleteAll();
         recordRepository.deleteAll();
+        journeyRepository.deleteAll();
+        aliasRepository.deleteAll();
         batchRepository.deleteAll();
         userRepository.deleteAll();
         employeeRepository.deleteAll();
+        projectRepository.deleteAll();
         companyRepository.deleteAll();
     }
 

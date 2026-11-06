@@ -2,10 +2,15 @@ package com.traveldesk.backend.importdata;
 
 import com.traveldesk.backend.company.Company;
 import com.traveldesk.backend.employee.Employee;
+import com.traveldesk.backend.journey.DerivedJourney;
+import com.traveldesk.backend.project.Project;
+import com.traveldesk.backend.project.TravelRecordProjectAllocation;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "imported_travel_records")
@@ -60,6 +65,41 @@ public class ImportedTravelRecord {
     @Column(name = "project_name")
     private String projectName;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "project_id")
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "journey_id")
+    private DerivedJourney journey;
+
+    @Column(name = "is_credit_note", nullable = false)
+    private boolean isCreditNote = false;
+
+    @Column(name = "original_ticket_reference")
+    private String originalTicketReference;
+
+    @Column(name = "net_cost")
+    private BigDecimal netCost;
+
+    @Column(name = "is_zero_fare_transit", nullable = false)
+    private boolean isZeroFareTransit = false;
+
+    @Column(name = "leg_sequence")
+    private int legSequence = 1;
+
+    @Column(name = "travel_category", length = 50, nullable = false)
+    private String travelCategory = "DOMESTIC_FLIGHT";
+
+    @Column(name = "source_worksheet")
+    private String sourceWorksheet;
+
+    @Column(name = "original_currency", length = 10)
+    private String originalCurrency = "INR";
+
+    @OneToMany(mappedBy = "importedTravelRecord", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TravelRecordProjectAllocation> allocations = new ArrayList<>();
+
     @Column(nullable = false)
     private String status = "PENDING"; // PENDING, VALID, MATCHED, UNMATCHED, DUPLICATE, INVALID, IMPORTED, SKIPPED
 
@@ -85,6 +125,9 @@ public class ImportedTravelRecord {
     public void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (netCost == null && cost != null) {
+            netCost = isCreditNote ? cost.abs().negate() : cost.abs();
         }
     }
 
@@ -134,10 +177,62 @@ public class ImportedTravelRecord {
     public void setProvider(String provider) { this.provider = provider; }
 
     public BigDecimal getCost() { return cost; }
-    public void setCost(BigDecimal cost) { this.cost = cost; }
+    public void setCost(BigDecimal cost) {
+        this.cost = cost;
+        if (cost != null && (this.netCost == null || this.netCost.compareTo(BigDecimal.ZERO) == 0)) {
+            this.netCost = this.isCreditNote ? cost.abs().negate() : cost.abs();
+        }
+    }
 
     public String getProjectName() { return projectName; }
     public void setProjectName(String projectName) { this.projectName = projectName; }
+
+    public Project getProject() { return project; }
+    public void setProject(Project project) { this.project = project; }
+
+    public DerivedJourney getJourney() { return journey; }
+    public void setJourney(DerivedJourney journey) { this.journey = journey; }
+
+    public boolean isCreditNote() { return isCreditNote; }
+    public void setCreditNote(boolean creditNote) {
+        isCreditNote = creditNote;
+        if (this.cost != null) {
+            this.netCost = creditNote ? this.cost.abs().negate() : this.cost.abs();
+        }
+    }
+
+    public String getOriginalTicketReference() { return originalTicketReference; }
+    public void setOriginalTicketReference(String originalTicketReference) { this.originalTicketReference = originalTicketReference; }
+
+    public BigDecimal getNetCost() { return netCost; }
+    public void setNetCost(BigDecimal netCost) { this.netCost = netCost; }
+
+    public boolean isZeroFareTransit() { return isZeroFareTransit; }
+    public void setZeroFareTransit(boolean zeroFareTransit) { isZeroFareTransit = zeroFareTransit; }
+
+    public int getLegSequence() { return legSequence; }
+    public void setLegSequence(int legSequence) { this.legSequence = legSequence; }
+
+    public String getTravelCategory() { return travelCategory; }
+    public void setTravelCategory(String travelCategory) { this.travelCategory = travelCategory; }
+
+    public String getSourceWorksheet() { return sourceWorksheet; }
+    public void setSourceWorksheet(String sourceWorksheet) { this.sourceWorksheet = sourceWorksheet; }
+
+    public String getOriginalCurrency() { return originalCurrency; }
+    public void setOriginalCurrency(String originalCurrency) { this.originalCurrency = originalCurrency; }
+
+    public List<TravelRecordProjectAllocation> getAllocations() { return allocations; }
+    public void setAllocations(List<TravelRecordProjectAllocation> newAllocations) {
+        if (this.allocations == null) {
+            this.allocations = new ArrayList<>();
+        } else {
+            this.allocations.clear();
+        }
+        if (newAllocations != null) {
+            this.allocations.addAll(newAllocations);
+        }
+    }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
@@ -160,4 +255,3 @@ public class ImportedTravelRecord {
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }
-

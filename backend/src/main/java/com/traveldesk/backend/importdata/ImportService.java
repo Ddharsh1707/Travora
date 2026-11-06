@@ -6,8 +6,16 @@ import com.traveldesk.backend.auth.User;
 import com.traveldesk.backend.company.Company;
 import com.traveldesk.backend.employee.Employee;
 import com.traveldesk.backend.employee.EmployeeRepository;
+import com.traveldesk.backend.employee.ImportedPassengerAlias;
+import com.traveldesk.backend.employee.ImportedPassengerAliasRepository;
+import com.traveldesk.backend.journey.JourneyAggregationService;
+import com.traveldesk.backend.project.Project;
+import com.traveldesk.backend.project.ProjectRepository;
+import com.traveldesk.backend.project.TravelRecordProjectAllocation;
+import com.traveldesk.backend.project.TravelRecordProjectAllocationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +41,43 @@ public class ImportService {
     private final ImportedTravelRecordRepository recordRepository;
     private final EmployeeRepository employeeRepository;
     private final SpreadsheetParserService parserService;
+    private final ProjectRepository projectRepository;
+    private final TravelRecordProjectAllocationRepository allocationRepository;
+    private final ImportedPassengerAliasRepository aliasRepository;
+    private final JourneyAggregationService journeyAggregationService;
+
+    // Common international airport/city indicators
+    private static final Set<String> INTERNATIONAL_INDICATORS = Set.of(
+            "DUBAI", "DXB", "SINGAPORE", "SIN", "LONDON", "LHR", "LGW", "NEW YORK", "JFK",
+            "DOHA", "DOH", "ABU DHABI", "AUH", "BANGKOK", "BKK", "KUALA LUMPUR", "KUL",
+            "FRANKFURT", "FRA", "PARIS", "CDG", "TOKYO", "NRT", "HND", "HONG KONG", "HKG",
+            "COLOMBO", "CMB", "DHAKA", "DAC", "KATHMANDU", "KTM", "MUSCAT", "MCT",
+            "BAHRAIN", "BAH", "KUWAIT", "KWI", "RIYADH", "RUH", "JEDDAH", "JED",
+            "SYDNEY", "SYD", "MELBOURNE", "MEL", "TORONTO", "YYZ", "CHICAGO", "ORD",
+            "SAN FRANCISCO", "SFO", "DALLAS", "DFW", "AMSTERDAM", "AMS", "ZURICH", "ZRH",
+            "ROB", "MONROVIA", "LIBERIA", "MAURITIUS", "MRU", "BUCHANAN", "THOKADEH"
+    );
+
+    @Autowired
+    public ImportService(
+            ImportBatchRepository batchRepository,
+            ImportedTravelRecordRepository recordRepository,
+            EmployeeRepository employeeRepository,
+            SpreadsheetParserService parserService,
+            ProjectRepository projectRepository,
+            TravelRecordProjectAllocationRepository allocationRepository,
+            ImportedPassengerAliasRepository aliasRepository,
+            JourneyAggregationService journeyAggregationService
+    ) {
+        this.batchRepository = batchRepository;
+        this.recordRepository = recordRepository;
+        this.employeeRepository = employeeRepository;
+        this.parserService = parserService;
+        this.projectRepository = projectRepository;
+        this.allocationRepository = allocationRepository;
+        this.aliasRepository = aliasRepository;
+        this.journeyAggregationService = journeyAggregationService;
+    }
 
     public ImportService(
             ImportBatchRepository batchRepository,
@@ -40,10 +85,7 @@ public class ImportService {
             EmployeeRepository employeeRepository,
             SpreadsheetParserService parserService
     ) {
-        this.batchRepository = batchRepository;
-        this.recordRepository = recordRepository;
-        this.employeeRepository = employeeRepository;
-        this.parserService = parserService;
+        this(batchRepository, recordRepository, employeeRepository, parserService, null, null, null, null);
     }
 
     private Company getRequiredCompany(User currentUser) {
@@ -73,14 +115,13 @@ public class ImportService {
             originalFilename = "uploaded_file";
         }
 
-        String lower = originalFilename.toLowerCase();
         String fileType;
-        if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
+        if (originalFilename.toLowerCase().endsWith(".xlsx")) {
             fileType = "XLSX";
-        } else if (lower.endsWith(".csv")) {
+        } else if (originalFilename.toLowerCase().endsWith(".csv")) {
             fileType = "CSV";
         } else {
-            throw new IllegalArgumentException("Unsupported file format. Please upload a .xlsx or .csv spreadsheet.");
+            throw new IllegalArgumentException("Unsupported file type. Please upload an Excel (.xlsx) or CSV (.csv) file.");
         }
 
         SpreadsheetParserService.ParsedSheet parsed;
@@ -130,7 +171,7 @@ public class ImportService {
         recordRepository.saveAll(records);
 
         // Update counts
-        long validCount = records.stream().filter(r -> "VALID".equals(r.getStatus()) || "MATCHED".equals(r.getStatus())).count();
+        long validCount = records.stream().filter(r -> "VALID".equals(r.getStatus()) || "MATCHED".equals(r.getStatus()) || "UNMATCHED".equals(r.getStatus())).count();
         long errorCount = records.stream().filter(r -> "INVALID".equals(r.getStatus())).count();
         batch.setValidRows((int) validCount);
         batch.setErrorRows((int) errorCount);
@@ -168,7 +209,7 @@ public class ImportService {
         validateAndMatchRecords(currentUser, existingRecords);
         recordRepository.saveAll(existingRecords);
 
-        long validCount = existingRecords.stream().filter(r -> "VALID".equals(r.getStatus()) || "MATCHED".equals(r.getStatus())).count();
+        long validCount = existingRecords.stream().filter(r -> "VALID".equals(r.getStatus()) || "MATCHED".equals(r.getStatus()) || "UNMATCHED".equals(r.getStatus())).count();
         long errorCount = existingRecords.stream().filter(r -> "INVALID".equals(r.getStatus())).count();
         batch.setColumnMapping(objectMapper.writeValueAsString(newMapping));
         batch.setValidRows((int) validCount);
@@ -182,11 +223,16 @@ public class ImportService {
     }
 
     /**
-     * Confirm and import preview records into the database.
+     * Confirm and import preview records into the authoritative database.
+     * Enforces Decision 1 (Option B: Project allocations child table),
+     * Decision 2 (Option B: Safe unverified employee creation),
+     * Decision 3 (Option A: Signed Net Cost),
+     * and Decision 4 (Option A: Zero-fare transit preservation).
      */
     @Transactional
     public ImportResultResponse confirmImport(Long batchId, List<Long> selectedRecordIds, User currentUser) {
-        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
+        Company company = getRequiredCompany(currentUser);
+        ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, company.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
 
         if (!"PREVIEW".equals(batch.getStatus())) {
@@ -202,9 +248,8 @@ public class ImportService {
                     .filter(r -> r.getImportBatch().getId().equals(batchId))
                     .toList();
         } else {
-            // Import all records that are not INVALID
             recordsToProcess = recordRepository.findByImportBatchId(batchId).stream()
-                    .filter(r -> !"INVALID".equals(r.getStatus()))
+                    .filter(r -> !"INVALID".equals(r.getStatus()) && !"DUPLICATE".equals(r.getStatus()))
                     .toList();
         }
 
@@ -215,7 +260,7 @@ public class ImportService {
         List<ImportedTravelRecord> sampleImported = new ArrayList<>();
 
         for (ImportedTravelRecord record : recordsToProcess) {
-            if ("INVALID".equals(record.getStatus())) {
+            if ("INVALID".equals(record.getStatus()) || "DUPLICATE".equals(record.getStatus())) {
                 errorCount++;
                 continue;
             }
@@ -224,7 +269,7 @@ public class ImportService {
             if (record.getRawEmployeeIdentifier() != null && record.getTravelDate() != null
                     && record.getFromLocation() != null && record.getToLocation() != null) {
                 List<ImportedTravelRecord> existing = recordRepository.findExistingDuplicates(
-                        getRequiredCompanyId(currentUser),
+                        company.getId(),
                         record.getRawEmployeeIdentifier(),
                         record.getTravelDate(),
                         record.getFromLocation(),
@@ -239,6 +284,76 @@ public class ImportService {
                 }
             }
 
+            // Phase 5 / Decision 2 (Option B):
+            // If employee is not linked, auto-create an Employee marked IMPORTED_UNVERIFIED
+            if (record.getEmployee() == null && record.getRawEmployeeName() != null && !record.getRawEmployeeName().isBlank()) {
+                String candidateName = record.getRawEmployeeName().trim();
+                String normalized = normalizeDisplayName(candidateName);
+
+                // Check alias repository first
+                Optional<ImportedPassengerAlias> aliasOpt = (aliasRepository != null)
+                        ? aliasRepository.findByCompanyIdAndRawNameString(company.getId(), candidateName)
+                        : Optional.empty();
+
+                Employee targetEmp;
+                if (aliasOpt.isPresent() && aliasOpt.get().getEmployee() != null) {
+                    targetEmp = aliasOpt.get().getEmployee();
+                } else {
+                    // Check if employee with same normalized name exists
+                    List<Employee> existing = employeeRepository.findByCompanyIdAndNameIgnoreCase(company.getId(), normalized);
+                    if (!existing.isEmpty()) {
+                        targetEmp = existing.get(0);
+                    } else {
+                        // Create unverified employee profile (Safe: NO password, NO user account, NO login credentials)
+                        String rawIdent = record.getRawEmployeeIdentifier();
+                        String empCode = (rawIdent != null && !rawIdent.isBlank())
+                                ? rawIdent.trim()
+                                : "IMP-" + Math.abs(candidateName.toLowerCase().hashCode() % 100000);
+
+                        // Ensure empCode uniqueness within company
+                        if (employeeRepository.findByCompanyIdAndEmployeeId(company.getId(), empCode).isPresent()) {
+                            empCode = empCode + "-" + record.getSourceRowNumber();
+                        }
+
+                        Employee newEmp = new Employee();
+                        newEmp.setCompany(company);
+                        newEmp.setName(normalized != null ? normalized : candidateName);
+                        newEmp.setEmployeeId(empCode);
+                        newEmp.setDepartment(record.getDepartment() != null ? record.getDepartment() : "General");
+                        newEmp.setVerificationStatus("IMPORTED_UNVERIFIED");
+                        newEmp.setSourceImportBatchId(batch.getId());
+                        newEmp.setActive(true);
+                        targetEmp = employeeRepository.save(newEmp);
+                    }
+
+                    // Save alias
+                    if (aliasRepository != null) {
+                        try {
+                            ImportedPassengerAlias alias = new ImportedPassengerAlias(
+                                    company,
+                                    candidateName,
+                                    targetEmp.getName(),
+                                    targetEmp,
+                                    "AUTO_STAGED",
+                                    "HIGH"
+                            );
+                            aliasRepository.save(alias);
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                record.setEmployee(targetEmp);
+                record.setMatchConfidence("HIGH");
+            }
+
+            // Phase 4 / Decision 1 (Option B): Save Project Allocations
+            if (allocationRepository != null && record.getAllocations() != null && !record.getAllocations().isEmpty()) {
+                for (TravelRecordProjectAllocation alloc : record.getAllocations()) {
+                    alloc.setImportedTravelRecord(record);
+                    allocationRepository.save(alloc);
+                }
+            }
+
             record.setImported(true);
             record.setStatus("IMPORTED");
             importedCount++;
@@ -248,6 +363,16 @@ public class ImportService {
         }
 
         recordRepository.saveAll(recordsToProcess);
+
+        // Phase 6 / Decision 4 (Option A): Journey Reconstruction
+        if (journeyAggregationService != null) {
+            try {
+                journeyAggregationService.reconstructJourneysForBatch(batch, recordsToProcess);
+                recordRepository.saveAll(recordsToProcess);
+            } catch (Exception e) {
+                log.warn("Journey reconstruction for batch {} completed with notice: {}", batch.getId(), e.getMessage());
+            }
+        }
 
         batch.setStatus("COMPLETED");
         batch.setImportedRows(importedCount);
@@ -268,9 +393,6 @@ public class ImportService {
         );
     }
 
-    /**
-     * Get batch by ID with company tenant check.
-     */
     public ImportBatchResponse getBatch(Long batchId, User currentUser) {
         ImportBatch batch = batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
@@ -289,17 +411,11 @@ public class ImportService {
         return ImportBatchResponse.from(batch, sheetNames, headers, suggested);
     }
 
-    /**
-     * List batches for company.
-     */
     public Page<ImportBatchResponse> listBatches(User currentUser, Pageable pageable) {
         Page<ImportBatch> page = batchRepository.findByCompanyIdOrderByCreatedAtDesc(getRequiredCompanyId(currentUser), pageable);
         return page.map(b -> ImportBatchResponse.from(b, null, null, null));
     }
 
-    /**
-     * Get paginated preview records for a batch.
-     */
     public Page<ImportedRecordResponse> getPreviewRecords(Long batchId, String search, String status, User currentUser, Pageable pageable) {
         batchRepository.findByIdAndCompanyId(batchId, getRequiredCompanyId(currentUser))
                 .orElseThrow(() -> new IllegalArgumentException("Import batch not found or access denied."));
@@ -328,9 +444,6 @@ public class ImportService {
         return page.map(ImportedRecordResponse::from);
     }
 
-    /**
-     * Search authoritative imported travel history.
-     */
     public Page<ImportedRecordResponse> searchTravelHistory(
             User currentUser,
             Long employeeId,
@@ -346,9 +459,6 @@ public class ImportService {
         return page.map(ImportedRecordResponse::from);
     }
 
-    /**
-     * Export travel history to CSV with formula injection protection (RFC 4180).
-     */
     public String exportTravelHistoryCsv(
             User currentUser,
             Long employeeId,
@@ -360,8 +470,7 @@ public class ImportService {
         List<ImportedTravelRecord> records = recordRepository.findForExport(companyId, employeeId, fromDate, toDate, search);
 
         StringBuilder sb = new StringBuilder();
-        // CSV Header
-        sb.append("Employee ID,Employee Name,Travel Date,Return Date,From,To,Ticket Reference,Department,Travel Mode,Provider,Cost,Project,Status\r\n");
+        sb.append("Employee ID,Employee Name,Travel Date,Return Date,From,To,Ticket Reference,Department,Travel Mode,Category,Provider,Gross Cost (INR),Net Cost (INR),Credit Note,Project,Status\r\n");
 
         for (ImportedTravelRecord r : records) {
             sb.append(escapeCsv(r.getRawEmployeeIdentifier())).append(",");
@@ -373,16 +482,18 @@ public class ImportService {
             sb.append(escapeCsv(r.getTicketReference())).append(",");
             sb.append(escapeCsv(r.getDepartment())).append(",");
             sb.append(escapeCsv(r.getTravelMode())).append(",");
+            sb.append(escapeCsv(r.getTravelCategory())).append(",");
             sb.append(escapeCsv(r.getProvider())).append(",");
             sb.append(escapeCsv(r.getCost() != null ? r.getCost().toPlainString() : "")).append(",");
-            sb.append(escapeCsv(r.getProjectName())).append(",");
+            sb.append(escapeCsv(r.getNetCost() != null ? r.getNetCost().toPlainString() : "")).append(",");
+            sb.append(r.isCreditNote() ? "YES" : "NO").append(",");
+            sb.append(escapeCsv(r.getProject() != null ? r.getProject().getProjectName() : r.getProjectName())).append(",");
             sb.append(escapeCsv(r.getStatus())).append("\r\n");
         }
 
         return sb.toString();
     }
 
-    // Helper: Map single row
     private ImportedTravelRecord mapRowToRecord(
             ImportBatch batch,
             User currentUser,
@@ -394,6 +505,7 @@ public class ImportService {
         record.setCompany(getRequiredCompany(currentUser));
         record.setImportBatch(batch);
         record.setSourceRowNumber(rowNumber);
+        record.setSourceWorksheet(batch.getSheetName());
         try {
             record.setRawRowData(objectMapper.writeValueAsString(rowMap));
         } catch (Exception e) {
@@ -405,9 +517,11 @@ public class ImportService {
     }
 
     private void applyMappingToRecord(ImportedTravelRecord record, Map<String, String> rowMap, Map<String, String> mapping) {
+        Company company = record.getCompany();
+
+        // 1. Employee Identifier
         String empId = getMappedValue(rowMap, mapping, "employeeId");
         if (empId == null || empId.isBlank()) {
-            // Fallback: check unmapped rowMap for employee/staff/psno ID columns
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
                 String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
                 if ((normKey.equals("id") || normKey.equals("emp id") || normKey.equals("empid") ||
@@ -421,10 +535,8 @@ public class ImportService {
         }
         record.setRawEmployeeIdentifier(empId);
 
-        // 1. Try single employee/passenger name field
+        // 2. Passenger / Employee Name
         String rawName = getMappedValue(rowMap, mapping, "employeeName");
-
-        // 2. Try firstName and lastName combination if employeeName is not present
         if (rawName == null || rawName.isBlank()) {
             String firstName = getMappedValue(rowMap, mapping, "firstName");
             String lastName = getMappedValue(rowMap, mapping, "lastName");
@@ -432,8 +544,6 @@ public class ImportService {
                 rawName = ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();
             }
         }
-
-        // 3. Fallback: inspect raw row data for any passenger/pax/traveler/name column
         if (rawName == null || rawName.isBlank()) {
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
                 String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
@@ -451,12 +561,10 @@ public class ImportService {
                 }
             }
         }
-
-        // Clean & normalize passenger name
         String normalizedName = normalizeDisplayName(rawName);
         record.setRawEmployeeName(normalizedName != null && !normalizedName.isBlank() ? normalizedName : rawName);
 
-        // Sector / Route parsing: extract fromLocation and toLocation
+        // 3. Sector / Route
         String fromLoc = getMappedValue(rowMap, mapping, "fromLocation");
         String toLoc = getMappedValue(rowMap, mapping, "toLocation");
 
@@ -484,18 +592,25 @@ public class ImportService {
                     if (toLoc == null || toLoc.isBlank()) toLoc = parts[parts.length - 1].trim();
                 } else if (parts.length == 1 && (fromLoc == null || fromLoc.isBlank())) {
                     fromLoc = parts[0].trim();
+                    toLoc = fromLoc;
                 }
             }
+        }
+        if (fromLoc != null && !fromLoc.isBlank() && (toLoc == null || toLoc.isBlank())) {
+            toLoc = fromLoc;
+        }
+        if (toLoc != null && !toLoc.isBlank() && (fromLoc == null || fromLoc.isBlank())) {
+            fromLoc = toLoc;
         }
         record.setFromLocation(fromLoc);
         record.setToLocation(toLoc);
 
-        // Ticket Reference
+        // 4. Ticket Reference / PNR
         String ticket = getMappedValue(rowMap, mapping, "ticketReference");
         if (ticket == null || ticket.isBlank()) {
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
                 String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
-                if ((normKey.contains("ticket") || normKey.contains("tkt") || normKey.contains("pnr")) &&
+                if ((normKey.contains("ticket") || normKey.contains("tkt") || normKey.contains("pnr") || normKey.equals("reference") || normKey.equals("voucher no") || normKey.equals("voucherno")) &&
                     entry.getValue() != null && !entry.getValue().isBlank()) {
                     ticket = entry.getValue().trim();
                     break;
@@ -506,7 +621,7 @@ public class ImportService {
 
         record.setDepartment(getMappedValue(rowMap, mapping, "department"));
 
-        // Provider (Airline / Carrier)
+        // 5. Provider
         String provider = getMappedValue(rowMap, mapping, "provider");
         if (provider == null || provider.isBlank()) {
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
@@ -520,24 +635,44 @@ public class ImportService {
         }
         record.setProvider(provider);
 
-        // Travel Mode
+        // 6. Travel Mode & Category
         String travelMode = getMappedValue(rowMap, mapping, "travelMode");
-        if (travelMode == null || travelMode.isBlank()) {
-            if (record.getImportBatch() != null && record.getImportBatch().getSheetName() != null &&
-                record.getImportBatch().getSheetName().toUpperCase().contains("AIR")) {
-                travelMode = "FLIGHT";
-            } else if (provider != null && (provider.toLowerCase().contains("air") || provider.toLowerCase().contains("indigo") ||
-                                            provider.toLowerCase().contains("vistara") || provider.toLowerCase().contains("spicejet"))) {
-                travelMode = "FLIGHT";
+        String serviceVal = "";
+        for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+            if (entry.getKey().trim().equalsIgnoreCase("SERVICE")) {
+                serviceVal = entry.getValue() != null ? entry.getValue().trim().toUpperCase() : "";
+                break;
+            }
+        }
+
+        String sectorUpper = fromLoc != null ? fromLoc.toUpperCase() : "";
+        String travelCategory = "DOMESTIC_FLIGHT";
+        if ("HOTEL".equalsIgnoreCase(serviceVal) || "HOTEL".equalsIgnoreCase(travelMode) ||
+            sectorUpper.contains("HOTEL") || sectorUpper.contains("LE MERIDIEN") ||
+            sectorUpper.contains("HOLIDAY INN") || sectorUpper.contains("RESORT") ||
+            sectorUpper.contains("PALACE") || sectorUpper.contains("PLAZA") ||
+            sectorUpper.contains("COMFORT") || sectorUpper.contains("HEAVEN")) {
+            travelMode = "HOTEL";
+            travelCategory = "HOTEL";
+        } else if ("BUS".equalsIgnoreCase(serviceVal) || "BUS".equalsIgnoreCase(travelMode)) {
+            travelMode = "BUS";
+            travelCategory = "BUS";
+        } else if ("VISA".equalsIgnoreCase(serviceVal) || "VISA".equalsIgnoreCase(travelMode) ||
+                   sectorUpper.contains("VISA")) {
+            travelMode = "VISA";
+            travelCategory = "VISA";
+        } else {
+            travelMode = "FLIGHT";
+            if (isInternational(fromLoc, toLoc)) {
+                travelCategory = "INTERNATIONAL_FLIGHT";
             } else {
-                travelMode = "FLIGHT";
+                travelCategory = "DOMESTIC_FLIGHT";
             }
         }
         record.setTravelMode(travelMode);
+        record.setTravelCategory(travelCategory);
 
-        record.setProjectName(getMappedValue(rowMap, mapping, "projectName"));
-
-        // Travel Date
+        // 7. Travel Date
         String travelDateStr = getMappedValue(rowMap, mapping, "travelDate");
         if (travelDateStr == null || travelDateStr.isBlank()) {
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
@@ -550,17 +685,44 @@ public class ImportService {
                 }
             }
         }
+        // Fallback: check all cell values for a parseable calendar date
+        if (travelDateStr == null || travelDateStr.isBlank()) {
+            for (String val : rowMap.values()) {
+                if (val != null && !val.isBlank()) {
+                    LocalDate parsed = parseDateSafely(val);
+                    if (parsed != null && parsed.getYear() >= 2020 && parsed.getYear() <= 2030) {
+                        travelDateStr = val;
+                        break;
+                    }
+                }
+            }
+        }
         record.setTravelDate(parseDateSafely(travelDateStr));
 
         String returnDateStr = getMappedValue(rowMap, mapping, "returnDate");
         record.setReturnDate(parseDateSafely(returnDateStr));
 
-        // Cost
+        // 8. Cost & Credit Note Detection
         String costStr = getMappedValue(rowMap, mapping, "cost");
+        String basicFareStr = null;
+        String taxStr = null;
+        String totalBillStr = null;
+        for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+            String norm = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", "").trim();
+            if (norm.equals("basic") || norm.equals("basicfare")) {
+                basicFareStr = entry.getValue();
+            } else if (norm.equals("tax") || norm.equals("taxes")) {
+                taxStr = entry.getValue();
+            } else if (norm.contains("totalbill") || norm.contains("totalamount")) {
+                totalBillStr = entry.getValue();
+            }
+        }
+
         if (costStr == null || costStr.isBlank()) {
             for (Map.Entry<String, String> entry : rowMap.entrySet()) {
                 String normKey = entry.getKey().toLowerCase().replaceAll("[^a-z0-9]", " ").trim();
-                if ((normKey.contains("amount") || normKey.contains("fare") || normKey.contains("cost") ||
+                if ((normKey.contains("total bill") || normKey.contains("total amount") ||
+                     normKey.contains("amount") || normKey.contains("fare") || normKey.contains("cost") ||
                      normKey.contains("total") || normKey.contains("net") || normKey.contains("basic")) &&
                     entry.getValue() != null && !entry.getValue().isBlank()) {
                     costStr = entry.getValue().trim();
@@ -568,116 +730,148 @@ public class ImportService {
                 }
             }
         }
-        record.setCost(parseCostSafely(costStr));
-    }
 
-    private String getMappedValue(Map<String, String> rowMap, Map<String, String> mapping, String field) {
-        String colHeader = mapping.get(field);
-        if (colHeader != null && rowMap.containsKey(colHeader)) {
-            String val = rowMap.get(colHeader);
-            return (val != null && !val.isBlank()) ? val.trim() : null;
+        BigDecimal cost = parseCostSafely(costStr);
+        BigDecimal basicFare = parseCostSafely(basicFareStr);
+        BigDecimal tax = parseCostSafely(taxStr);
+        BigDecimal totalBill = parseCostSafely(totalBillStr);
+
+        boolean isCreditNote = false;
+        if (basicFare != null && basicFare.compareTo(BigDecimal.ZERO) < 0) {
+            isCreditNote = true;
         }
-        return null;
-    }
+        if (cost != null && cost.compareTo(BigDecimal.ZERO) < 0) {
+            isCreditNote = true;
+        }
+        if (tax != null && tax.compareTo(BigDecimal.ZERO) < 0 && (basicFare == null || basicFare.compareTo(BigDecimal.ZERO) <= 0)) {
+            isCreditNote = true;
+        }
+        if (ticket != null && (ticket.toUpperCase().startsWith("CN") || ticket.toUpperCase().contains("CR"))) {
+            isCreditNote = true;
+        }
 
-    /**
-     * Clean and normalize passenger names:
-     * - Airline GDS slash notation (LAST/FIRST MIDDLE TITLE -> First Middle Last)
-     * - Inverted comma notation (LAST, FIRST MIDDLE -> First Middle Last)
-     * - Title removal (MR, MRS, MS, DR, PROF, etc.)
-     * - Proper title casing
-     */
-    public static String normalizeDisplayName(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        String s = raw.trim();
-
-        Set<String> titles = Set.of("MR", "MRS", "MS", "MISS", "MSTR", "MASTER", "DR", "PROF");
-
-        // Airline slash notation: LAST/FIRST [MIDDLE] [TITLE]
-        if (s.contains("/")) {
-            String[] parts = s.split("/", 2);
-            String last = parts[0].trim();
-            String first = parts.length > 1 ? parts[1].trim() : "";
-
-            String[] firstWords = first.split("\\s+");
-            List<String> cleanedFirst = new ArrayList<>();
-            for (int i = 0; i < firstWords.length; i++) {
-                String w = firstWords[i];
-                String stripped = w.replace(".", "").toUpperCase();
-                if (i == firstWords.length - 1 && titles.contains(stripped)) {
-                    continue;
-                }
-                cleanedFirst.add(w);
+        if (isCreditNote && (cost == null || cost.compareTo(BigDecimal.ZERO) == 0)) {
+            if (totalBill != null && totalBill.compareTo(BigDecimal.ZERO) > 0) {
+                cost = totalBill.abs();
+            } else if (tax != null && tax.compareTo(BigDecimal.ZERO) < 0) {
+                cost = tax.abs();
             }
-            first = String.join(" ", cleanedFirst).trim();
-            s = (first + " " + last).trim();
-        } else if (s.contains(",")) {
-            // Comma notation: LAST, FIRST [MIDDLE] [TITLE]
-            String[] parts = s.split(",", 2);
-            String last = parts[0].trim();
-            String first = parts.length > 1 ? parts[1].trim() : "";
+        }
 
-            String[] firstWords = first.split("\\s+");
-            List<String> cleanedFirst = new ArrayList<>();
-            for (int i = 0; i < firstWords.length; i++) {
-                String w = firstWords[i];
-                String stripped = w.replace(".", "").toUpperCase();
-                if (i == firstWords.length - 1 && titles.contains(stripped)) {
-                    continue;
-                }
-                cleanedFirst.add(w);
-            }
-            first = String.join(" ", cleanedFirst).trim();
-            s = (first + " " + last).trim();
+        record.setCost(cost != null ? cost.abs() : BigDecimal.ZERO);
+        record.setCreditNote(isCreditNote);
+        if (isCreditNote) {
+            record.setNetCost(cost != null ? cost.abs().negate() : BigDecimal.ZERO);
         } else {
-            // Strip leading / trailing honorifics
-            String[] words = s.split("\\s+");
-            List<String> list = new ArrayList<>(Arrays.asList(words));
-            if (!list.isEmpty() && titles.contains(list.get(0).replace(".", "").toUpperCase())) {
-                list.remove(0);
-            }
-            if (!list.isEmpty() && titles.contains(list.get(list.size() - 1).replace(".", "").toUpperCase())) {
-                list.remove(list.size() - 1);
-            }
-            s = String.join(" ", list).trim();
+            record.setNetCost(cost != null ? cost.abs() : BigDecimal.ZERO);
         }
 
-        if (s.isBlank()) return raw.trim();
+        // 9. Zero-fare transit leg detection (Decision 4 - Option A)
+        // Genuine connecting transit flight legs have 0 cost and are NOT credit notes
+        if (!isCreditNote && cost != null && cost.compareTo(BigDecimal.ZERO) == 0 &&
+            (record.getFromLocation() != null || record.getToLocation() != null)) {
+            record.setZeroFareTransit(true);
+            record.setNetCost(BigDecimal.ZERO);
+        }
 
-        // Proper Title Case
-        String[] words = s.split("\\s+");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < words.length; i++) {
-            String w = words[i].trim();
-            if (w.isEmpty()) continue;
-            if (i > 0) sb.append(" ");
-            if (w.length() == 1) {
-                sb.append(Character.toUpperCase(w.charAt(0)));
-            } else {
-                sb.append(Character.toUpperCase(w.charAt(0)))
-                  .append(w.substring(1).toLowerCase());
-            }
-        }
-        return sb.toString();
-    }
-
-    private static boolean matchesNameTokens(String a, String b) {
-        if (a == null || b == null) return false;
-        Set<String> titles = Set.of("mr", "mrs", "ms", "miss", "dr", "prof");
-        Set<String> tokensA = new HashSet<>();
-        for (String t : a.toLowerCase().split("[^a-z0-9]+")) {
-            if (!t.isBlank() && !titles.contains(t)) tokensA.add(t);
-        }
-        Set<String> tokensB = new HashSet<>();
-        for (String t : b.toLowerCase().split("[^a-z0-9]+")) {
-            if (!t.isBlank() && !titles.contains(t)) tokensB.add(t);
-        }
-        return !tokensA.isEmpty() && tokensA.equals(tokensB);
+        // 10. Phase 4: Project Matrix Unpivoting (Decision 1 - Option B)
+        unpivotProjectAllocations(record, rowMap, mapping, company);
     }
 
     /**
-     * Validate and match records against existing employees and check for duplicates.
+     * Unpivots horizontal project columns (e.g. 19 columns in Mahathi ledger)
+     * into relational child records (travel_record_project_allocations).
      */
+    private void unpivotProjectAllocations(ImportedTravelRecord record, Map<String, String> rowMap, Map<String, String> mapping, Company company) {
+        if (projectRepository == null) return;
+
+        List<TravelRecordProjectAllocation> allocations = new ArrayList<>();
+        Project primaryProject = null;
+
+        // Non-project standard headers to skip
+        Set<String> standardHeaders = Set.of(
+                "S.NO", "SL", "SERVICE", "DATE", "REFERENCE", "PASSENGER", "PAX",
+                "BASIC", "TAX", "DIS RATE%", "COMMSION", "COMMISSION", "TDS",
+                "OTHER CHARGES", "TOTAL BILL VALUE", "TOTAL", "AMOUNT", "SECTOR",
+                "TICKET", "TICKET NO", "AIRLINE", "CARRIER"
+        );
+
+        Set<String> skipHeaders = new HashSet<>(standardHeaders);
+        if (mapping != null) {
+            for (String mappedCol : mapping.values()) {
+                if (mappedCol != null && !mappedCol.isBlank()) {
+                    skipHeaders.add(mappedCol.toUpperCase().replaceAll("[^A-Z0-9 ]", " ").trim());
+                }
+            }
+        }
+
+        for (Map.Entry<String, String> entry : rowMap.entrySet()) {
+            String colHeader = entry.getKey().trim();
+            String upper = colHeader.toUpperCase().replaceAll("[^A-Z0-9 ]", " ").trim();
+
+            if (skipHeaders.contains(upper)) continue;
+
+            String valStr = entry.getValue();
+            if (valStr == null || valStr.isBlank()) continue;
+
+            BigDecimal allocAmt = parseCostSafely(valStr);
+            if (allocAmt == null || allocAmt.compareTo(BigDecimal.ZERO) == 0) continue;
+
+            // Normalize project code and name
+            String pCode = upper.replaceAll("\\s+", "_");
+            String pName = colHeader;
+            if (pName.contains("-")) {
+                String[] pParts = pName.split("-", 2);
+                pName = pParts[pParts.length - 1].trim();
+            }
+
+            final String finalPName = pName;
+            final String finalPCode = pCode;
+
+            // Find or create Project entity
+            Project project = projectRepository.findByNameOrCode(company.getId(), finalPName, finalPCode)
+                    .orElseGet(() -> {
+                        Project newP = new Project(company, finalPCode, finalPName, null, null, null, "ACTIVE");
+                        return projectRepository.save(newP);
+                    });
+
+            if (primaryProject == null) {
+                primaryProject = project;
+            }
+
+            TravelRecordProjectAllocation alloc = new TravelRecordProjectAllocation(
+                    company,
+                    record,
+                    project,
+                    allocAmt.abs(),
+                    "SPREADSHEET_MATRIX"
+            );
+            allocations.add(alloc);
+        }
+
+        record.setAllocations(allocations);
+        if (primaryProject != null) {
+            record.setProject(primaryProject);
+            record.setProjectName(primaryProject.getProjectName());
+        }
+    }
+
+    private boolean isInternational(String fromLoc, String toLoc) {
+        if (toLoc != null) {
+            String u = toLoc.toUpperCase();
+            for (String ind : INTERNATIONAL_INDICATORS) {
+                if (u.contains(ind)) return true;
+            }
+        }
+        if (fromLoc != null) {
+            String u = fromLoc.toUpperCase();
+            for (String ind : INTERNATIONAL_INDICATORS) {
+                if (u.contains(ind)) return true;
+            }
+        }
+        return false;
+    }
+
     private void validateAndMatchRecords(User currentUser, List<ImportedTravelRecord> records) {
         Long companyId = getRequiredCompanyId(currentUser);
         Set<String> seenBatchKeys = new HashSet<>();
@@ -694,7 +888,7 @@ public class ImportService {
                 errors.add("Missing employee identifier and passenger name.");
             }
 
-            // 2. Employee matching
+            // 2. Employee matching (Exact ID -> Alias Map -> Exact Name -> Fuzzy)
             Employee matched = null;
             String confidence = "NONE";
 
@@ -706,8 +900,16 @@ public class ImportService {
                 }
             }
 
-            if (matched == null && record.getRawEmployeeName() != null && !record.getRawEmployeeName().isBlank()) {
-                String candidateName = record.getRawEmployeeName().trim();
+            String candidateName = record.getRawEmployeeName() != null ? record.getRawEmployeeName().trim() : null;
+            if (matched == null && candidateName != null && aliasRepository != null) {
+                Optional<ImportedPassengerAlias> aliasOpt = aliasRepository.findByCompanyIdAndRawNameString(companyId, candidateName);
+                if (aliasOpt.isPresent() && aliasOpt.get().getEmployee() != null) {
+                    matched = aliasOpt.get().getEmployee();
+                    confidence = "HIGH";
+                }
+            }
+
+            if (matched == null && candidateName != null && !candidateName.isBlank()) {
                 List<Employee> byName = employeeRepository.findByCompanyIdAndNameIgnoreCase(companyId, candidateName);
                 if (byName.size() == 1) {
                     matched = byName.get(0);
@@ -716,7 +918,6 @@ public class ImportService {
                     confidence = "AMBIGUOUS";
                     errors.add("Multiple employees match name '" + candidateName + "'. Identifier required.");
                 } else {
-                    // Fuzzy / token matching against company employees
                     List<Employee> tokenMatches = new ArrayList<>();
                     for (Employee emp : allCompanyEmployees) {
                         if (emp.getName() != null && matchesNameTokens(candidateName, emp.getName())) {
@@ -726,9 +927,6 @@ public class ImportService {
                     if (tokenMatches.size() == 1) {
                         matched = tokenMatches.get(0);
                         confidence = "MEDIUM";
-                    } else if (tokenMatches.size() > 1) {
-                        confidence = "AMBIGUOUS";
-                        errors.add("Multiple employees match name '" + candidateName + "'. Identifier required.");
                     }
                 }
             }
@@ -736,16 +934,28 @@ public class ImportService {
             record.setEmployee(matched);
             record.setMatchConfidence(confidence);
 
-            // 3. Duplicate checks within batch
-            String batchKey = String.format("%s|%s|%s|%s",
+            // Phase 3: Hardened Deduplication composite key
+            String ticketRef = record.getTicketReference() != null && !record.getTicketReference().isBlank()
+                    ? record.getTicketReference().trim().toUpperCase()
+                    : "ROW_" + record.getSourceRowNumber();
+
+            // If ticketRef is a generic invoice or voucher reference, append source row number for within-batch uniqueness
+            if (ticketRef.startsWith("PH6G") || ticketRef.startsWith("VOUCHER") || ticketRef.startsWith("INV") || ticketRef.startsWith("BATCH")) {
+                ticketRef = ticketRef + "_" + record.getSourceRowNumber();
+            }
+
+            String costPart = record.getCost() != null ? record.getCost().toPlainString() : "0";
+            String batchKey = String.format("%s|%s|%s|%s|%s|%s|%s",
                     record.getRawEmployeeIdentifier() != null ? record.getRawEmployeeIdentifier() : record.getRawEmployeeName(),
                     record.getTravelDate(),
                     record.getFromLocation(),
-                    record.getToLocation());
+                    record.getToLocation(),
+                    ticketRef,
+                    costPart,
+                    record.isCreditNote() ? "CN" : "TX");
 
             boolean isBatchDuplicate = !seenBatchKeys.add(batchKey);
 
-            // 4. Determine status
             if (!errors.isEmpty()) {
                 record.setStatus("INVALID");
             } else if (isBatchDuplicate) {
@@ -765,36 +975,120 @@ public class ImportService {
         }
     }
 
+    private boolean matchesNameTokens(String a, String b) {
+        if (a == null || b == null) return false;
+        Set<String> titles = Set.of("mr", "mrs", "ms", "miss", "dr", "prof");
+        Set<String> tokensA = new HashSet<>();
+        for (String t : a.toLowerCase().split("[^a-z0-9]+")) {
+            if (!t.isBlank() && !titles.contains(t)) tokensA.add(t);
+        }
+        Set<String> tokensB = new HashSet<>();
+        for (String t : b.toLowerCase().split("[^a-z0-9]+")) {
+            if (!t.isBlank() && !titles.contains(t)) tokensB.add(t);
+        }
+        return !tokensA.isEmpty() && tokensA.equals(tokensB);
+    }
+
+    private String getMappedValue(Map<String, String> rowMap, Map<String, String> mapping, String field) {
+        String colHeader = mapping.get(field);
+        if (colHeader != null && rowMap.containsKey(colHeader)) {
+            String val = rowMap.get(colHeader);
+            return (val != null && !val.isBlank()) ? val.trim() : null;
+        }
+        return null;
+    }
+
+    public static String normalizeDisplayName(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+
+        Set<String> titles = Set.of("MR", "MRS", "MS", "MISS", "MSTR", "MASTER", "DR", "PROF");
+
+        if (s.contains("/")) {
+            String[] parts = s.split("/", 2);
+            String last = parts[0].trim();
+            String first = parts.length > 1 ? parts[1].trim() : "";
+
+            String[] firstWords = first.split("\\s+");
+            List<String> cleanedFirst = new ArrayList<>();
+            for (int i = 0; i < firstWords.length; i++) {
+                String w = firstWords[i];
+                String stripped = w.replace(".", "").toUpperCase();
+                if (i == firstWords.length - 1 && titles.contains(stripped)) {
+                    continue;
+                }
+                cleanedFirst.add(w);
+            }
+            first = String.join(" ", cleanedFirst).trim();
+            s = (first + " " + last).trim();
+        } else if (s.contains(",")) {
+            String[] parts = s.split(",", 2);
+            String last = parts[0].trim();
+            String first = parts.length > 1 ? parts[1].trim() : "";
+
+            String[] firstWords = first.split("\\s+");
+            List<String> cleanedFirst = new ArrayList<>();
+            for (int i = 0; i < firstWords.length; i++) {
+                String w = firstWords[i];
+                String stripped = w.replace(".", "").toUpperCase();
+                if (i == firstWords.length - 1 && titles.contains(stripped)) {
+                    continue;
+                }
+                cleanedFirst.add(w);
+            }
+            first = String.join(" ", cleanedFirst).trim();
+            s = (first + " " + last).trim();
+        } else {
+            String[] words = s.split("\\s+");
+            List<String> list = new ArrayList<>(Arrays.asList(words));
+            if (!list.isEmpty() && titles.contains(list.get(0).replace(".", "").toUpperCase())) {
+                list.remove(0);
+            }
+            if (!list.isEmpty() && titles.contains(list.get(list.size() - 1).replace(".", "").toUpperCase())) {
+                list.remove(list.size() - 1);
+            }
+            s = String.join(" ", list).trim();
+        }
+
+        if (s.isBlank()) return raw.trim();
+
+        String[] words = s.split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            String w = words[i];
+            if (w.isEmpty()) continue;
+            if (w.length() == 1) {
+                sb.append(Character.toUpperCase(w.charAt(0)));
+            } else {
+                sb.append(Character.toUpperCase(w.charAt(0))).append(w.substring(1).toLowerCase());
+            }
+            if (i < words.length - 1) sb.append(" ");
+        }
+        return sb.toString();
+    }
+
     private LocalDate parseDateSafely(String str) {
         if (str == null || str.isBlank()) return null;
         String trimmed = str.trim();
 
-        // 1. Try numeric Excel date serial number (e.g. "45565")
-        try {
-            double serial = Double.parseDouble(trimmed);
-            if (serial > 30000 && serial < 60000) {
-                return LocalDate.of(1899, 12, 30).plusDays((long) serial);
-            }
-        } catch (NumberFormatException ignored) {}
-
-        // Common date formats (both 4-digit and 2-digit years, dot and slash separators)
         List<DateTimeFormatter> formatters = List.of(
-                DateTimeFormatter.ISO_LOCAL_DATE,                           // yyyy-MM-dd
+                DateTimeFormatter.ofPattern("yyyy-MM-dd"),
                 DateTimeFormatter.ofPattern("dd/MM/yyyy"),
                 DateTimeFormatter.ofPattern("d/M/yyyy"),
                 DateTimeFormatter.ofPattern("MM/dd/yyyy"),
                 DateTimeFormatter.ofPattern("M/d/yyyy"),
-                DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-                DateTimeFormatter.ofPattern("d-M-yyyy"),
-                DateTimeFormatter.ofPattern("dd.MM.yyyy"),
-                DateTimeFormatter.ofPattern("d.M.yyyy"),
                 DateTimeFormatter.ofPattern("dd/MM/yy"),
                 DateTimeFormatter.ofPattern("d/M/yy"),
-                DateTimeFormatter.ofPattern("dd-MM-yy"),
+                DateTimeFormatter.ofPattern("MM/dd/yy"),
+                DateTimeFormatter.ofPattern("M/d/yy"),
+                DateTimeFormatter.ofPattern("d-M-yyyy"),
+                DateTimeFormatter.ofPattern("dd-MM-yyyy"),
                 DateTimeFormatter.ofPattern("d-M-yy"),
+                DateTimeFormatter.ofPattern("dd-MM-yy"),
+                DateTimeFormatter.ofPattern("dd.MM.yyyy"),
+                DateTimeFormatter.ofPattern("d.M.yyyy"),
                 DateTimeFormatter.ofPattern("dd.MM.yy"),
                 DateTimeFormatter.ofPattern("d.M.yy"),
-                DateTimeFormatter.ofPattern("yyyy/MM/dd"),
                 new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd-MMM-yyyy").toFormatter(Locale.ENGLISH),
                 new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d-MMM-yyyy").toFormatter(Locale.ENGLISH),
                 new java.time.format.DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("dd-MMM-yy").toFormatter(Locale.ENGLISH),
@@ -814,32 +1108,39 @@ public class ImportService {
         return null;
     }
 
-    private BigDecimal parseCostSafely(String str) {
+    public static BigDecimal parseCostSafely(String str) {
         if (str == null || str.isBlank()) return null;
         try {
-            String cleaned = str.replaceAll("[^0-9.-]", "");
-            return new BigDecimal(cleaned);
+            String trimmed = str.trim();
+            String upper = trimmed.toUpperCase();
+            boolean isCrNegative = upper.endsWith("CR");
+            String checkLetters = isCrNegative ? upper.substring(0, upper.length() - 2) : upper;
+            if (checkLetters.matches(".*[A-Za-z].*")) {
+                return null;
+            }
+            boolean isParenNegative = trimmed.startsWith("(") && trimmed.endsWith(")");
+            String cleaned = trimmed.replaceAll("[^0-9.-]", "");
+            if (cleaned.isBlank() || cleaned.equals("-") || cleaned.equals(".")) return null;
+            BigDecimal val = new BigDecimal(cleaned);
+            if ((isParenNegative || isCrNegative) && val.compareTo(BigDecimal.ZERO) > 0) {
+                val = val.negate();
+            }
+            return val;
         } catch (Exception e) {
             return null;
         }
     }
 
-    /**
-     * Escape cell values for CSV with formula injection protection (CWE-1236).
-     */
     private String escapeCsv(String value) {
         if (value == null) return "\"\"";
         String val = value;
-        // Formula injection protection: if string starts with =, +, -, @, \t, or \r
         if (!val.isEmpty()) {
             char first = val.charAt(0);
             if (first == '=' || first == '+' || first == '-' || first == '@' || first == '\t' || first == '\r') {
                 val = "'" + val;
             }
         }
-        // Escape quotes
         val = val.replace("\"", "\"\"");
         return "\"" + val + "\"";
     }
 }
-

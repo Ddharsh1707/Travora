@@ -27,6 +27,11 @@ import {
   Briefcase,
   Compass,
   LayoutDashboard,
+  ChevronDown,
+  ChevronUp,
+  ShieldCheck,
+  ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +44,10 @@ import {
   type VendorSpendSummary,
   type EmployeeDetailedHistory,
   type SpendFilterParams,
+  type ProjectSpendSummary,
+  type ModalSplitSummary,
+  type CreditNoteSummary,
+  type JourneySummary,
 } from "@/lib/api";
 
 interface TravelSpendReportsProps {
@@ -71,7 +80,9 @@ function getInitials(name?: string | null): string {
 
 export function TravelSpendReports({ user }: TravelSpendReportsProps) {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<"overview" | "employees" | "departments" | "destinations" | "vendors">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "projects" | "modal-split" | "credit-notes" | "journeys" | "employees" | "departments" | "destinations" | "vendors"
+  >("overview");
 
   // Filters state
   const [period, setPeriod] = useState<string>("ALL");
@@ -102,6 +113,13 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
   const [departments, setDepartments] = useState<DepartmentSpendSummary[]>([]);
   const [destinations, setDestinations] = useState<DestinationAnalysis | null>(null);
   const [vendors, setVendors] = useState<VendorSpendSummary[]>([]);
+
+  // Enterprise BI extension states
+  const [projects, setProjects] = useState<ProjectSpendSummary[]>([]);
+  const [modalSplit, setModalSplit] = useState<ModalSplitSummary | null>(null);
+  const [creditNotes, setCreditNotes] = useState<CreditNoteSummary | null>(null);
+  const [journeys, setJourneys] = useState<JourneySummary[]>([]);
+  const [expandedJourneyId, setExpandedJourneyId] = useState<number | null>(null);
 
   // Detailed employee modal state
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -168,6 +186,19 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
         setError(err?.message || "Failed to load corporate spend intelligence reports.");
       }
     } finally {
+      // Fetch BI extension datasets in parallel
+      try {
+        const [projRes, modalRes, cnRes, jrnRes] = await Promise.allSettled([
+          spendReportsApi.getProjects(currentFilter),
+          spendReportsApi.getModalSplit(currentFilter),
+          spendReportsApi.getCreditNotes(currentFilter),
+          spendReportsApi.getJourneys(currentFilter),
+        ]);
+        if (projRes.status === "fulfilled") setProjects(projRes.value);
+        if (modalRes.status === "fulfilled") setModalSplit(modalRes.value);
+        if (cnRes.status === "fulfilled") setCreditNotes(cnRes.value);
+        if (jrnRes.status === "fulfilled") setJourneys(jrnRes.value);
+      } catch (ignored) {}
       setLoading(false);
     }
   };
@@ -552,48 +583,75 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
             </div>
           )}
 
-          {/* Executive KPI Overview Cards */}
+          {/* Executive KPI Overview Cards: 3-Tier Spend Hierarchy */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            {/* Total Spend */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Total Spend
+            {/* 1. Net Corporate Spend */}
+            <div className="bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-800/80 p-4 rounded-xl shadow-xs relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full pointer-events-none" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block mb-1">
+                Net Corporate Spend
               </span>
               <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatINR(overview.totalSpend)}
+                {formatINR(overview.netCorporateSpend ?? overview.totalSpend)}
               </div>
-              <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-1">
-                Authoritative imported spend
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-1">
+                Gross ({formatShortINR(overview.grossBilledSpend ?? overview.totalSpend)}) − Credits ({formatShortINR(overview.creditNoteReversals ?? 0)})
               </span>
             </div>
 
-            {/* Total Trips */}
+            {/* 2. Gross Billed Spend */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Total Trips
+                Gross Billed Spend
+              </span>
+              <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {formatINR(overview.grossBilledSpend ?? overview.totalSpend)}
+              </div>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+                Authoritative invoices & tickets
+              </span>
+            </div>
+
+            {/* 3. Credit Note Reversals */}
+            <div className="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 p-4 rounded-xl shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 block mb-1">
+                Credit Reversals / Refunds
+              </span>
+              <div className="text-xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">
+                -{formatINR(overview.creditNoteReversals ?? 0)}
+              </div>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+                {overview.creditNoteCount ?? creditNotes?.totalCreditNotes ?? 0} credit notes reconciled
+              </span>
+            </div>
+
+            {/* 4. Total Trips & Transit Legs */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
+                Total Trips & Sectors
               </span>
               <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {overview.totalTrips.toLocaleString()}
               </div>
-              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-1">
-                {overview.dataTraceability.recordsWithCost} with fare cost recorded
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+                {overview.zeroFareTransitLegsCount ?? 0} zero-fare transit legs tracked
               </span>
             </div>
 
-            {/* Travelers */}
+            {/* 5. Cost Centers & Projects */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Unique Travelers
+                Active Projects
               </span>
               <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {overview.travelerCount.toLocaleString()}
+                {(overview.activeProjectsCount ?? projects.length).toLocaleString()}
               </div>
-              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-1">
-                Distinct employee records
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+                Matrix allocations reconciled
               </span>
             </div>
 
-            {/* Avg per Trip */}
+            {/* 6. Avg per Trip */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
                 Avg Spend / Trip
@@ -601,34 +659,8 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
               <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
                 {formatINR(overview.avgSpendPerTrip)}
               </div>
-              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-1">
-                Per completed historical journey
-              </span>
-            </div>
-
-            {/* Avg per Traveler */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Avg / Employee
-              </span>
-              <div className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {formatINR(overview.avgSpendPerTraveler)}
-              </div>
-              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block mt-1">
-                Cumulative per traveling staff
-              </span>
-            </div>
-
-            {/* Top Spender */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xs">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1">
-                Top Spender
-              </span>
-              <div className="text-sm font-bold text-slate-900 dark:text-white truncate" title={overview.highestSpendingEmployee?.employeeName || "—"}>
-                {overview.highestSpendingEmployee?.employeeName || "—"}
-              </div>
-              <span className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-semibold block mt-1">
-                {formatShortINR(overview.highestSpendingEmployee?.totalSpend || 0)} ({overview.highestSpendingEmployee?.tripCount || 0} trips)
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+                Avg {formatINR(overview.avgSpendPerTraveler)} / employee
               </span>
             </div>
           </div>
@@ -638,7 +670,7 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
             <div className="flex items-center gap-2">
               <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
               <span>
-                <strong>Data Traceability:</strong> Evaluated {overview.dataTraceability.totalRecordsEvaluated} imported historical records from PostgreSQL database. {overview.dataTraceability.recordsWithCost} trips with confirmed monetary fare, {overview.dataTraceability.recordsWithoutCost} trips excluded from financial totals due to unrecorded cost.
+                <strong>Data Traceability:</strong> Evaluated {overview.dataTraceability.totalRecordsEvaluated} imported historical records from PostgreSQL database. {overview.dataTraceability.recordsWithCost} trips with confirmed monetary fare, {overview.zeroFareTransitLegsCount ?? 0} zero-fare connecting transit legs preserved without fare inflation.
               </span>
             </div>
             <div className="font-mono text-[11px] text-slate-500">
@@ -650,6 +682,10 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
           <div className="flex items-center border-b border-slate-200 dark:border-slate-800 gap-1 overflow-x-auto">
             {[
               { id: "overview", label: "Executive Overview", icon: <BarChart3 size={15} /> },
+              { id: "projects", label: `Project Intelligence (${projects.length})`, icon: <Briefcase size={15} /> },
+              { id: "modal-split", label: `Modal Split (${modalSplit?.categories.length ?? 0})`, icon: <Layers size={15} /> },
+              { id: "credit-notes", label: `Credit Notes & Refunds (${creditNotes?.totalCreditNotes ?? 0})`, icon: <RotateCcw size={15} /> },
+              { id: "journeys", label: `Multi-Leg Journeys (${journeys.length})`, icon: <Plane size={15} /> },
               { id: "employees", label: `Employee Analysis (${employees.length})`, icon: <UsersRound size={15} /> },
               { id: "departments", label: `Department Spend (${departments.length})`, icon: <Building2 size={15} /> },
               { id: "destinations", label: `Destinations & Routes (${destinations?.topDestinations.length || 0})`, icon: <Compass size={15} /> },
@@ -659,7 +695,7 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
                 key={t.id}
                 type="button"
                 onClick={() => setActiveTab(t.id as any)}
-                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all whitespace-nowrap cursor-pointer ${
                   activeTab === t.id
                     ? "border-emerald-500 text-emerald-600 dark:text-emerald-400"
                     : "border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
@@ -826,6 +862,433 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: PROJECT INTELLIGENCE */}
+          {activeTab === "projects" && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      COST CENTER & PROJECT ALLOCATION INTELLIGENCE
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      Project-Wise Corporate Mobility Ledger
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Relational child table allocations preserving one original billing transaction with multiple project cost shares.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-[10.5px] uppercase font-bold text-slate-400 block">Total Project Spend</span>
+                      <span className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                        {formatINR(projects.reduce((acc, p) => acc + (p.netSpend ?? p.totalSpend ?? 0), 0))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {projects.length === 0 ? (
+                  <div className="py-16 text-center text-xs text-slate-400">
+                    No project allocations found for the active filter period.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/40">
+                          <th className="py-3 px-3">Project Code & Name</th>
+                          <th className="py-3 px-3">Location / Client</th>
+                          <th className="py-3 px-3 text-center">Allocations</th>
+                          <th className="py-3 px-3 text-center">Travelers</th>
+                          <th className="py-3 px-3">Top Routes</th>
+                          <th className="py-3 px-3 text-right">Gross Billed</th>
+                          <th className="py-3 px-3 text-right">Credit Notes</th>
+                          <th className="py-3 px-3 text-right">Net Spend</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {projects.map((proj) => (
+                          <tr key={proj.projectCode} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-2">
+                                <span className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-mono font-bold text-[10px] shrink-0 border border-emerald-200 dark:border-emerald-800/80">
+                                  <Briefcase size={13} />
+                                </span>
+                                <div>
+                                  <span className="font-bold text-slate-900 dark:text-white block">
+                                    {proj.projectName}
+                                  </span>
+                                  <span className="font-mono text-[10.5px] text-slate-500 dark:text-slate-400">
+                                    {proj.projectCode}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-slate-700 dark:text-slate-300 block">
+                                {proj.location || "Corporate"}
+                              </span>
+                              {proj.clientName && (
+                                <span className="text-[10.5px] text-slate-400 block">
+                                  Client: {proj.clientName}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-center font-semibold text-slate-700 dark:text-slate-300">
+                              {proj.allocationCount}
+                            </td>
+                            <td className="py-3 px-3 text-center font-semibold text-slate-700 dark:text-slate-300">
+                              {proj.travelerCount}
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {proj.topRoutes && proj.topRoutes.length > 0 ? (
+                                  proj.topRoutes.slice(0, 2).map((r, i) => (
+                                    <span key={i} className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-600 dark:text-slate-300">
+                                      {r}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-slate-400 text-[11px]">—</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono text-slate-600 dark:text-slate-300">
+                              {formatINR(proj.grossSpend ?? proj.totalSpend)}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono text-amber-600 dark:text-amber-400">
+                              {proj.creditSpend > 0 ? `-${formatINR(proj.creditSpend)}` : "—"}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono font-bold text-slate-900 dark:text-white">
+                              {formatINR(proj.netSpend ?? proj.totalSpend)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MODAL SPLIT */}
+          {activeTab === "modal-split" && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      MOBILITY SEGREGATION & FLEET ALLOCATION
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      Corporate Travel Modal Split
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Segregating Air Mobility (Domestic & International) from Non-Air Corporate Services (Hotels, Buses, and Visas).
+                    </p>
+                  </div>
+                  {modalSplit && (
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="text-[10.5px] uppercase font-bold text-slate-400 block">Total Spend</span>
+                        <span className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                          {formatINR(modalSplit.totalSpend)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {modalSplit && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {modalSplit.categories.map((cat) => (
+                      <div key={cat.category} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">{cat.label}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            cat.isNonFlight
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300"
+                              : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300"
+                          }`}>
+                            {cat.isNonFlight ? "Non-Flight" : "Aviation"}
+                          </span>
+                        </div>
+                        <div className="text-lg font-bold font-mono text-slate-900 dark:text-white mt-1">
+                          {formatINR(cat.totalCost)}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                          <span>{cat.recordCount} bookings</span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            {cat.shareOfSpendPct.toFixed(1)}% of total
+                          </span>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${cat.isNonFlight ? "bg-amber-500" : "bg-emerald-500"}`}
+                            style={{ width: `${Math.min(100, Math.max(2, cat.shareOfSpendPct))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Non-flight Callout */}
+                {modalSplit && modalSplit.nonFlightRecords > 0 && (
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/20 p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/80 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                        <Building2 size={16} />
+                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-amber-900 dark:text-amber-200 block">
+                          Non-Flight Corporate Services Segregated
+                        </span>
+                        <span className="text-[11px] text-amber-700 dark:text-amber-300 block">
+                          {modalSplit.nonFlightRecords} bookings in Hotels, Bus transit, and Visas cleanly tracked without distorting flight fare averages.
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold font-mono text-amber-800 dark:text-amber-200 whitespace-nowrap">
+                      {formatINR(modalSplit.nonFlightSpend)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: CREDIT NOTES & REFUNDS */}
+          {activeTab === "credit-notes" && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                      REFUND & CANCELLATION RECONCILIATION
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      Credit Notes & Reversal Ledger
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Full audit trail of negative billing line items and refunds reconciled against original flight tickets.
+                    </p>
+                  </div>
+                  {creditNotes && (
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <span className="text-[10.5px] uppercase font-bold text-slate-400 block">Total Credit Reversals</span>
+                        <span className="text-base font-bold font-mono text-amber-600 dark:text-amber-400">
+                          -{formatINR(creditNotes.totalReversedAmount)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {!creditNotes || creditNotes.creditNotes.length === 0 ? (
+                  <div className="py-16 text-center text-xs text-slate-400">
+                    No credit notes or reversals recorded for this period.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/40">
+                          <th className="py-3 px-3">Date</th>
+                          <th className="py-3 px-3">Passenger & Employee</th>
+                          <th className="py-3 px-3">Credit Note / Ticket</th>
+                          <th className="py-3 px-3">Original Ticket Reference</th>
+                          <th className="py-3 px-3">Carrier / Airline</th>
+                          <th className="py-3 px-3">Sector</th>
+                          <th className="py-3 px-3 text-right">Reversal Amount</th>
+                          <th className="py-3 px-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {creditNotes.creditNotes.map((cn) => (
+                          <tr key={cn.recordId} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 px-3 font-mono text-slate-600 dark:text-slate-300">
+                              {cn.travelDate || cn.bookingDate || "—"}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-bold text-slate-900 dark:text-white block">
+                                {cn.passengerName}
+                              </span>
+                              <span className="text-[10.5px] font-mono text-slate-500">
+                                {cn.employeeIdentifier || "—"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono text-amber-700 dark:text-amber-400 font-semibold">
+                              {cn.ticketNumber || `REC-${cn.recordId}`}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-500">
+                              {cn.originalTicketNumber || "—"}
+                            </td>
+                            <td className="py-3 px-3 text-slate-700 dark:text-slate-300">
+                              {cn.vendor || "—"}
+                            </td>
+                            <td className="py-3 px-3 text-slate-700 dark:text-slate-300 font-mono text-[11px]">
+                              {cn.sector || "—"}
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono font-bold text-amber-600 dark:text-amber-400">
+                              -{formatINR(cn.reversalAmount)}
+                            </td>
+                            <td className="py-3 px-3 text-center">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 font-bold text-[10px]">
+                                <ShieldCheck size={11} />
+                                Reconciled
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: MULTI-LEG JOURNEYS */}
+          {activeTab === "journeys" && (
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200 dark:border-slate-800">
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      ITINERARY AGGREGATION & ROUTE VISIBILITY
+                    </span>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                      Multi-Leg Journey Reconstruction
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Connecting legs aggregated into complete origin-to-destination itineraries while preserving zero-fare transit visibility.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-[10.5px] uppercase font-bold text-slate-400 block">Total Journeys</span>
+                      <span className="text-base font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                        {journeys.length}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {journeys.length === 0 ? (
+                  <div className="py-16 text-center text-xs text-slate-400">
+                    No reconstructed journeys found for this period.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {journeys.map((jrn) => {
+                      const isExpanded = expandedJourneyId === jrn.journeyId;
+                      return (
+                        <div
+                          key={jrn.journeyId}
+                          className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/40 dark:bg-slate-900/40 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all"
+                        >
+                          <div
+                            onClick={() => setExpandedJourneyId(isExpanded ? null : jrn.journeyId)}
+                            className="p-4 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold shrink-0">
+                                <Plane size={16} />
+                              </span>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-sm text-slate-900 dark:text-white">
+                                    {jrn.routeLabel}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                    {jrn.journeyType}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5">
+                                  Passenger: <strong className="text-slate-700 dark:text-slate-200">{jrn.passengerName}</strong> · {jrn.totalLegs} Leg{jrn.totalLegs > 1 ? "s" : ""}
+                                  {jrn.zeroFareLegs > 0 && ` (${jrn.zeroFareLegs} zero-fare transit)`}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <span className="text-xs font-mono font-bold text-slate-900 dark:text-white block">
+                                  {formatINR(jrn.totalCost)}
+                                </span>
+                                <span className="text-[10.5px] text-slate-400 block">
+                                  {jrn.startDate || "—"} {jrn.endDate && jrn.endDate !== jrn.startDate ? `→ ${jrn.endDate}` : ""}
+                                </span>
+                              </div>
+                              <span className="text-slate-400">
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Expanded Legs Table */}
+                          {isExpanded && jrn.legs && jrn.legs.length > 0 && (
+                            <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 p-4">
+                              <table className="w-full text-left text-xs">
+                                <thead>
+                                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+                                    <th className="py-2 px-2">Leg #</th>
+                                    <th className="py-2 px-2">Date</th>
+                                    <th className="py-2 px-2">Sector</th>
+                                    <th className="py-2 px-2">Carrier</th>
+                                    <th className="py-2 px-2">Ticket Ref</th>
+                                    <th className="py-2 px-2 text-right">Fare</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {jrn.legs.map((leg) => (
+                                    <tr key={leg.recordId}>
+                                      <td className="py-2 px-2 font-mono font-bold text-slate-500">
+                                        Leg {leg.legSequence}
+                                      </td>
+                                      <td className="py-2 px-2 font-mono text-slate-600 dark:text-slate-300">
+                                        {leg.travelDate || "—"}
+                                      </td>
+                                      <td className="py-2 px-2 font-semibold text-slate-900 dark:text-white">
+                                        {leg.fromLocation} → {leg.toLocation}
+                                      </td>
+                                      <td className="py-2 px-2 text-slate-600 dark:text-slate-300">
+                                        {leg.carrier || "—"}
+                                      </td>
+                                      <td className="py-2 px-2 font-mono text-[11px] text-slate-500">
+                                        {leg.ticketNumber || `REC-${leg.recordId}`}
+                                      </td>
+                                      <td className="py-2 px-2 text-right font-mono font-bold">
+                                        {leg.isZeroFare ? (
+                                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px]">
+                                            ₹0.00 (Transit Leg)
+                                          </span>
+                                        ) : (
+                                          <span className="text-slate-900 dark:text-white">
+                                            {formatINR(leg.cost)}
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

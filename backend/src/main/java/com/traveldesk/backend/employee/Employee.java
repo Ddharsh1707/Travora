@@ -36,6 +36,12 @@ public class Employee {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "verification_status", nullable = false)
+    private String verificationStatus = "VERIFIED"; // VERIFIED, IMPORTED_UNVERIFIED
+
+    @Column(name = "source_import_batch_id")
+    private Long sourceImportBatchId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -135,6 +141,22 @@ public class Employee {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public String getVerificationStatus() {
+        return verificationStatus;
+    }
+
+    public void setVerificationStatus(String verificationStatus) {
+        this.verificationStatus = verificationStatus;
+    }
+
+    public Long getSourceImportBatchId() {
+        return sourceImportBatchId;
+    }
+
+    public void setSourceImportBatchId(Long sourceImportBatchId) {
+        this.sourceImportBatchId = sourceImportBatchId;
     }
 
     public LocalDateTime getCreatedAt() {

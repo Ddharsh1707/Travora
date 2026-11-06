@@ -1114,7 +1114,17 @@ export interface ImportedRecordResponse {
   travelMode?: string | null;
   provider?: string | null;
   cost?: number | null;
+  projectId?: number | null;
   projectName?: string | null;
+  isCreditNote?: boolean;
+  originalTicketReference?: string | null;
+  netCost?: number | null;
+  isZeroFareTransit?: boolean;
+  legSequence?: number;
+  travelCategory?: string;
+  sourceWorksheet?: string | null;
+  allocationsCount?: number;
+  allocationSummary?: string | null;
   status: "PENDING" | "VALID" | "MATCHED" | "UNMATCHED" | "DUPLICATE" | "INVALID" | "IMPORTED" | "SKIPPED";
   matchConfidence?: "HIGH" | "MEDIUM" | "AMBIGUOUS" | "LOW" | "NONE";
   validationErrors: string[];
@@ -1362,6 +1372,10 @@ export interface MonthlySpendTrend {
   monthKey: string;
   monthLabel: string;
   totalSpend: number;
+  grossSpend?: number;
+  creditSpend?: number;
+  netSpend?: number;
+  creditNoteCount?: number;
   tripCount: number;
   travelerCount: number;
 }
@@ -1369,12 +1383,21 @@ export interface MonthlySpendTrend {
 export interface FinancialYearSpend {
   financialYear: string;
   totalSpend: number;
+  grossSpend?: number;
+  creditSpend?: number;
+  netSpend?: number;
   tripCount: number;
   travelerCount: number;
 }
 
 export interface ExecutiveSpendOverview {
   totalSpend: number;
+  grossBilledSpend?: number;
+  creditNoteReversals?: number;
+  netCorporateSpend?: number;
+  creditNoteCount?: number;
+  zeroFareTransitLegsCount?: number;
+  activeProjectsCount?: number;
   totalTrips: number;
   travelerCount: number;
   avgSpendPerTrip: number;
@@ -1410,6 +1433,9 @@ export interface EmployeeSpendSummary {
   department: string;
   tripCount: number;
   totalSpend: number;
+  grossSpend?: number;
+  creditSpend?: number;
+  netSpend?: number;
   avgSpendPerTrip: number;
   firstTripDate?: string | null;
   lastTripDate?: string | null;
@@ -1421,6 +1447,9 @@ export interface EmployeeSpendSummary {
 export interface DepartmentSpendSummary {
   department: string;
   totalSpend: number;
+  grossSpend?: number;
+  creditSpend?: number;
+  netSpend?: number;
   employeeCount: number;
   tripCount: number;
   avgSpendPerEmployee: number;
@@ -1455,10 +1484,96 @@ export interface DestinationAnalysis {
 export interface VendorSpendSummary {
   provider: string;
   totalSpend: number;
+  grossSpend?: number;
+  creditSpend?: number;
+  netSpend?: number;
   bookingCount: number;
   avgBookingValue: number;
   travelModes: string[];
   shareOfSpend: number;
+}
+
+export interface ProjectSpendSummary {
+  projectId?: number | null;
+  projectCode: string;
+  projectName: string;
+  location?: string | null;
+  clientName?: string | null;
+  status: string;
+  budget?: number | null;
+  totalSpend: number;
+  grossSpend: number;
+  creditSpend: number;
+  netSpend: number;
+  allocationCount: number;
+  travelerCount: number;
+  budgetUtilizationPct?: number | null;
+  topRoutes: string[];
+  topTravelers: string[];
+}
+
+export interface ModalSplitCategory {
+  category: string;
+  label: string;
+  recordCount: number;
+  totalCost: number;
+  shareOfSpendPct: number;
+  isNonFlight: boolean;
+}
+
+export interface ModalSplitSummary {
+  categories: ModalSplitCategory[];
+  totalRecords: number;
+  totalSpend: number;
+  nonFlightRecords: number;
+  nonFlightSpend: number;
+}
+
+export interface CreditNoteItem {
+  recordId: number;
+  bookingDate?: string | null;
+  travelDate?: string | null;
+  passengerName: string;
+  employeeIdentifier?: string | null;
+  ticketNumber?: string | null;
+  originalTicketNumber?: string | null;
+  vendor?: string | null;
+  sector?: string | null;
+  reversalAmount: number;
+  reason?: string | null;
+}
+
+export interface CreditNoteSummary {
+  creditNotes: CreditNoteItem[];
+  totalCreditNotes: number;
+  totalReversedAmount: number;
+}
+
+export interface JourneyLegSummary {
+  recordId: number;
+  legSequence: number;
+  travelDate?: string | null;
+  fromLocation: string;
+  toLocation: string;
+  carrier?: string | null;
+  ticketNumber?: string | null;
+  cost: number;
+  isZeroFare: boolean;
+}
+
+export interface JourneySummary {
+  journeyId: number;
+  journeyType: string;
+  passengerName: string;
+  origin: string;
+  finalDestination: string;
+  routeLabel: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  totalLegs: number;
+  zeroFareLegs: number;
+  totalCost: number;
+  legs: JourneyLegSummary[];
 }
 
 export interface EmployeeDetailedHistory {
@@ -1526,6 +1641,51 @@ export const spendReportsApi = {
 
   getVendors: async (params?: SpendFilterParams): Promise<VendorSpendSummary[]> => {
     return await apiRequest<VendorSpendSummary[]>(`/api/reports/spend/vendors${buildSpendQuery(params)}`);
+  },
+
+  getProjects: async (params?: SpendFilterParams & { projectCode?: string; location?: string; status?: string; unallocatedOnly?: boolean }): Promise<ProjectSpendSummary[]> => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.department) q.set("department", params.department);
+    if (params?.employeeId) q.set("employeeId", params.employeeId);
+    if (params?.provider) q.set("provider", params.provider);
+    if (params?.travelMode) q.set("travelMode", params.travelMode);
+    if (params?.financialYear) q.set("financialYear", params.financialYear);
+    if (params?.period) q.set("period", params.period);
+    if (params?.fromDate) q.set("fromDate", params.fromDate);
+    if (params?.toDate) q.set("toDate", params.toDate);
+    if (params?.projectCode) q.set("projectCode", params.projectCode);
+    if (params?.location) q.set("location", params.location);
+    if (params?.status) q.set("status", params.status);
+    if (params?.unallocatedOnly != null) q.set("unallocatedOnly", String(params.unallocatedOnly));
+    const s = q.toString();
+    return await apiRequest<ProjectSpendSummary[]>(`/api/reports/spend/projects${s ? `?${s}` : ""}`);
+  },
+
+  getModalSplit: async (params?: SpendFilterParams): Promise<ModalSplitSummary> => {
+    return await apiRequest<ModalSplitSummary>(`/api/reports/spend/modal-split${buildSpendQuery(params)}`);
+  },
+
+  getCreditNotes: async (params?: SpendFilterParams): Promise<CreditNoteSummary> => {
+    return await apiRequest<CreditNoteSummary>(`/api/reports/spend/credit-notes${buildSpendQuery(params)}`);
+  },
+
+  getJourneys: async (params?: SpendFilterParams & { journeyType?: string; passengerName?: string; route?: string }): Promise<JourneySummary[]> => {
+    const q = new URLSearchParams();
+    if (params?.search) q.set("search", params.search);
+    if (params?.department) q.set("department", params.department);
+    if (params?.employeeId) q.set("employeeId", params.employeeId);
+    if (params?.provider) q.set("provider", params.provider);
+    if (params?.travelMode) q.set("travelMode", params.travelMode);
+    if (params?.financialYear) q.set("financialYear", params.financialYear);
+    if (params?.period) q.set("period", params.period);
+    if (params?.fromDate) q.set("fromDate", params.fromDate);
+    if (params?.toDate) q.set("toDate", params.toDate);
+    if (params?.journeyType) q.set("journeyType", params.journeyType);
+    if (params?.passengerName) q.set("passengerName", params.passengerName);
+    if (params?.route) q.set("route", params.route);
+    const s = q.toString();
+    return await apiRequest<JourneySummary[]>(`/api/reports/spend/journeys${s ? `?${s}` : ""}`);
   },
 
   getFilterDepartments: async (): Promise<string[]> => {

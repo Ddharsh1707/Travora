@@ -56,9 +56,26 @@ public class TravelSpendController {
             String financialYear,
             String period,
             String fromDate,
+            String toDate,
+            String projectName,
+            String travelCategory,
+            Boolean isCreditNote
+    ) {
+        return new SpendFilter(search, department, employeeId, provider, travelMode, financialYear, period, parseSafeDate(fromDate), parseSafeDate(toDate), projectName, travelCategory, isCreditNote);
+    }
+
+    private SpendFilter buildFilter(
+            String search,
+            String department,
+            String employeeId,
+            String provider,
+            String travelMode,
+            String financialYear,
+            String period,
+            String fromDate,
             String toDate
     ) {
-        return new SpendFilter(search, department, employeeId, provider, travelMode, financialYear, period, parseSafeDate(fromDate), parseSafeDate(toDate));
+        return buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, null, null, null);
     }
 
     @GetMapping("/combined")
@@ -72,10 +89,13 @@ public class TravelSpendController {
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String travelCategory,
+            @RequestParam(required = false) Boolean isCreditNote
     ) {
         User user = getAuthenticatedUser();
-        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, projectName, travelCategory, isCreditNote);
         return ResponseEntity.ok(spendService.getCombinedIntelligence(user, filter));
     }
 
@@ -90,11 +110,83 @@ public class TravelSpendController {
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String travelCategory,
+            @RequestParam(required = false) Boolean isCreditNote
+    ) {
+        User user = getAuthenticatedUser();
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, projectName, travelCategory, isCreditNote);
+        return ResponseEntity.ok(spendService.getExecutiveOverview(user, filter));
+    }
+
+    @GetMapping("/projects")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
+    public ResponseEntity<List<ProjectSpendSummary>> getProjectAnalysis(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String travelMode,
+            @RequestParam(required = false) String financialYear,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String travelCategory,
+            @RequestParam(required = false) Boolean isCreditNote
+    ) {
+        User user = getAuthenticatedUser();
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, projectName, travelCategory, isCreditNote);
+        return ResponseEntity.ok(spendService.getProjectSpendAnalysis(user, filter));
+    }
+
+    @GetMapping("/modal-split")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
+    public ResponseEntity<ModalSplitSummary> getModalSplitAnalysis(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String travelMode,
+            @RequestParam(required = false) String financialYear,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String fromDate,
             @RequestParam(required = false) String toDate
     ) {
         User user = getAuthenticatedUser();
         SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
-        return ResponseEntity.ok(spendService.getExecutiveOverview(user, filter));
+        return ResponseEntity.ok(spendService.getModalSplitAnalysis(user, filter));
+    }
+
+    @GetMapping("/credit-notes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
+    public ResponseEntity<List<CreditNoteSummary>> getCreditNotesAnalysis(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String employeeId,
+            @RequestParam(required = false) String provider,
+            @RequestParam(required = false) String travelMode,
+            @RequestParam(required = false) String financialYear,
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
+    ) {
+        User user = getAuthenticatedUser();
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        return ResponseEntity.ok(spendService.getCreditNotesAnalysis(user, filter));
+    }
+
+    @GetMapping("/journeys")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMPANY_ADMIN', 'PLATFORM_ADMIN', 'TRAVEL_DESK', 'APPROVER', 'EMPLOYEE')")
+    public ResponseEntity<List<JourneySummary>> getJourneysAnalysis(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate
+    ) {
+        User user = getAuthenticatedUser();
+        SpendFilter filter = buildFilter(search, null, null, null, null, null, null, fromDate, toDate);
+        return ResponseEntity.ok(spendService.getJourneyAnalysis(user, filter));
     }
 
     @GetMapping("/employees")
@@ -108,10 +200,13 @@ public class TravelSpendController {
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String travelCategory,
+            @RequestParam(required = false) Boolean isCreditNote
     ) {
         User user = getAuthenticatedUser();
-        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, projectName, travelCategory, isCreditNote);
         return ResponseEntity.ok(spendService.getEmployeeSpendAnalysis(user, filter));
     }
 
@@ -206,10 +301,13 @@ public class TravelSpendController {
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String period,
             @RequestParam(required = false) String fromDate,
-            @RequestParam(required = false) String toDate
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String projectName,
+            @RequestParam(required = false) String travelCategory,
+            @RequestParam(required = false) Boolean isCreditNote
     ) {
         User user = getAuthenticatedUser();
-        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate);
+        SpendFilter filter = buildFilter(search, department, employeeId, provider, travelMode, financialYear, period, fromDate, toDate, projectName, travelCategory, isCreditNote);
         String csv = spendService.exportSpendReportCsv(user, filter, type);
         byte[] bytes = csv.getBytes(StandardCharsets.UTF_8);
 
