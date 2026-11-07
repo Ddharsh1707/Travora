@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
+import { BarChart3, Bot, FolderKanban, Gauge, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -19,6 +19,9 @@ import CeoDashboard from "./CeoDashboard";
 import AllExpenses from "./AllExpenses";
 import PeopleManager from "./PeopleManager";
 import UploadReport from "./UploadReport";
+import BiOverview from "./BiOverview";
+import BiProjects from "./BiProjects";
+import BiProjectDetail from "./BiProjectDetail";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -54,6 +57,9 @@ const ROUTES: TravelRoute[] = [
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/approvals", label: "Travel approvals", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
+  // Business Intelligence: built only from recorded bookings; approvers see their team
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi", label: "Management overview", icon: <Gauge size={16} />, roles: OVERSIGHT },
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/projects", label: "Project Intelligence", icon: <FolderKanban size={16} />, roles: OVERSIGHT },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
   { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: STAFF },
@@ -91,6 +97,8 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/import": { eyebrow: "Travel desk", title: "Upload travel data" },
   "/travel/documents": { eyebrow: "Travel", title: "Tickets & documents" },
   "/travel/bulk": { eyebrow: "Travel", title: "Bulk & group bookings" },
+  "/travel/bi": { eyebrow: "Business Intelligence", title: "Management overview" },
+  "/travel/bi/projects": { eyebrow: "Business Intelligence", title: "Project Intelligence" },
 };
 
 export function travelNavCategories(role: Role): { category: string; items: { label: string; href: string; icon: ReactNode }[] }[] {
@@ -109,6 +117,8 @@ export function isTravelPathAllowed(role: Role, path: string): boolean {
   if (employeeMatch) return OVERSIGHT.includes(role) && UUID.test(employeeMatch[1]);
   const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
   if (uploadMatch) return STAFF.includes(role) && UUID.test(uploadMatch[1]);
+  const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
+  if (projectMatch) return OVERSIGHT.includes(role) && (projectMatch[1] === "unassigned" || UUID.test(projectMatch[1]));
   return ROUTES.some((r) => r.href === path && r.roles.includes(role));
 }
 
@@ -125,8 +135,19 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
   if (uploadMatch && UUID.test(uploadMatch[1])) {
     return canManage ? <UploadReport key={uploadMatch[1]} batchId={uploadMatch[1]} /> : null;
   }
+  const isCeo = user.role === "ADMIN";
+  const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
+  if (projectMatch && (projectMatch[1] === "unassigned" || UUID.test(projectMatch[1]))) {
+    const id = projectMatch[1] === "unassigned" ? null : projectMatch[1];
+    return OVERSIGHT.includes(user.role) ? <BiProjectDetail key={projectMatch[1]} projectId={id} isCeo={isCeo} /> : null;
+  }
   const name = (user as SupabaseAuthUser).fullName ?? "";
+  const biScope = canManage ? "the whole company" : "you and your team";
   switch (path) {
+    case "/travel/bi":
+      return OVERSIGHT.includes(user.role) ? <BiOverview scopeLabel={biScope} /> : null;
+    case "/travel/bi/projects":
+      return OVERSIGHT.includes(user.role) ? <BiProjects isCeo={isCeo} /> : null;
     case "/travel/home":
       return <EmployeeHome name={name} profileId={profileId} />;
     case "/travel/expenses":

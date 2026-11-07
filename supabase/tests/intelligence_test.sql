@@ -159,6 +159,69 @@ select ti.ok((select (public.project_update((select alpha from pj), null, null, 
   'CEO can set project status and client');
 select ti.throws($$select public.project_update((select alpha from pj), null, null, null, null, null, null, 'finished', null, null, null)$$, 'unknown project status rejected');
 reset role;
+-- A booking in another currency, to prove it is never added to INR totals
+insert into public.travel_records (employee_id, origin, destination, departure_date, amount, currency, booking_type, booking_reference)
+values ('20000000-0000-0000-0000-0000000000e1', 'MAA', 'SIN', '2026-09-15', 400, 'USD', 'flight', 'USD001');
+set local role authenticated;
+
+-- ===== Business Intelligence: overview and projects =====
+select ti.login('30000000-0000-0000-0000-0000000000e1');
+select ti.throws($$select public.bi_overview()$$, 'BI: employees cannot open the overview');
+select ti.throws($$select public.bi_projects()$$, 'BI: employees cannot open Project Intelligence');
+
+select ti.login('30000000-0000-0000-0000-0000000000a1');
+create temp table ov as select public.bi_overview() as j;
+grant select on ov to authenticated;
+select ti.ok((select (j->'kpis'->>'bookings')::int from ov) = (select count(*) from public.travel_records), 'BI: CEO sees every booking, including the USD one');
+select ti.ok((select (j->'kpis'->>'spend')::numeric from ov) = 149149,
+  'BI: spend = INR bookings that are not cancelled (10243 + 114738 + 9993 + 14175)');
+select ti.ok((select (j->'kpis'->>'cancelled_cost')::numeric from ov) = 34575, 'BI: cancelled cost is reported on its own');
+select ti.ok((select (j->'kpis'->>'missing_cost')::int from ov) = 1, 'BI: the cab without a cost is counted as missing, not as 0');
+select ti.ok((select j->'other_currencies'->0->>'currency' = 'USD' and (j->'other_currencies'->0->>'spend')::numeric = 400 from ov),
+  'BI: USD is listed separately and never added to INR');
+select ti.ok((select (j->'kpis'->>'unassigned_bookings')::int from ov) = 4, 'BI: bookings without a project are counted as unassigned');
+select ti.ok((select (public.bi_overview('{"department":"Projects"}')->'kpis'->>'bookings')::int) = 6, 'BI: department filter');
+select ti.ok((select (public.bi_overview('{"from":"2026-10-01"}')->'kpis'->>'bookings')::int) = 1, 'BI: date filter');
+select ti.ok((select (public.bi_overview('{"from":"not a date"}')->'kpis'->>'bookings')::int) = (select count(*) from public.travel_records), 'BI: a malformed filter is ignored');
+
+create temp table pl as select public.bi_projects() as j;
+grant select on pl to authenticated;
+select ti.ok((select (x->>'spend')::numeric = 124981 and (x->>'bookings')::int = 2 and (x->>'travellers')::int = 1
+                from pl, jsonb_array_elements(j->'projects') x where x->>'name' = 'Site Alpha Master'),
+  'projects: Site Alpha = 2 bookings, 1 traveller, 124981');
+select ti.ok((select (x->>'spend')::numeric = 0 and (x->>'bookings')::int = 1 from pl, jsonb_array_elements(j->'projects') x where x->>'name' = 'Head Office'),
+  'projects: a cancelled booking adds nothing to project spend');
+select ti.ok((select (j->'unassigned'->>'bookings')::int = 3 and (j->'unassigned'->>'without_cost')::int = 2 from pl),
+  'projects: unassigned INR bookings and those without a cost of their own (missing or shared) are shown');
+select ti.ok((select j->'unassigned'->'names' @> '[{"project_raw":"Site Delta"}]' from pl), 'projects: unassigned sheet spellings are listed');
+
+create temp table pd as select public.bi_project_detail((select alpha from pj)) as j;
+grant select on pd to authenticated;
+select ti.ok((select jsonb_array_length(j->'ledger') = 2 and (j->'ledger_total')::int = 2 from pd), 'project detail: ledger lists every booking behind the total');
+select ti.ok((select j->'aliases' @> '["Site Alpha"]' from pd), 'project detail: sheet spellings shown');
+select ti.ok((select (public.bi_project_detail(null)->'kpis'->>'bookings')::int) = 4, 'project detail: unassigned bucket (includes the USD booking)');
+
+-- Manual assignment
+select ti.login('30000000-0000-0000-0000-0000000000d1');
+select ti.throws($$select public.trip_assign_project((select id from chk where booking_type = 'cab'), (select alpha from pj))$$,
+  'assign: travel desk cannot assign trips to projects');
+select ti.login('30000000-0000-0000-0000-0000000000a1');
+select public.trip_assign_project((select id from chk where booking_type = 'cab'), (select alpha from pj));
+select ti.ok((select project_id = (select alpha from pj) and project_source = 'manual' from public.travel_records where id = (select id from chk where booking_type = 'cab')),
+  'assign: CEO assignment is saved as manual');
+select ti.throws($$select public.trip_assign_project((select id from chk where booking_type = 'cab'), gen_random_uuid())$$, 'assign: unknown project rejected');
+
+-- Approver: only their team (Ravi), through the same RLS
+select ti.login('30000000-0000-0000-0000-0000000000b1');
+create temp table ova as select public.bi_overview() as j;
+grant select on ova to authenticated;
+select ti.ok((select (j->'kpis'->>'bookings')::int from ova) = 4, 'BI: approver sees only their team (Ravi: 3 INR + 1 USD)');
+select ti.ok((select (j->'kpis'->>'spend')::numeric from ova) = 24168, 'BI: approver spend covers their team only');
+select ti.ok((select jsonb_array_length(public.bi_filter_options()->'employees')) = 1, 'BI: approver filter list holds only their team');
+select ti.ok((select (x->>'bookings')::int from jsonb_array_elements(public.bi_projects()->'projects') x where x->>'name' = 'Site Alpha Master') = 1,
+  'projects: approver sees only their team on a project');
+reset role;
+select ti.ok((select count(*) from public.audit_logs where action = 'trip_project_assigned') = 1, 'assign: audited');
 
 select ti.ok((select count(*) from public.audit_logs where action in ('project_alias_set', 'name_match_decided')) >= 4, 'mappings and people decisions are audited');
 

@@ -451,3 +451,43 @@ h1 { font-family: var(--font-heading, "Inter", "Plus Jakarta Sans", sans-serif);
   .page-stack > *, .status-dot::after, .skeleton, [data-slot="skeleton"] { animation: none !important; }
   .stat-card:hover, .aside-card:hover, .insight-card:hover, .support-link:hover { transform: none; }
 }
+
+/* Business Intelligence */
+.bi-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding: 12px 14px; }
+.bi-filters-title { cursor: default; background: none; border: 0; padding: 0; display: inline-flex; align-items: center; gap: 6px; align-self: center; color: var(--ink-soft); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.bi-count { display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--saffron); color: #fff; font-size: 9px; }
+.bi-filter { display: grid; gap: 4px; min-width: 0; flex: 1 1 140px; max-width: 220px; }
+.bi-filter > span { color: var(--ink-muted); font-size: 10px; font-weight: 800; }
+.bi-filter input, .bi-filter select { width: 100%; height: 34px; padding: 0 8px; color: var(--ink); font-size: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.bi-reset { height: 34px; }
+.bi-kpi { padding: 16px; min-width: 0; }
+.bi-kpi-value { margin-top: 6px; font-family: var(--font-display); font-size: 24px; font-weight: 800; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--navy); }
+.bi-kpi-detail { margin-top: 6px; color: var(--ink-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.bi-kpi-warn { border-color: #f1d9a4; background: linear-gradient(180deg, #fffaf0, var(--surface)); }
+.bi-quality { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: var(--radius); font-size: 12px; }
+.bi-quality-item { display: inline-flex; align-items: baseline; gap: 6px; cursor: help; }
+.bi-quality-item strong { font-size: 14px; color: var(--navy); }
+.bi-quality-item span { color: var(--ink-soft); }
+.bi-quality-note { display: flex; align-items: flex-start; gap: 6px; flex-basis: 100%; color: #8a6414; }
+.bi-table { width: 100%; font-size: 12px; border-collapse: collapse; }
+.bi-table th { padding: 6px 6px; color: var(--ink-muted); font-size: 10px; font-weight: 800; text-align: left; border-bottom: 1px solid var(--line); }
+.bi-table td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.bi-table tr:last-child td { border-bottom: 0; }
+.bi-table th.text-right, .bi-table td.text-right { text-align: right; }
+.bi-sharebar { display: block; height: 6px; margin-top: 5px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bi-sharebar > span { display: block; height: 100%; border-radius: 99px; }
+.bi-cost-note { color: #9a751c; font-size: 11px; font-style: italic; }
+.bi-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 99px; background: #f3f5f4; color: var(--ink-soft); font-size: 11px; }
+.bi-linkish { color: inherit; text-align: left; text-decoration: underline dotted; text-underline-offset: 3px; }
+.bi-linkish:hover { color: var(--navy); }
+.bi-row-select { max-width: 160px; height: 30px; padding: 0 6px; font-size: 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+@media (max-width: 640px) {
+  .bi-filters-title { flex-basis: 100%; justify-content: flex-start; cursor: pointer; min-height: 32px; }
+  .bi-filters:not(.is-open) .bi-filter, .bi-filters:not(.is-open) .bi-reset { display: none; }
+  .bi-filter { max-width: none; flex-basis: calc(50% - 6px); }
+  .bi-kpi-value { font-size: 20px; }
+}
+.dark .bi-tag { background: rgba(255,255,255,.07); }
+.dark .bi-kpi-warn { border-color: #6b5422; background: linear-gradient(180deg, rgba(245,158,11,.08), var(--surface)); }
+.dark .bi-quality-note, .dark .bi-cost-note { color: #e5b85a; }
+.dark .bi-kpi-value, .dark .bi-quality-item strong { color: var(--ink); }
