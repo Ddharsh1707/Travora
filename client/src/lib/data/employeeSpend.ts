@@ -133,3 +133,32 @@ export function fileTables(trips: DetailedTrip[], columns: Record<string, Upload
   // Only columns that have a value for this employee.
   return Array.from(tables.values()).map((tb) => ({ ...tb, headers: tb.headers.filter((h) => tb.rows.some((r) => r.extra?.[h])) }));
 }
+
+export type PlaceVisit = { place: string; visits: number; first: string; last: string; modes: string[]; spend: number };
+
+/**
+ * Every place an employee went to, from all their trips (cancelled ones left out).
+ * A route like "ROB-NBO-BOM" counts every stop after the start (NBO and BOM);
+ * hotel stays count their city. A trip's cost is counted at its last stop.
+ */
+export function placesVisited(trips: DetailedTrip[]): PlaceVisit[] {
+  const out = new Map<string, PlaceVisit>();
+  for (const t of trips) {
+    if (t.status === "cancelled") continue;
+    const parts = (t.route ?? "").split(/\s*[-–>→]+\s*/).map((p) => p.trim().toUpperCase()).filter(Boolean);
+    const dest = (t.destination ?? "").trim().toUpperCase();
+    const places = parts.length > 1 ? parts.slice(1) : [];
+    if (dest && places[places.length - 1] !== dest) places.push(dest);
+    const amount = num(t.amount) ?? 0;
+    Array.from(new Set(places)).forEach((p, i, all) => {
+      const v = out.get(p) ?? { place: p, visits: 0, first: t.departure_date, last: t.departure_date, modes: [], spend: 0 };
+      v.visits += 1;
+      if (t.departure_date < v.first) v.first = t.departure_date;
+      if (t.departure_date > v.last) v.last = t.departure_date;
+      if (!v.modes.includes(t.booking_type)) v.modes.push(t.booking_type);
+      if (i === all.length - 1) v.spend = r2(v.spend + amount);
+      out.set(p, v);
+    });
+  }
+  return Array.from(out.values()).sort((a, b) => b.visits - a.visits || b.last.localeCompare(a.last));
+}

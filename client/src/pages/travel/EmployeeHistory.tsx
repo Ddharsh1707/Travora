@@ -1,12 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet, Plus } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet, MapPin, Plus } from "lucide-react";
 import { exportWorkbook } from "../../utils/exportXlsx";
 import { CATEGORY_LABELS } from "../../lib/data/expenses";
 import { listSpendItems, summarizeSpend, type SpendItem } from "../../lib/data/spend";
 import { exportToCsv } from "../../utils/exportCsv";
 import { getEmployeeSummary, listAllRequests, recordReportGenerated, type EmployeeSummary, type TravelRecord, type TravelRequest } from "../../lib/data/travel";
-import { fileTables, getEmployeeTrips, getUploadColumns, summarizeEmployeeSpend, type DetailedTrip, type UploadColumns } from "../../lib/data/employeeSpend";
+import { fileTables, getEmployeeTrips, getUploadColumns, placesVisited, summarizeEmployeeSpend, type DetailedTrip, type UploadColumns } from "../../lib/data/employeeSpend";
 import { useLiveRefresh } from "../../lib/data/reports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import { RequestDecision, RequestStatusBadge } from "./RequestParts";
@@ -63,6 +63,8 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
   useLiveRefresh(["travel_records", "travel_requests"], load);
 
   const money = useMemo(() => summarizeEmployeeSpend(trips), [trips]);
+  const places = useMemo(() => placesVisited(trips), [trips]);
+  const [allPlaces, setAllPlaces] = useState(false);
   const tables = useMemo(() => fileTables(trips, columns), [trips, columns]);
   const claimTotals = useMemo(() => summarizeSpend(claims), [claims]);
   const today = new Date().toISOString().slice(0, 10);
@@ -109,6 +111,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
       },
       { name: "By mode", headers: ["Mode", "Trips", "Spend"], rows: money.byMode.map((m) => [labelFor(m.key), m.trips, m.spend]) },
       { name: "By month", headers: ["Month", "Trips", "Spend"], rows: money.byMonth.map((m) => [m.key, m.trips, m.spend]) },
+      { name: "Places visited", headers: ["Place", "Visits", "First visit", "Last visit", "Modes", "Spend"], rows: places.map((p) => [p.place, p.visits, p.first, p.last, p.modes.map(labelFor).join(", "), p.spend]) },
       { name: "By project", headers: ["Project", "Trips", "Spend"], rows: money.byProject.map((m) => [m.key, m.trips, m.spend]) },
       {
         name: "Trips",
@@ -210,6 +213,34 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
           {money.byCharge.map((c) => <span key={c.key} className="meta-chip">{CHARGE_LABEL[c.key] ?? c.key}: {c.lines} · {formatMoney(c.amount)}</span>)}
           {money.byDestination.length > 0 && <span className="text-xs opacity-70 ml-auto">Most visited: {money.byDestination.slice(0, 3).map((d) => d.key).join(", ")}</span>}
         </div>
+      )}
+
+      {places.length > 0 && (
+        <section className="panel p-4 grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <MapPin size={16} />
+            <h2 className="section-heading m-0">Everywhere {summary.employee_name.split(" ")[0]} went</h2>
+            <span className="text-xs opacity-70">{places.length} place{places.length === 1 ? "" : "s"} · {money.trips} trip{money.trips === 1 ? "" : "s"}{money.firstTrip ? ` from ${formatDate(money.firstTrip)} to ${formatDate(money.lastTrip)}` : ""}</span>
+          </div>
+          <div className="responsive-table">
+            <table>
+              <thead><tr><th>Place</th><th className="text-right">Visits</th><th>First visit</th><th>Last visit</th><th>How</th><th className="text-right">Spend</th></tr></thead>
+              <tbody>
+                {(allPlaces ? places : places.slice(0, 12)).map((p) => (
+                  <tr key={p.place}>
+                    <td className="font-semibold">{p.place}</td>
+                    <td className="text-right">{p.visits}</td>
+                    <td>{formatDate(p.first)}</td>
+                    <td>{formatDate(p.last)}</td>
+                    <td>{p.modes.map(labelFor).join(", ")}</td>
+                    <td className="text-right">{p.spend ? formatMoney(p.spend) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {places.length > 12 && <button type="button" className="button button-ghost justify-self-start" onClick={() => setAllPlaces(!allPlaces)}>{allPlaces ? "Show fewer" : `Show all ${places.length} places`}</button>}
+        </section>
       )}
 
       <div className="panel table-panel">

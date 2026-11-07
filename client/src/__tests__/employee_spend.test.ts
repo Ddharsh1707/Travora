@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fileTables, summarizeEmployeeSpend, type DetailedTrip } from "../lib/data/employeeSpend.ts";
+import { fileTables, placesVisited, summarizeEmployeeSpend, type DetailedTrip } from "../lib/data/employeeSpend.ts";
 
 const base: Omit<DetailedTrip, "id" | "departure_date" | "amount" | "status" | "booking_type"> = {
   employee_id: "e", request_id: null, booking_reference: null, origin: "HYD", destination: "BOM", route: null, return_date: null,
@@ -46,4 +46,23 @@ test("file tables keep every original column in file order", () => {
   assert.equal(tables[0].title, "sep.xlsx · AIR");
   assert.deepEqual(tables[0].headers, ["Passenger Name", "Cost", "Remarks", "Extra col"]);
   assert.equal(tables[0].rows.length, 2);
+});
+
+test("places visited counts every stop and leaves out cancelled trips", () => {
+  const places = placesVisited([
+    trip({ id: "1", departure_date: "2026-09-01", amount: 10000, status: "completed", booking_type: "flight", origin: "BOM", destination: "VTZ", route: "BOM-VTZ" }),
+    trip({ id: "2", departure_date: "2026-09-03", amount: 114738, status: "completed", booking_type: "flight", origin: "ROB", destination: "BOM", route: "ROB-NBO-BOM" }),
+    trip({ id: "3", departure_date: "2026-09-05", amount: 14000, status: "completed", booking_type: "hotel", origin: null, destination: "Tiruchirappalli", route: null }),
+    trip({ id: "4", departure_date: "2026-09-09", amount: 9000, status: "completed", booking_type: "flight", origin: "HYD", destination: "VTZ", route: "HYD-VTZ" }),
+    trip({ id: "5", departure_date: "2026-09-10", amount: 5000, status: "cancelled", booking_type: "flight", origin: "HYD", destination: "DEL", route: "HYD-DEL" }),
+  ]);
+  const by = Object.fromEntries(places.map((p) => [p.place, p]));
+  assert.deepEqual(Object.keys(by).sort(), ["BOM", "NBO", "TIRUCHIRAPPALLI", "VTZ"]);
+  assert.equal(by.VTZ.visits, 2);
+  assert.equal(by.VTZ.first, "2026-09-01");
+  assert.equal(by.VTZ.last, "2026-09-09");
+  assert.equal(by.VTZ.spend, 19000);
+  assert.equal(by.NBO.spend, 0);
+  assert.equal(by.BOM.spend, 114738);
+  assert.equal(places[0].place, "VTZ");
 });

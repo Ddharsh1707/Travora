@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import type { AuthUser, Role } from "../lib/api";
+import { isSupabaseEnabled } from "../lib/supabase";
+import { listEmployees, type EmployeeSummary } from "../lib/data/travel";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -33,6 +35,19 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
   const [, setLocation] = useLocation();
   const { theme, toggleTheme } = useTheme();
   const role: Role = user.role;
+  const canFindPeople = isSupabaseEnabled && (["ADMIN", "COMPANY_ADMIN", "TRAVEL_DESK"] as Role[]).includes(role);
+  const [term, setTerm] = useState("");
+  const [people, setPeople] = useState<EmployeeSummary[]>([]);
+
+  // Find employees by name or ID as the CEO / Admin types.
+  useEffect(() => {
+    if (!open || !canFindPeople || term.trim().length < 2) { setPeople([]); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      listEmployees({ q: term.trim(), limit: 8 }).then((r) => { if (alive) setPeople(r.rows); }).catch(() => { if (alive) setPeople([]); });
+    }, 200);
+    return () => { alive = false; clearTimeout(t); };
+  }, [term, open, canFindPeople]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -70,7 +85,9 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
             <Search size={18} className="text-[#94A3B8] shrink-0" />
             <Command.Input
               autoFocus
-              placeholder="Type a command or search actions… (Esc to close)"
+              value={term}
+              onValueChange={setTerm}
+              placeholder={canFindPeople ? "Search an employee by name or ID, or a page… (Esc to close)" : "Type a command or search actions… (Esc to close)"}
               className="w-full py-4 bg-transparent outline-none text-[15px] text-[#10243A] dark:text-[#F8FAFC] placeholder:text-[#94A3B8]"
             />
             <button
@@ -86,6 +103,27 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
             <Command.Empty className="py-8 text-center text-sm text-[#94A3B8]">
               No matching actions or pages found.
             </Command.Empty>
+
+            {people.length > 0 && (
+              <Command.Group
+                heading="Employees"
+                className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F28C28]"
+              >
+                {people.map((p) => (
+                  <Command.Item
+                    key={p.employee_id}
+                    value={`${p.employee_name} ${p.employee_code} ${p.department ?? ""} ${p.employee_id}`}
+                    onSelect={() => navigate(`/travel/employees/${p.employee_id}`)}
+                    className="normal-case tracking-normal font-normal flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                  >
+                    <UserRound size={16} className="text-[#F28C28]" />
+                    <span className="font-semibold">{p.employee_name}</span>
+                    <span className="text-xs text-[#94A3B8]">{p.employee_code}{p.department ? ` · ${p.department}` : ""}{p.active ? "" : " · past"}</span>
+                    <span className="ml-auto text-xs text-[#94A3B8]">{p.total_trips} trips · ₹{Number(p.total_spend).toLocaleString("en-IN")}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
 
             {/* Quick Actions */}
             <Command.Group
