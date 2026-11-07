@@ -700,5 +700,103 @@ select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-
 select t.ok(not has_table_privilege('authenticated', 'private.signup_allowed_domains', 'select,insert,update,delete'),
   'users cannot change the sign-up domain allowlist');
 
+-- ---------------------------------------------------------------------------
+-- Employee / CEO portals: expenses, CEO dashboard, CEO-created logins
+-- (admin = CEO; e1/e2 are employees)
+-- ---------------------------------------------------------------------------
+reset role;
+select set_config('request.jwt.claims', '', true);
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000e1');
+insert into public.expenses (id, employee_id, expense_date, category, description, amount, status, reviewed_by)
+values ('60000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', '2026-10-14', 'meals',
+        'Dinner with client', 1200, 'approved', '00000000-0000-0000-0000-0000000000e1');
+select t.ok((select employee_id from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') = '00000000-0000-0000-0000-0000000000e1',
+  'expenses: an employee can only file a claim for themselves');
+select t.ok((select status from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') = 'submitted'
+            and (select reviewed_by from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') is null,
+  'expenses: a new claim always starts as submitted, unreviewed');
+select t.throws($$update public.expenses set status = 'approved' where id = '60000000-0000-0000-0000-0000000000e1'$$,
+  'expenses: an employee cannot approve their own claim');
+select t.throws($$select public.decide_expense('60000000-0000-0000-0000-0000000000e1', 'approved')$$,
+  'expenses: an employee cannot call decide_expense');
+select t.throws($$insert into public.expenses (employee_id, expense_date, category, description, amount, travel_record_id)
+                  values ('00000000-0000-0000-0000-0000000000e1', '2026-10-14', 'cab', 'x', 100, '30000000-0000-0000-0000-0000000000e2')$$,
+  'expenses: cannot attach someone else''s trip');
+update public.expenses set amount = 1300 where id = '60000000-0000-0000-0000-0000000000e1';
+select t.ok((select amount from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') = 1300,
+  'expenses: owner can edit a submitted claim');
+select t.throws($$delete from public.expenses where id = '60000000-0000-0000-0000-0000000000e1'$$,
+  'expenses: claims cannot be deleted (withdraw instead)');
+select t.throws($$select public.ceo_dashboard()$$, 'ceo dashboard: employees cannot open it');
+select t.throws($$select * from public.admin_list_people()$$, 'people list: employees cannot open it');
+select t.throws($$select public.admin_create_login('00000000-0000-0000-0000-0000000000c1', 'Abcdefghijk1')$$,
+  'logins: employees cannot create logins');
+
+select t.login('10000000-0000-0000-0000-0000000000e2');
+select t.ok(t.cnt($$select 1 from public.expenses$$) = 0, 'expenses: employees cannot see each other''s claims');
+update public.expenses set amount = 1 where id = '60000000-0000-0000-0000-0000000000e1';
+reset role;
+select t.ok((select amount from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') = 1300,
+  'expenses: another employee''s edit changes nothing');
+set local role authenticated;
+insert into public.expenses (id, employee_id, expense_date, category, description, amount)
+values ('60000000-0000-0000-0000-0000000000e2', '00000000-0000-0000-0000-0000000000e2', '2026-10-15', 'hotel', 'Hotel Pune', 4000);
+
+select t.login('10000000-0000-0000-0000-0000000000a1');
+select t.ok(t.cnt($$select 1 from public.expenses$$) = 2, 'expenses: the CEO sees every claim');
+select t.throws($$update public.expenses set status = 'approved' where id = '60000000-0000-0000-0000-0000000000e1'$$,
+  'expenses: even the CEO must use decide_expense (audited)');
+select t.throws($$select public.decide_expense('60000000-0000-0000-0000-0000000000e1', 'reimbursed')$$,
+  'expenses: a claim must be approved before it is reimbursed');
+select public.decide_expense('60000000-0000-0000-0000-0000000000e1', 'approved', 'OK');
+select public.decide_expense('60000000-0000-0000-0000-0000000000e1', 'reimbursed');
+select public.decide_expense('60000000-0000-0000-0000-0000000000e2', 'rejected', 'No receipt');
+select t.ok((select status from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') = 'reimbursed'
+            and (select reimbursed_at from public.expenses where id = '60000000-0000-0000-0000-0000000000e1') is not null,
+  'expenses: the CEO approves and reimburses claims');
+select t.ok((select (public.ceo_dashboard('2026-01-01', '2026-12-31') -> 'expenses' ->> 'reimbursed_amount')::numeric) = 1300,
+  'ceo dashboard: totals include reimbursed claims');
+select t.ok((select (public.ceo_dashboard('2026-01-01', '2026-12-31') -> 'people' ->> 'total')::int) = (select count(*) from public.profiles),
+  'ceo dashboard: counts every employee');
+select t.ok(t.cnt($$select 1 from public.admin_list_people()$$) = (select count(*) from public.profiles),
+  'people list: the CEO sees everyone');
+
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$update public.expenses set description = 'changed' where id = '60000000-0000-0000-0000-0000000000e1'$$,
+  'expenses: a decided claim can no longer be edited by the employee');
+
+-- CEO creates a login for an employee who has none.
+select t.login('10000000-0000-0000-0000-0000000000a1');
+update public.profiles set email = 'nologin@example.com' where id = '00000000-0000-0000-0000-0000000000c1';
+select t.throws($$select public.admin_create_login('00000000-0000-0000-0000-0000000000c1', 'short')$$,
+  'logins: weak temporary passwords are refused');
+select public.admin_create_login('00000000-0000-0000-0000-0000000000c1', 'Welcome2026Pass');
+reset role;
+select t.ok((select user_id from public.profiles where id = '00000000-0000-0000-0000-0000000000c1') is not null,
+  'logins: the CEO can create and link a login');
+select t.ok((select u.encrypted_password = extensions.crypt('Welcome2026Pass', u.encrypted_password)
+               from auth.users u join public.profiles p on p.user_id = u.id
+              where p.id = '00000000-0000-0000-0000-0000000000c1'),
+  'logins: the password is stored as a bcrypt hash');
+select t.ok(exists (select 1 from auth.identities i join public.profiles p on p.user_id = i.user_id
+                     where p.id = '00000000-0000-0000-0000-0000000000c1' and i.provider = 'email'),
+  'logins: an email identity is created so the employee can sign in');
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000a1');
+select t.throws($$select public.admin_create_login('00000000-0000-0000-0000-0000000000c1', 'Welcome2026Pass')$$,
+  'logins: cannot create a second login for the same employee');
+select public.admin_reset_password('00000000-0000-0000-0000-0000000000c1', 'NewPassword2026');
+reset role;
+select t.ok((select u.encrypted_password = extensions.crypt('NewPassword2026', u.encrypted_password)
+               from auth.users u join public.profiles p on p.user_id = u.id
+              where p.id = '00000000-0000-0000-0000-0000000000c1'),
+  'logins: the CEO can reset an employee''s password');
+select t.ok(exists (select 1 from public.audit_logs where action = 'create_login')
+            and exists (select 1 from public.audit_logs where action = 'reset_password'),
+  'logins: creating and resetting logins is audited');
+select t.ok(not exists (select 1 from public.audit_logs where metadata::text ~ '(Welcome2026Pass|NewPassword2026)'),
+  'logins: passwords never reach the audit log');
+
 \echo 'ALL AUTHORIZATION TESTS PASSED'
 rollback;
