@@ -64,6 +64,7 @@ const ROUTES: TravelRoute[] = [
   // CEO portal
   { group: "CEO", href: "/travel/ceo", label: "CEO dashboard", icon: <Briefcase size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: CEO },
+  { group: "CEO", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/approvals", label: "Travel approvals", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
@@ -71,6 +72,7 @@ const ROUTES: TravelRoute[] = [
   // Admin portal
   { group: "ADMIN", href: "/travel/admin", label: "Admin dashboard", icon: <Briefcase size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: ADMIN },
@@ -83,7 +85,7 @@ const ROUTES: TravelRoute[] = [
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
   { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: STAFF },
-  { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: STAFF },
+  { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
   { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   // Travel tools
@@ -213,7 +215,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     case "/travel/employees":
       return <EmployeeDirectory />;
     case "/travel/import":
-      return canManage ? <ImportTravel /> : null;
+      return canManage ? <ImportTravel isManager={user.role === "ADMIN" || user.role === "COMPANY_ADMIN"} /> : null;
     case "/travel/bulk":
       return <BulkBookings canManage={canManage} canReview={user.role === "APPROVER" || user.role === "ADMIN"} />;
     case "/travel/documents":

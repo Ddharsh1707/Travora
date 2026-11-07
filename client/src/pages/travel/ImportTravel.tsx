@@ -6,7 +6,7 @@ import { MAX_FILE_BYTES, MAX_ROWS, checkImportFile, type CellValue } from "../..
 import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type WbField, type WorkbookSummary } from "../../lib/data/workbook";
 import { readMerges } from "../../lib/data/xlsxMerges";
 import {
-  cancelImport, commitWorkbook, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
+  cancelImport, commitWorkbook, markNewPeopleLeft, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
   listPeopleOptions, listProjects, setProjectAlias, stageWorkbook, storeImportFile,
   type ImportBatch, type NameReview, type PersonOption, type Project, type UploadProject, type WorkbookRow,
 } from "../../lib/data/imports";
@@ -52,13 +52,14 @@ function Badge({ tone, children }: { tone: string; children: ReactNode }) {
   return <span className={`status-badge status-${tone}`}>{children}</span>;
 }
 
-export default function ImportTravel() {
+export default function ImportTravel({ isManager = false }: { isManager?: boolean }) {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<FileInfo | null>(null);
   const [mappings, setMappings] = useState<Mappings>({});
   const [excluded, setExcluded] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [createMissing, setCreateMissing] = useState(true);
+  const [pastEmployees, setPastEmployees] = useState(false);
   const [currency, setCurrency] = useState("INR");
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [rows, setRows] = useState<WorkbookRow[]>([]);
@@ -190,6 +191,14 @@ export default function ImportTravel() {
       setRows(await getWorkbookRows(b.id));
       setStep("done");
       toast.success(`${b.imported_rows} booking lines imported${b.created_employees ? `, ${b.created_employees} new employees added` : ""}`);
+      if (isManager && createMissing && pastEmployees && b.created_employees) {
+        try {
+          const n = await markNewPeopleLeft(b.id);
+          toast.success(`${n} ${n === 1 ? "person" : "people"} saved as past employees`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not mark the new people as past employees.");
+        }
+      }
       void loadHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not import the rows.");
@@ -235,6 +244,14 @@ export default function ImportTravel() {
                 <span className="block text-xs opacity-70 mt-0.5">You still confirm every person on the People step. New people get an ID like NEW-1A2B3C4D and no login.</span>
               </span>
             </label>
+            {isManager && createMissing && (
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" className="mt-1" checked={pastEmployees} onChange={(e) => setPastEmployees(e.target.checked)} />
+                <span><strong>This sheet is for past employees</strong>
+                  <span className="block text-xs opacity-70 mt-0.5">People this upload adds are saved as past employees: no login, and their trips stay in every report, search and export.</span>
+                </span>
+              </label>
+            )}
             <label className="flex items-start gap-3">
               <span className="flex-1"><strong>Currency when the sheet has none</strong>
                 <span className="block text-xs opacity-70 mt-0.5">Saved with the upload and shown in reports. A currency column in the sheet always wins.</span>

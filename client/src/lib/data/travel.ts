@@ -88,7 +88,7 @@ export function friendlyError(error: { code?: string; message?: string } | null 
 // Employees
 // ---------------------------------------------------------------------------
 
-export async function listEmployees(opts: { q?: string; department?: string; limit?: number; offset?: number } = {}) {
+export async function listEmployees(opts: { q?: string; department?: string; status?: "current" | "past" | ""; limit?: number; offset?: number } = {}) {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const offset = Math.max(opts.offset ?? 0, 0);
   let query = getSupabase()
@@ -100,6 +100,8 @@ export async function listEmployees(opts: { q?: string; department?: string; lim
   if (term) query = query.or(`employee_name.ilike.*${term}*,employee_code.ilike.*${term}*`);
   const dept = sanitizeTerm(opts.department);
   if (dept) query = query.ilike("department", `%${dept}%`);
+  if (opts.status === "current") query = query.eq("active", true);
+  if (opts.status === "past") query = query.eq("active", false);
   const { data, error, count } = await query;
   if (error) throw friendlyError(error, "Could not load employees.");
   return { rows: (data ?? []) as EmployeeSummary[], count: count ?? (data?.length ?? 0) };

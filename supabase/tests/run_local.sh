@@ -22,4 +22,5 @@ done
 # The new files must be safe to run again
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000500_company_admin_role.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000510_admin_portal_uploads_assistant.sql"
-echo "re-ran 000500 and 000510"
+"${PSQL[@]}" -f "$HERE/../migrations/20261107000520_past_employees.sql"
+echo "re-ran 000500, 000510 and 000520"

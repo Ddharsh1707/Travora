@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Download, Plus } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, Plus } from "lucide-react";
+import { exportWorkbook } from "../../utils/exportXlsx";
+import { CATEGORY_LABELS } from "../../lib/data/expenses";
+import { listSpendItems, summarizeSpend, type SpendItem } from "../../lib/data/spend";
 import { exportToCsv } from "../../utils/exportCsv";
 import { getEmployeeHistory, getEmployeeSummary, recordReportGenerated, type EmployeeSummary, type TravelRecord } from "../../lib/data/travel";
 import { summarizeRecords } from "../../lib/data/travelQuery";
@@ -15,6 +18,7 @@ import { TravelRecordDialog } from "./TravelRecordDialog";
 export default function EmployeeHistory({ employeeId, canManage, showBack }: { employeeId: string; canManage: boolean; showBack: boolean }) {
   const [summary, setSummary] = useState<EmployeeSummary | null>(null);
   const [rows, setRows] = useState<TravelRecord[]>([]);
+  const [claims, setClaims] = useState<SpendItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
@@ -24,9 +28,14 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
     setLoading(true);
     setError("");
     try {
-      const [s, h] = await Promise.all([getEmployeeSummary(employeeId), getEmployeeHistory(employeeId)]);
+      const [s, h, c] = await Promise.all([
+        getEmployeeSummary(employeeId),
+        getEmployeeHistory(employeeId),
+        listSpendItems({ employee: employeeId, source: "claim" }).then((r) => r.rows).catch(() => [] as SpendItem[]),
+      ]);
       setSummary(s);
       setRows(h);
+      setClaims(c);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load travel history.");
     } finally {
@@ -48,6 +57,42 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
     void recordReportGenerated("employee_travel_history", employeeId).catch(() => undefined);
   }
 
+  /** One Excel file: a summary sheet, every trip and every expense claim. */
+  async function downloadFullReport() {
+    if (!summary) return;
+    const claimTotals = summarizeSpend(claims);
+    const category = (c: string) => CATEGORY_LABELS[c as keyof typeof CATEGORY_LABELS] ?? c.replace("_", " ");
+    await exportWorkbook(`employee_report_${summary.employee_code}`, [
+      {
+        name: "Summary",
+        headers: ["Field", "Value"],
+        rows: [
+          ["Employee", summary.employee_name], ["Employee ID", summary.employee_code],
+          ["Department", summary.department], ["Designation", summary.designation],
+          ["Status", summary.active ? "Current employee" : "Past employee"],
+          ["Trips", stats.totalTrips], ["Travel spend", stats.totalSpend],
+          ["Last trip", stats.lastTrip], ["Expense claims", claims.length],
+          ["Claims counted (waiting, approved, paid)", claimTotals.claims],
+          ["Total spend (trips + claims)", stats.totalSpend + claimTotals.claims],
+          ["Report date", new Date().toISOString().slice(0, 10)],
+        ],
+      },
+      {
+        name: "Trips",
+        headers: ["Date", "Return", "From", "To", "Mode", "Provider", "PNR", "Ticket", "Amount", "Currency", "Status"],
+        rows: rows.map((r) => [r.departure_date, r.return_date, r.origin, r.destination, r.booking_type, r.airline_or_provider,
+          r.booking_reference, r.ticket_number, r.amount === null ? null : Number(r.amount), r.currency, r.status]),
+      },
+      {
+        name: "Expense claims",
+        headers: ["Date", "Category", "Description", "Project", "From", "To", "Amount", "Currency", "Status", "Entered by"],
+        rows: claims.map((c) => [c.spend_date, category(c.category), c.description, c.project_name, c.origin, c.destination,
+          c.amount === null ? null : Number(c.amount), c.currency, c.status, c.entered_by]),
+      },
+    ]);
+    void recordReportGenerated("employee_travel_history", employeeId).catch(() => undefined);
+  }
+
   if (loading) return <div className="page-stack"><Loading label="Loading travel history…" /></div>;
   if (error) return <div className="page-stack"><ErrorNotice message={error} onRetry={load} /></div>;
   if (!summary) {
@@ -62,13 +107,14 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
     <div className="page-stack animate-page">
       {showBack && <Link href="/travel/employees" className="text-xs inline-flex items-center gap-1 hover:underline"><ArrowLeft size={13} /> All employees</Link>}
       <PageHeader
-        eyebrow="TRAVEL HISTORY"
+        eyebrow={summary?.active === false ? "PAST EMPLOYEE" : "EMPLOYEE RECORD"}
         title={summary.employee_name}
         description={`Employee ID ${summary.employee_code} · ${summary.department ?? "No department"}${summary.designation ? ` · ${summary.designation}` : ""}`}
         actions={
           <>
-            <button type="button" className="button button-ghost" onClick={downloadReport} disabled={!rows.length}><Download size={14} /> Download report</button>
-            {canManage && <button type="button" className="button button-primary" onClick={() => setAdding(true)}><Plus size={16} /> Add trip</button>}
+            <button type="button" className="button button-primary" onClick={() => void downloadFullReport()}><FileSpreadsheet size={14} /> Download report (Excel)</button>
+            <button type="button" className="button button-ghost" onClick={downloadReport} disabled={!rows.length}><Download size={14} /> Trips CSV</button>
+            {canManage && <button type="button" className="button button-ghost" onClick={() => setAdding(true)}><Plus size={16} /> Add trip</button>}
           </>
         }
       />
@@ -104,6 +150,28 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
           </div>
         )}
       </div>
+
+      {claims.length > 0 && (
+        <div className="panel table-panel">
+          <div className="table-toolbar"><h2 className="section-heading">Expense claims</h2></div>
+          <div className="responsive-table">
+            <table>
+              <thead><tr><th>Date</th><th>What for</th><th>Project</th><th className="text-right">Amount</th><th>Status</th></tr></thead>
+              <tbody>
+                {claims.map((c) => (
+                  <tr key={c.id} className={Number(c.counted) === 0 ? "opacity-60" : ""}>
+                    <td>{formatDate(c.spend_date)}</td>
+                    <td>{c.description || c.category}<div className="table-subline">{CATEGORY_LABELS[c.category as keyof typeof CATEGORY_LABELS] ?? c.category} · {c.entered_by}</div></td>
+                    <td>{c.project_name ?? "—"}</td>
+                    <td className="text-right">{c.amount === null ? "—" : formatMoney(c.amount, c.currency)}</td>
+                    <td>{c.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {(adding || editing) && (
         <TravelRecordDialog

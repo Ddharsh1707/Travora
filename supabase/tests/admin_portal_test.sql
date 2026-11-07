@@ -228,6 +228,42 @@ select ap.login('60000000-0000-0000-0000-0000000000e2');
 select ap.ok((select (s -> 'totals' ->> 'counted_amount')::numeric = 7350 from public.spend_summary('{}') s),
   'employee: totals cover only their own spend');
 
+-- ---------------------------------------------------------------------------
+-- Past employees added by an upload
+-- ---------------------------------------------------------------------------
+reset role;
+update public.profiles set created_at = now() - interval '1 day' where employee_id = 'XE03';
+insert into public.profiles (id, employee_id, full_name, department) values
+  ('50000000-0000-0000-0000-0000000000f1', 'XPAST1', 'Left Last Year', 'Projects');
+insert into public.import_batches (id, original_filename, file_kind, status, created_by)
+values ('80000000-0000-0000-0000-000000000002', 'PAST.xlsx', 'xlsx', 'staged', '60000000-0000-0000-0000-0000000000c1');
+insert into public.import_rows (batch_id, row_number, employee_code, profile_id, status, new_employee) values
+  ('80000000-0000-0000-0000-000000000002', 1, 'XPAST1', '50000000-0000-0000-0000-0000000000f1', 'imported', true),
+  ('80000000-0000-0000-0000-000000000002', 2, 'XE03',   '50000000-0000-0000-0000-0000000000e3', 'imported', true),
+  ('80000000-0000-0000-0000-000000000002', 3, 'XE01',   '50000000-0000-0000-0000-0000000000e1', 'imported', true);
+set local role authenticated;
+
+select ap.login('60000000-0000-0000-0000-0000000000c1');
+select ap.throws($$select public.import_mark_new_people_left('80000000-0000-0000-0000-000000000002')$$, 'past: upload must be finished first');
+reset role;
+update public.import_batches set status = 'committed' where id = '80000000-0000-0000-0000-000000000002';
+set local role authenticated;
+
+select ap.login('60000000-0000-0000-0000-0000000000d1');
+select ap.throws($$select public.import_mark_new_people_left('80000000-0000-0000-0000-000000000002')$$, 'past: travel desk cannot mark people as left');
+select ap.login('60000000-0000-0000-0000-0000000000e1');
+select ap.throws($$select public.import_mark_new_people_left('80000000-0000-0000-0000-000000000002')$$, 'past: employee cannot mark people as left');
+
+select ap.login('60000000-0000-0000-0000-0000000000c1');
+select ap.ok(public.import_mark_new_people_left('80000000-0000-0000-0000-000000000002') = 1, 'past: Admin marks only the person the upload added');
+reset role;
+select ap.ok((select not active from public.profiles where employee_id = 'XPAST1'), 'past: new person is now a past employee');
+select ap.ok((select active from public.profiles where employee_id = 'XE03'), 'past: an older person in the same sheet is untouched');
+select ap.ok((select active from public.profiles where employee_id = 'XE01'), 'past: a person with a login is untouched');
+set local role authenticated;
+select ap.login('60000000-0000-0000-0000-0000000000a1');
+select ap.ok(public.import_mark_new_people_left('80000000-0000-0000-0000-000000000002') = 0, 'past: running it again changes nothing');
+
 reset role;
 \echo 'ALL ADMIN PORTAL TESTS PASSED'
 rollback;
