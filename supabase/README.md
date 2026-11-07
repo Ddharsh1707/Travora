@@ -23,3 +23,33 @@ Supabase `auth` and `storage` schemas (`tests/local_stubs.sql`), applies every
 migration and runs `tests/rls_test.sql`. It needs PostgreSQL 15+ binaries and
 must run as a non-root user. The test file is wrapped in a rolled-back
 transaction and can also be run against a disposable Supabase branch database.
+
+## Phase 4: ticket / PDF scanner
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=<your key>       # server-side only, never VITE_
+# optional: supabase secrets set ANTHROPIC_MODEL=claude-opus-5-5
+supabase functions deploy document-extract
+```
+
+Anyone can upload their own tickets at **Tickets & documents**; Travel Desk
+and Admin can upload for any employee, scan, and confirm.
+
+- The scanner reads the PDF's text layer first. Only when there is no usable
+  text (a scanned PDF or a photo) is the file itself sent to the model to read.
+- The model can only fill a fixed JSON schema. Every value is checked again in
+  `functions/_shared/ticket.ts`: impossible dates, negative amounts and odd
+  codes are dropped, and a PNR, ticket number or passenger name that is not
+  printed in the document text is flagged "check". A passenger name that does
+  not match the employee is flagged too.
+- Nothing becomes a trip until a person presses **Confirm and save trip**,
+  which calls `document_confirm()`. The database validates the fields again,
+  attaches the document to an existing trip with the same PNR and date instead
+  of creating a duplicate, and writes an audit entry (ids only, no booking
+  details). A plain API update cannot mark a document confirmed.
+- 30 scans per person per hour (`consume_rate_limit`). The limit lives in the
+  database, so callers cannot raise it.
+- The function runs every query as the signed-in user, so RLS applies. It does
+  not use the service-role key.
+- What is sent to Anthropic: the document text (or file, when it has no text
+  layer). Nothing else from the database.

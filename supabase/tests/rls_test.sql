@@ -358,6 +358,76 @@ select t.ok(t.cnt('select 1 from public.travel_records') >= 3, 'import: employee
 select t.ok(t.cnt('select 1 from public.import_rows') = 0, 'import: employee cannot read import staging rows');
 reset role;
 
+-- ---------------------------------------------------------------------------
+-- Phase 4: ticket scanner
+-- ---------------------------------------------------------------------------
+insert into public.documents (id, employee_id, document_type, storage_path, original_filename, mime_type, size_bytes) values
+  ('40000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000e2', 'flight_ticket',
+   '00000000-0000-0000-0000-0000000000e2/40000000-0000-0000-0000-0000000000d1.pdf', 'ticket.pdf', 'application/pdf', 12345),
+  ('40000000-0000-0000-0000-0000000000d2', '00000000-0000-0000-0000-0000000000e2', 'invoice',
+   '00000000-0000-0000-0000-0000000000e2/40000000-0000-0000-0000-0000000000d2.pdf', 'invoice.pdf', 'application/pdf', 2345);
+
+set local role anon;
+select t.throws($$select public.consume_rate_limit('document_extract')$$, 'scanner: logged-out callers have no quota');
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000aa');
+select t.throws($$select public.consume_rate_limit('document_extract')$$, 'scanner: login without an employee profile has no quota');
+select t.login('10000000-0000-0000-0000-0000000000d1');
+select t.throws($$select public.consume_rate_limit('anything')$$, 'scanner: unknown rate-limit bucket rejected');
+select t.ok(public.consume_rate_limit('document_extract'), 'scanner: first scan is within the limit');
+select t.ok((select count(*) filter (where not ok) from (select public.consume_rate_limit('document_extract') as ok from generate_series(1, 30)) s) = 1,
+            'scanner: the 31st scan in an hour is refused');
+select t.throws($$select * from private.rate_limits$$, 'scanner: quota table is not readable through the API');
+
+select t.login('10000000-0000-0000-0000-0000000000e2');
+select t.ok(t.cnt($$select 1 from public.documents where id = '40000000-0000-0000-0000-0000000000d1'$$) = 1, 'scanner: employee sees their own document');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"A","destination":"B","departure_date":"2026-12-01"}')$$,
+                'scanner: employee cannot confirm a scan');
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.ok(t.cnt($$select 1 from public.documents where id = '40000000-0000-0000-0000-0000000000d1'$$) = 0, 'scanner: other employees cannot see the document');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"A","destination":"B","departure_date":"2026-12-01"}')$$,
+                'scanner: approver cannot confirm a scan');
+
+select t.login('10000000-0000-0000-0000-0000000000d1');
+update public.documents set extraction_status = 'extracted',
+       extracted_data = '{"fields":{"booking_reference":"TKT777"},"warnings":[]}' where id = '40000000-0000-0000-0000-0000000000d1';
+select t.ok((select extraction_status from public.documents where id = '40000000-0000-0000-0000-0000000000d1') = 'extracted', 'scanner: desk can save a suggestion');
+select t.throws($$update public.documents set extraction_status = 'verified' where id = '40000000-0000-0000-0000-0000000000d1'$$,
+                'scanner: a plain update cannot mark a document confirmed');
+select t.throws($$update public.documents set extracted_data = jsonb_build_object('notes', repeat('x', 70000)) where id = '40000000-0000-0000-0000-0000000000d1'$$,
+                'scanner: oversized extraction rejected');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"destination":"Delhi","departure_date":"2026-12-01"}')$$, 'scanner: From is required');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"Pune","destination":"Delhi","departure_date":"01/12/2026"}')$$, 'scanner: non-ISO date rejected');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"Pune","destination":"Delhi","departure_date":"2026-02-30"}')$$, 'scanner: impossible date rejected');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"Pune","destination":"Delhi","departure_date":"2026-12-05","return_date":"2026-12-01"}')$$, 'scanner: return before travel rejected');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"Pune","destination":"Delhi","departure_date":"2026-12-01","amount":"-40"}')$$, 'scanner: negative amount rejected');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"Pune","destination":"Delhi","departure_date":"2026-12-01","currency":"rupees"}')$$, 'scanner: bad currency rejected');
+
+create temp table conf1 as select public.document_confirm('40000000-0000-0000-0000-0000000000d1',
+  '{"origin":"Pune","destination":"Delhi","departure_date":"2026-12-01","provider":"IndiGo","booking_reference":"tkt777","ticket_number":"0981234567890","amount":"₹5,400.00","currency":"INR","booking_type":"Flight","document_type":"flight_ticket"}') as r;
+select t.ok((select (r ->> 'created')::boolean from conf1), 'scanner: confirming creates the trip');
+select t.ok(t.cnt($$select 1 from public.travel_records where source = 'document' and booking_reference = 'TKT777'
+                    and employee_id = '00000000-0000-0000-0000-0000000000e2' and amount = 5400$$) = 1, 'scanner: trip saved for the document''s employee');
+select t.ok((select extraction_status = 'verified' and travel_record_id = (select (r ->> 'record_id')::uuid from conf1)
+             from public.documents where id = '40000000-0000-0000-0000-0000000000d1'), 'scanner: document linked and marked confirmed');
+select t.throws($$select public.document_confirm('40000000-0000-0000-0000-0000000000d1', '{"origin":"A","destination":"B","departure_date":"2026-12-02"}')$$,
+                'scanner: cannot confirm the same document twice');
+select t.throws($$update public.documents set extracted_data = '{}' where id = '40000000-0000-0000-0000-0000000000d1'$$,
+                'scanner: a confirmed scan cannot be rewritten');
+
+create temp table conf2 as select public.document_confirm('40000000-0000-0000-0000-0000000000d2',
+  '{"origin":"Pune","destination":"Delhi","departure_date":"2026-12-01","booking_reference":"TKT777"}') as r;
+select t.ok((select not (r ->> 'created')::boolean and (r ->> 'record_id') = (select r ->> 'record_id' from conf1) from conf2),
+            'scanner: second document for the same trip is attached, not duplicated');
+select t.ok(t.cnt($$select 1 from public.travel_records where booking_reference = 'TKT777'$$) = 1, 'scanner: no duplicate trip created');
+select t.login('10000000-0000-0000-0000-0000000000e2');
+select t.ok(t.cnt($$select 1 from public.travel_records where booking_reference = 'TKT777'$$) = 1, 'scanner: employee sees the confirmed trip');
+reset role;
+select t.ok((select count(*) from public.audit_logs where action = 'document_confirmed') = 2, 'scanner: confirmations are audited');
+select t.ok(not exists (select 1 from public.audit_logs where action = 'document_confirmed' and metadata::text ~ '(TKT777|5400|Pune)'),
+            'scanner: audit log holds no booking details');
+
 -- Even the database owner cannot rewrite history.
 select t.throws($$delete from public.audit_logs$$, 'audit logs are append-only for the owner too');
 
