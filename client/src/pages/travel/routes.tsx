@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
+import { BarChart3, Bot, FolderKanban, Gauge, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -22,9 +22,6 @@ import UploadReport from "./UploadReport";
 import BiOverview from "./BiOverview";
 import BiProjects from "./BiProjects";
 import BiProjectDetail from "./BiProjectDetail";
-import BiTravel from "./BiTravel";
-import BiEmployees from "./BiEmployees";
-import BiFinance from "./BiFinance";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -63,9 +60,6 @@ const ROUTES: TravelRoute[] = [
   // Business Intelligence: built only from recorded bookings; approvers see their team
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi", label: "Management overview", icon: <Gauge size={16} />, roles: OVERSIGHT },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/projects", label: "Project Intelligence", icon: <FolderKanban size={16} />, roles: OVERSIGHT },
-  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/travel", label: "Travel Intelligence", icon: <Globe2 size={16} />, roles: OVERSIGHT },
-  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/employees", label: "Employee Intelligence", icon: <UserSearch size={16} />, roles: OVERSIGHT },
-  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/finance", label: "Financial Intelligence", icon: <IndianRupee size={16} />, roles: OVERSIGHT },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
   { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: STAFF },
@@ -105,9 +99,6 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/bulk": { eyebrow: "Travel", title: "Bulk & group bookings" },
   "/travel/bi": { eyebrow: "Business Intelligence", title: "Management overview" },
   "/travel/bi/projects": { eyebrow: "Business Intelligence", title: "Project Intelligence" },
-  "/travel/bi/travel": { eyebrow: "Business Intelligence", title: "Travel Intelligence" },
-  "/travel/bi/employees": { eyebrow: "Business Intelligence", title: "Employee Intelligence" },
-  "/travel/bi/finance": { eyebrow: "Business Intelligence", title: "Financial Intelligence" },
 };
 
 export function travelNavCategories(role: Role): { category: string; items: { label: string; href: string; icon: ReactNode }[] }[] {
@@ -157,12 +148,6 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
       return OVERSIGHT.includes(user.role) ? <BiOverview scopeLabel={biScope} /> : null;
     case "/travel/bi/projects":
       return OVERSIGHT.includes(user.role) ? <BiProjects isCeo={isCeo} /> : null;
-    case "/travel/bi/travel":
-      return OVERSIGHT.includes(user.role) ? <BiTravel canLink={canManage} /> : null;
-    case "/travel/bi/employees":
-      return OVERSIGHT.includes(user.role) ? <BiEmployees scopeLabel={biScope} /> : null;
-    case "/travel/bi/finance":
-      return OVERSIGHT.includes(user.role) ? <BiFinance /> : null;
     case "/travel/home":
       return <EmployeeHome name={name} profileId={profileId} />;
     case "/travel/expenses":
