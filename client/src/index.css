@@ -491,3 +491,41 @@ h1 { font-family: var(--font-heading, "Inter", "Plus Jakarta Sans", sans-serif);
 .dark .bi-kpi-warn { border-color: #6b5422; background: linear-gradient(180deg, rgba(245,158,11,.08), var(--surface)); }
 .dark .bi-quality-note, .dark .bi-cost-note { color: #e5b85a; }
 .dark .bi-kpi-value, .dark .bi-quality-item strong { color: var(--ink); }
+.bi-seg { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.bi-seg button { padding: 5px 10px; border-radius: 6px; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+.bi-seg button.on { background: var(--navy); color: #fff; }
+.bi-scroll { max-height: 420px; overflow-y: auto; }
+.bi-row-on td { background: var(--saffron-soft, #fff4e5); }
+.bi-tag-action { cursor: pointer; border: 1px dashed #d8b46a; }
+.bi-tag-action:hover { background: #fff4e0; }
+.bi-hit { display: block; width: 100%; padding: 8px 10px; text-align: left; border-radius: 8px; font-size: 13px; }
+.bi-hit:hover { background: rgba(0,0,0,.04); }
+.bi-map { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.bi-map svg { display: block; width: 100%; height: auto; }
+.bi-map-sea { fill: #eef4f7; }
+.bi-map-land { fill: #dfe6e2; stroke: #ffffff; stroke-width: .5; }
+.bi-map-home { fill: #cfdcd5; stroke: #ffffff; stroke-width: .6; }
+.bi-map-leg { fill: none; stroke: var(--blue); stroke-linecap: round; }
+.bi-map-dot { fill: var(--saffron); fill-opacity: .85; stroke: #fff; stroke-width: 1.5; }
+.bi-map-dot-origin { fill: var(--blue); }
+.bi-map-place { cursor: pointer; outline: none; }
+.bi-map-place:focus-visible circle { stroke: var(--navy); stroke-width: 3; }
+.bi-map-label { font-size: 12px; font-weight: 700; fill: var(--navy); paint-order: stroke; stroke: rgba(255,255,255,.9); stroke-width: 3px; pointer-events: none; }
+.bi-map-card { position: absolute; left: 12px; bottom: 30px; display: grid; gap: 2px; padding: 8px 12px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); font-size: 12px; }
+.bi-map-credit { position: absolute; right: 8px; bottom: 4px; margin: 0; color: var(--ink-muted); font-size: 9px; }
+.bi-insights { display: grid; gap: 6px; margin-top: 10px; }
+.bi-insight { border: 1px solid var(--line); border-left-width: 3px; border-radius: 8px; }
+.bi-insight-spend { border-left-color: var(--saffron); }
+.bi-insight-people { border-left-color: var(--blue); }
+.bi-insight-quality { border-left-color: #d9a233; }
+.bi-insight-time, .bi-insight-travel { border-left-color: var(--green); }
+.bi-insight-head { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; text-align: left; font-size: 13px; font-weight: 600; color: var(--ink); }
+.bi-insight-head svg { flex: 0 0 auto; transition: transform .15s ease; }
+.bi-insight-body { display: grid; gap: 6px; padding: 0 12px 10px; font-size: 12px; color: var(--ink-soft); }
+.dark .bi-map-sea { fill: #13232b; }
+.dark .bi-map-land { fill: #23363f; stroke: #13232b; }
+.dark .bi-map-home { fill: #2c4550; stroke: #13232b; }
+.dark .bi-map-label { fill: var(--ink); stroke: rgba(0,0,0,.6); }
+.dark .bi-row-on td { background: rgba(245,158,11,.12); }
+.dark .bi-hit:hover { background: rgba(255,255,255,.06); }
+.dark .bi-tag-action:hover { background: rgba(245,158,11,.12); }

@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { fillMonthGaps, getOverview, useBiFilters, type Overview } from "../../lib/data/bi";
 import { monthLabel } from "../../lib/data/reports";
 import BiFilterBar from "./BiFilterBar";
+import BiInsights from "./BiInsights";
 import { BI_PALETTE, CostCell, DataQuality, Kpi, Panel, ShareBar, compact, count, dateRange, plural } from "./BiParts";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 
@@ -62,6 +63,8 @@ export default function BiOverview({ scopeLabel }: { scopeLabel: string }) {
           </div>
 
           <DataQuality kpis={k} currency={cur} others={data.other_currencies} />
+
+          <BiInsights filters={filters} />
 
           <div className="grid gap-4 lg:grid-cols-3">
             <Panel title="Spend and bookings by month" note={`Spend in ${cur} (bars), bookings (line)`} className="lg:col-span-2">
