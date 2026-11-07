@@ -529,3 +529,21 @@ h1 { font-family: var(--font-heading, "Inter", "Plus Jakarta Sans", sans-serif);
 .dark .bi-row-on td { background: rgba(245,158,11,.12); }
 .dark .bi-hit:hover { background: rgba(255,255,255,.06); }
 .dark .bi-tag-action:hover { background: rgba(245,158,11,.12); }
+
+/* Business Intelligence: download reports */
+.bi-report-kinds { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.bi-report-kind { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; text-align: left; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); transition: border-color 0.15s, box-shadow 0.15s; }
+.bi-report-kind strong { font-size: 13px; color: var(--ink); }
+.bi-report-kind span { font-size: 11px; line-height: 1.45; color: var(--ink-soft); }
+.bi-report-kind:hover { border-color: var(--saffron); }
+.bi-report-kind.on { border-color: var(--saffron); box-shadow: inset 0 0 0 1px var(--saffron); background: color-mix(in srgb, var(--saffron) 6%, var(--surface)); }
+.bi-report-download { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 16px 18px; border-left: 3px solid var(--saffron); }
+.bi-report-stat { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.bi-report-stat span { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
+.bi-report-stat strong { font-size: 15px; color: var(--ink); overflow-wrap: anywhere; }
+.bi-report-notes { display: grid; gap: 6px; padding-left: 16px; list-style: disc; font-size: 12px; line-height: 1.5; }
+@media (max-width: 640px) {
+  .bi-report-kinds { grid-template-columns: 1fr 1fr; }
+  .bi-report-kind { padding: 10px; }
+  .bi-report-kind span { display: none; }
+}
