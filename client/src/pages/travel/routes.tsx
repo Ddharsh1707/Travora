@@ -7,6 +7,7 @@ import EmployeeDirectory from "./EmployeeDirectory";
 import EmployeeHistory from "./EmployeeHistory";
 import MyRequests from "./MyRequests";
 import ApprovalQueue from "./ApprovalQueue";
+import RequestsDesk from "./RequestsDesk";
 import ImportTravel from "./ImportTravel";
 import Documents from "./Documents";
 import BulkBookings from "./BulkBookings";
@@ -48,31 +49,36 @@ const CEO: Role[] = ["ADMIN"];
 const ADMIN: Role[] = ["COMPANY_ADMIN"];
 
 /**
- * Two separate portals:
- *  - Employees get "MY WORKSPACE": only their own trips, requests and expenses.
+ * Separate portals:
+ *  - Employees get "MY WORKSPACE": they send travel requests and see their own
+ *    decisions and trips. Nothing else.
  *  - The CEO (admin role) gets "CEO" tools for the whole company, plus travel admin.
  *  - The Admin (company_admin role) gets "ADMIN" tools: the same company-wide
  *    view, claims and employee logins, without role changes or travel approvals.
  * Managers and the travel desk keep their existing screens.
  */
 const ROUTES: TravelRoute[] = [
-  // Employee portal
+  // Employee portal: describe the trip, see the decision, see your own trips
   { group: "MY WORKSPACE", href: "/travel/home", label: "My dashboard", icon: <LayoutDashboard size={16} />, roles: ["EMPLOYEE"] },
   { group: "MY WORKSPACE", href: "/travel/overview", label: "Overview", icon: <LayoutDashboard size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
-  { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN"] },
   { group: "MY WORKSPACE", href: "/travel/requests", label: "My travel requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
-  // CEO portal
+  { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
+  // CEO portal: overall spend, every employee, decisions and the assistant
   { group: "CEO", href: "/travel/ceo", label: "CEO dashboard", icon: <Briefcase size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: CEO },
+  { group: "CEO", href: "/travel/approvals", label: "Travel requests", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/approvals", label: "Travel approvals", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: CEO },
-  // Admin portal
+  { group: "CEO", href: "/travel/people", label: "People & roles", icon: <UserCog size={16} />, roles: CEO },
+  // Admin portal: decisions, bookings, uploads, logins and the assistant
   { group: "ADMIN", href: "/travel/admin", label: "Admin dashboard", icon: <Briefcase size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/approvals", label: "Travel requests", icon: <ClipboardCheck size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/bulk", label: "Bulk bookings", icon: <Plane size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/people", label: "Employees & logins", icon: <UserCog size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ADMIN },
@@ -85,17 +91,17 @@ const ROUTES: TravelRoute[] = [
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/finance", label: "Financial Intelligence", icon: <IndianRupee size={16} />, roles: OVERSIGHT },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/reports", label: "Download reports", icon: <FileDown size={16} />, roles: OVERSIGHT },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
-  { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
-  { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: STAFF },
+  { group: "TRAVEL DESK", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK", "ADMIN"] },
+  { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["TRAVEL_DESK", "ADMIN"] },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
-  { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
+  { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   // Travel tools
   { group: "TRAVEL", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: OVERSIGHT },
   { group: "TRAVEL", href: "/travel/employees", label: "Employee travel", icon: <UsersRound size={16} />, roles: ["APPROVER"] },
-  { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: OVERSIGHT },
-  { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ALL },
-  { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
+  { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: ["APPROVER", "TRAVEL_DESK", "ADMIN"] },
+  { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"] },
+  { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
 ];
 
 /** Where each role lands after signing in. */
@@ -119,7 +125,7 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/assistant": { eyebrow: "Travel", title: "Ask the assistant" },
   "/travel/my": { eyebrow: "Travel", title: "My travel history" },
   "/travel/requests": { eyebrow: "Travel", title: "My requests" },
-  "/travel/approvals": { eyebrow: "Travel", title: "Approvals" },
+  "/travel/approvals": { eyebrow: "Travel", title: "Travel requests" },
   "/travel/search": { eyebrow: "Travel", title: "Travel search" },
   "/travel/employees": { eyebrow: "Travel", title: "Employees" },
   "/travel/import": { eyebrow: "Travel desk", title: "Upload travel data" },
@@ -214,7 +220,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     case "/travel/requests":
       return <MyRequests profileId={profileId} />;
     case "/travel/approvals":
-      return <ApprovalQueue profileId={profileId} />;
+      return isManager ? <RequestsDesk profileId={profileId} isCeo={isCeo} /> : <ApprovalQueue profileId={profileId} />;
     case "/travel/search":
       return <TravelSearch canManage={canManage} canSeeOthers />;
     case "/travel/employees":

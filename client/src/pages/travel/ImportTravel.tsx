@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, BarChart3, CheckCircle2, ChevronDown, ChevronRight, FileSpreadsheet, FolderKanban, Layers, Upload, UserPlus, Users, XCircle } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { MAX_FILE_BYTES, MAX_ROWS, checkImportFile, type CellValue } from "../../lib/data/importParser";
+import { MAX_FILE_BYTES, MAX_PDF_BYTES, MAX_ROWS, checkTravelUploadFile, type CellValue } from "../../lib/data/importParser";
 import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type WbField, type WorkbookSummary } from "../../lib/data/workbook";
 import { readMerges } from "../../lib/data/xlsxMerges";
 import {
@@ -15,7 +15,7 @@ import { DownloadOriginal } from "./UploadHistory";
 
 type Step = "upload" | "sheets" | "lines" | "people" | "projects" | "done";
 type Mappings = Record<string, Record<number, WbField | "">>;
-type FileInfo = { name: string; kind: "csv" | "xlsx"; sheets: SheetInput[]; blob: File };
+type FileInfo = { name: string; kind: "csv" | "xlsx" | "pdf"; sheets: SheetInput[]; blob: File };
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: "upload", label: "Upload" },
@@ -30,7 +30,11 @@ const KIND_LABEL: Record<string, string> = { flight: "Air tickets", train: "Trai
 const ROW_TONE: Record<WorkbookRow["status"], string> = { valid: "approved", warning: "pending-approval", error: "rejected", duplicate: "cancelled", imported: "booked", skipped: "completed" };
 const ROW_LABEL: Record<WorkbookRow["status"], string> = { valid: "Ready", warning: "Check", error: "Error", duplicate: "Already imported", imported: "Imported", skipped: "Skipped" };
 
-async function readFile(file: File, kind: "csv" | "xlsx"): Promise<SheetInput[]> {
+async function readFile(file: File, kind: "csv" | "xlsx" | "pdf"): Promise<SheetInput[]> {
+  if (kind === "pdf") {
+    const { readPdfTables } = await import("../../lib/data/pdfTables");
+    return readPdfTables(file);
+  }
   if (kind === "csv") {
     const Papa = (await import("papaparse")).default;
     const result = Papa.parse<string[]>(await file.text(), { skipEmptyLines: false });
@@ -83,7 +87,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
     if (!f) return;
     setError("");
     const head = new Uint8Array(await f.slice(0, 8).arrayBuffer());
-    const check = checkImportFile(f.name, f.size, head);
+    const check = checkTravelUploadFile(f.name, f.size, head);
     if (!check.ok) { setError(check.error); return; }
     setBusy(true);
     try {
@@ -222,9 +226,9 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow="TRAVEL DESK"
-        title="Upload company travel data"
-        description="Upload the travel desk workbook as it is: every sheet is read (air, hotel, bus and train, cab, visa, forex). You check what was found, confirm who each traveller is, map project names once, then import. Nothing is saved until the last step."
+        eyebrow={isManager ? "ADMIN" : "TRAVEL DESK"}
+        title="Upload bookings or past employee records"
+        description="Upload an Excel workbook, a CSV or a PDF exactly as you have it: bulk bookings from the travel agent, the monthly travel desk sheet, or the records of employees who have left. Every sheet or PDF page is read (air, hotel, bus and train, cab, visa, forex) and every column is kept. You check what was found, confirm who each traveller is, map project names once, then import. Nothing is saved until the last step."
       />
 
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Upload steps">
@@ -262,15 +266,15 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
             </label>
           </div>
           <label className="panel p-8 grid place-items-center text-center gap-3 cursor-pointer border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void onFile(e.dataTransfer.files?.[0]); }}>
-            {busy ? <Loading label="Reading every sheet…" /> : (
+            {busy ? <Loading label="Reading every sheet and page…" /> : (
               <>
                 <FileSpreadsheet size={32} />
-                <strong>Drop the travel workbook (.xlsx) or a .csv here, or click to choose</strong>
-                <span className="text-xs opacity-70 max-w-xl">Up to {Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB and {MAX_ROWS.toLocaleString("en-IN")} booking lines. Title rows above the headings, merged cells, several sheets and blank template sheets are fine.</span>
+                <strong>Drop the Excel (.xlsx), CSV or PDF file here, or click to choose</strong>
+                <span className="text-xs opacity-70 max-w-xl">Excel and CSV up to {Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB, PDF up to {Math.round(MAX_PDF_BYTES / 1024 / 1024)} MB, and {MAX_ROWS.toLocaleString("en-IN")} booking lines. Title rows above the headings, merged cells, several sheets and blank template sheets are fine. A PDF must have real text (exported from a system, not a scan); each table in it is read like a sheet.</span>
                 <span className="button button-primary"><Upload size={15} /> Choose file</span>
               </>
             )}
-            <input type="file" className="sr-only" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
+            <input type="file" className="sr-only" accept=".xlsx,.csv,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/pdf" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
           </label>
         </>
       )}

@@ -89,7 +89,7 @@ const STATUS_TONE: Record<string, string> = {
 
 export function StatusPill({ status }: { status: string }) {
   const tone = STATUS_TONE[status] ?? "pending";
-  return <span className={`approval-pill ${tone}`}>{status.replace(/_/g, " ")}</span>;
+  return <span className={`approval-pill ${tone}`}>{(status ?? "").replace(/_/g, " ")}</span>;
 }
 
 export function labelFor(type: string): string {

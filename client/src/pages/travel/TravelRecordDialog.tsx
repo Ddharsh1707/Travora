@@ -1,27 +1,29 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import { createTravelRecord, listEmployees, updateTravelRecord, type EmployeeSummary, type TravelRecord, type TravelRecordInput } from "../../lib/data/travel";
+import { createTravelRecord, listEmployees, updateTravelRecord, type EmployeeSummary, type TravelRecord, type TravelRecordInput, type TravelRequest } from "../../lib/data/travel";
 
 /** Add or edit a trip. Only Travel Desk / Admin can save (enforced by RLS). */
-export function TravelRecordDialog({ record, presetEmployee, onClose, onSaved }: {
+export function TravelRecordDialog({ record, presetEmployee, fromRequest, onClose, onSaved }: {
   record?: TravelRecord | null;
   presetEmployee?: { id: string; name: string; code: string } | null;
+  /** Booking an approved request: the trip starts from what the employee asked for. */
+  fromRequest?: TravelRequest | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<Record<string, string>>(() => ({
     employee_id: record?.employee_id ?? presetEmployee?.id ?? "",
-    origin: record?.origin ?? "",
-    destination: record?.destination ?? "",
-    departure_date: record?.departure_date ?? "",
-    return_date: record?.return_date ?? "",
+    origin: record?.origin ?? fromRequest?.origin ?? "",
+    destination: record?.destination ?? fromRequest?.destination ?? "",
+    departure_date: record?.departure_date ?? fromRequest?.departure_date ?? "",
+    return_date: record?.return_date ?? fromRequest?.return_date ?? "",
     airline_or_provider: record?.airline_or_provider ?? "",
     booking_reference: record?.booking_reference ?? "",
     ticket_number: record?.ticket_number ?? "",
     amount: record?.amount != null ? String(record.amount) : "",
     currency: record?.currency ?? "INR",
-    booking_type: record?.booking_type ?? "flight",
+    booking_type: record?.booking_type ?? fromRequest?.travel_type ?? "flight",
     status: record?.status ?? "confirmed",
   }));
   const [employeeLabel, setEmployeeLabel] = useState(
@@ -47,10 +49,10 @@ export function TravelRecordDialog({ record, presetEmployee, onClose, onSaved }:
     setSaving(true);
     setError("");
     try {
-      const payload = { ...form, amount: form.amount === "" ? undefined : form.amount, request_id: record?.request_id ?? null } as unknown as TravelRecordInput;
+      const payload = { ...form, amount: form.amount === "" ? undefined : form.amount, request_id: record?.request_id ?? fromRequest?.id ?? null } as unknown as TravelRecordInput;
       if (record) await updateTravelRecord(record.id, payload);
       else await createTravelRecord(payload);
-      toast.success(record ? "Trip updated" : "Trip added");
+      toast.success(record ? "Trip updated" : fromRequest ? "Trip booked. The employee can see it now." : "Trip added");
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the trip.");
@@ -64,7 +66,7 @@ export function TravelRecordDialog({ record, presetEmployee, onClose, onSaved }:
       <form className="confirm-dialog max-w-2xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">TRAVEL RECORD</span>
-        <h2 id="trip-dialog-title">{record ? "Edit trip" : "Add a trip"}</h2>
+        <h2 id="trip-dialog-title">{record ? "Edit trip" : fromRequest ? "Book this request" : "Add a trip"}</h2>
 
         <div className="grid gap-3 sm:grid-cols-2 mt-4">
           <label className="field sm:col-span-2">

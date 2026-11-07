@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Bot, Check, ClipboardCheck, FileSpreadsheet, IndianRupee, Plane, Receipt, UserPlus, UsersRound } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CATEGORY_LABELS, decideExpense, getCeoDashboard, listExpenses, type CeoDashboard as Dash, type Expense } from "../../lib/data/expenses";
 import { presetRange, useLiveRefresh, type RangePreset } from "../../lib/data/reports";
-import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney } from "./common";
+import { getPeopleOverview, type PeopleOverview } from "../../lib/data/people";
+import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor } from "./common";
 
 const PRESETS: Array<[Exclude<RangePreset, "custom">, string]> = [
   ["last_12_months", "Last 12 months"],
@@ -24,12 +25,20 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   const [pending, setPending] = useState<Expense[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [people, setPeople] = useState<PeopleOverview | null>(null);
+  const [peopleQ, setPeopleQ] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
     const range = presetRange(preset);
     try {
-      const [d, p] = await Promise.all([getCeoDashboard(range.from, range.to), listExpenses({ status: "submitted", limit: 6 })]);
+      const [d, p, o] = await Promise.all([
+        getCeoDashboard(range.from, range.to),
+        listExpenses({ status: "submitted", limit: 6 }),
+        getPeopleOverview(range.from, range.to).catch(() => null),
+      ]);
       setDash(d);
+      setPeople(o);
       setPending(p.filter((e) => e.employee_id !== profileId).slice(0, 5));
       setError("");
     } catch (err) {
@@ -52,11 +61,17 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
     }
   }
 
+  const peopleRows = useMemo(() => {
+    const term = peopleQ.trim().toLowerCase();
+    const all = people?.people ?? [];
+    return term ? all.filter((p) => [p.full_name, p.employee_code, p.department, p.projects, p.top_destination].some((v) => (v ?? "").toLowerCase().includes(term))) : all;
+  }, [people, peopleQ]);
+
   const tiles = dash ? [
     { label: "Active employees", value: String(dash.people.active), hint: dash.people.without_login ? `${dash.people.without_login} without a sign-in` : "All can sign in", href: "/travel/people", icon: <UsersRound size={16} /> },
     { label: "Expenses to review", value: String(dash.expenses.submitted_count), hint: formatMoney(dash.expenses.submitted_amount), href: "/travel/expenses/all", icon: <Receipt size={16} /> },
     { label: "Approved, to pay", value: formatMoney(dash.expenses.approved_amount), hint: "Mark as paid in All expenses", href: "/travel/expenses/all", icon: <IndianRupee size={16} /> },
-    { label: "Travel requests waiting", value: String(dash.pending_travel_requests), hint: isCeo ? "Pending approval" : "Approved by managers and the CEO", href: isCeo ? "/travel/approvals" : "/travel/search", icon: <ClipboardCheck size={16} /> },
+    { label: "Travel requests waiting", value: String(dash.pending_travel_requests), hint: "Sent to you and the " + (isCeo ? "Admin" : "CEO"), href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
     { label: "Total expenses claimed", value: formatMoney(dash.expenses.total), hint: `${dash.expenses.claims} claims · ${formatMoney(dash.expenses.reimbursed_amount)} paid`, href: "/travel/expenses/all", icon: <Receipt size={16} /> },
     { label: "Travel spend", value: formatMoney(dash.travel.spend), hint: `${dash.travel.trips} trips · ${dash.travel.travellers} travellers`, href: "/travel/reports", icon: <Plane size={16} /> },
     { label: "Upcoming trips", value: String(dash.travel.upcoming), hint: "From today, in range", href: "/travel/search", icon: <Plane size={16} /> },
@@ -74,8 +89,9 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
           <Link href="/travel/assistant" className="button button-ghost"><Bot size={15} /> Ask the assistant</Link>
-          <Link href="/travel/import" className="button button-ghost"><FileSpreadsheet size={15} /> Upload travel data</Link>
-          <Link href="/travel/people" className="button button-primary"><UserPlus size={15} /> Add employee</Link>
+          <Link href="/travel/approvals" className="button button-ghost"><ClipboardCheck size={15} /> Travel requests</Link>
+          {!isCeo && <Link href="/travel/import" className="button button-ghost"><FileSpreadsheet size={15} /> Upload Excel / PDF</Link>}
+          {!isCeo && <Link href="/travel/people" className="button button-primary"><UserPlus size={15} /> Add employee & login</Link>}
         </>}
       />
       {error && <ErrorNotice message={error} onRetry={load} />}
@@ -90,6 +106,15 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
               </Link>
             ))}
           </div>
+
+          {people && (
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <div className="panel p-4 min-w-0"><span className="card-kicker flex items-center gap-1"><FileSpreadsheet size={16} /> Uploaded files</span><div className="text-2xl font-bold mt-1">{people.uploads.files}</div><div className="text-xs opacity-70 mt-1 truncate">{people.uploads.lines.toLocaleString("en-IN")} booking lines{people.uploads.last_upload ? ` · last ${formatDate(people.uploads.last_upload)}` : ""}</div></div>
+              <div className="panel p-4 min-w-0"><span className="card-kicker flex items-center gap-1"><Plane size={16} /> Spend from uploads</span><div className="text-2xl font-bold mt-1 truncate">{formatMoney(people.totals.from_uploads)}</div><div className="text-xs opacity-70 mt-1 truncate">of {formatMoney(people.totals.spend)} travel in range</div></div>
+              <div className="panel p-4 min-w-0"><span className="card-kicker flex items-center gap-1"><Receipt size={16} /> Cancelled bookings</span><div className="text-2xl font-bold mt-1 truncate">{formatMoney(people.totals.cancelled_value)}</div><div className="text-xs opacity-70 mt-1 truncate">{people.totals.cancelled_trips} cancelled · not in spend</div></div>
+              <div className="panel p-4 min-w-0"><span className="card-kicker flex items-center gap-1"><UsersRound size={16} /> People who travelled</span><div className="text-2xl font-bold mt-1">{people.people.filter((p) => p.trips > 0).length}</div><div className="text-xs opacity-70 mt-1 truncate">{people.totals.without_cost ? `${people.totals.without_cost} trips have no cost in the file` : "Every trip has a cost"}</div></div>
+            </div>
+          )}
 
           <div className="grid gap-3 lg:grid-cols-3">
             <section className="panel p-4 lg:col-span-2 min-w-0">
@@ -161,6 +186,43 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
               )}
             </section>
           </div>
+
+          {people && (
+            <section className="panel p-4 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="card-kicker">Every employee: travel and spend</span>
+                <span className="text-xs opacity-70">From uploaded Excel / PDF files, bookings and claims in this period</span>
+                <label className="field m-0 ml-auto min-w-[200px]"><span className="sr-only">Search employees</span><input value={peopleQ} onChange={(e) => setPeopleQ(e.target.value)} placeholder="Search name, ID, project, place" /></label>
+              </div>
+              {people.by_mode.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {people.by_mode.map((m) => <span key={m.mode} className="meta-chip">{labelFor(m.mode)}: {m.trips} trips · {formatMoney(m.spend)}</span>)}
+                </div>
+              )}
+              {peopleRows.length === 0 ? <p className="text-sm opacity-70 mt-3">No employees match.</p> : (
+                <div className="responsive-table mt-2">
+                  <table>
+                    <thead><tr><th>Employee</th><th className="text-right">Trips</th><th className="text-right">Travel</th><th className="text-right">Cancelled</th><th className="text-right">Claims</th><th className="text-right">Total spent</th><th>Travels to</th><th>Last trip</th></tr></thead>
+                    <tbody>
+                      {(showAll ? peopleRows : peopleRows.slice(0, 15)).map((p) => (
+                        <tr key={p.employee_id}>
+                          <td><Link href={`/travel/employees/${p.employee_id}`} className="font-semibold hover:underline">{p.full_name}</Link><div className="table-subline">{p.employee_code}{p.department ? ` · ${p.department}` : ""}{p.active ? "" : " · past employee"}</div></td>
+                          <td className="text-right">{p.trips}</td>
+                          <td className="text-right">{formatMoney(p.travel)}</td>
+                          <td className="text-right">{Number(p.cancelled_value) ? formatMoney(p.cancelled_value) : "—"}</td>
+                          <td className="text-right">{Number(p.claimed) ? formatMoney(p.claimed) : "—"}</td>
+                          <td className="text-right font-semibold">{formatMoney(p.total)}</td>
+                          <td className="max-w-[220px] truncate" title={p.projects ?? ""}>{p.top_destination ?? "—"}<div className="table-subline truncate">{p.modes ?? ""}{p.projects ? ` · ${p.projects}` : ""}</div></td>
+                          <td>{formatDate(p.last_trip)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {peopleRows.length > 15 && <button type="button" className="button button-ghost mt-2" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show fewer" : `Show all ${peopleRows.length} employees`}</button>}
+            </section>
+          )}
 
           <section className="panel p-4 min-w-0">
             <span className="card-kicker">Departments</span>

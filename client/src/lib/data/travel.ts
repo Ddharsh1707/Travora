@@ -60,9 +60,33 @@ export type TravelRequest = {
   status: RequestStatus;
   approver_id: string | null;
   created_at: string;
-  employee?: { full_name: string; employee_id: string; department: string | null } | null;
+  project_name?: string | null;
+  preferred_time?: TimeOfDay | null;
+  return_preferred_time?: TimeOfDay | null;
+  hotel_required?: boolean;
+  hotel_city?: string | null;
+  hotel_check_in?: string | null;
+  hotel_check_out?: string | null;
+  contact_phone?: string | null;
+  notes?: string | null;
+  decided_by_name?: string | null;
+  decided_by_role?: "CEO" | "Admin" | "Manager" | null;
+  decided_at?: string | null;
+  decision_comment?: string | null;
+  employee?: { full_name: string; employee_id: string; department: string | null; role?: string | null } | null;
   approver?: { full_name: string } | null;
 };
+
+export const TIMES_OF_DAY = [
+  { key: "any", label: "Any time" },
+  { key: "early_morning", label: "Early morning (before 8 am)" },
+  { key: "morning", label: "Morning (8 am to 12 pm)" },
+  { key: "afternoon", label: "Afternoon (12 to 5 pm)" },
+  { key: "evening", label: "Evening (5 to 9 pm)" },
+  { key: "night", label: "Night (after 9 pm)" },
+] as const;
+export type TimeOfDay = (typeof TIMES_OF_DAY)[number]["key"];
+export const TIME_LABEL: Record<string, string> = Object.fromEntries(TIMES_OF_DAY.map((t) => [t.key, t.label]));
 
 /** Turns database errors into messages that are safe to show. */
 export function friendlyError(error: { code?: string; message?: string } | null | undefined, fallback = "Something went wrong. Please try again."): Error {
@@ -189,7 +213,7 @@ export async function updateTravelRecord(id: string, input: TravelRecordInput): 
 // ---------------------------------------------------------------------------
 
 const REQUEST_SELECT =
-  "*, employee:profiles!travel_requests_employee_id_fkey(full_name, employee_id, department), approver:profiles!travel_requests_approver_id_fkey(full_name)";
+  "*, employee:profiles!travel_requests_employee_id_fkey(full_name, employee_id, department, role), approver:profiles!travel_requests_approver_id_fkey(full_name)";
 
 export const travelRequestInput = z
   .object({
@@ -200,8 +224,19 @@ export const travelRequestInput = z
     purpose: z.string().trim().min(3, "Tell us the purpose of the trip").max(2000),
     travel_type: z.enum(["flight", "train", "bus", "cab", "hotel", "multi_modal", "other"]).default("flight"),
     estimated_cost: z.coerce.number().min(0).max(10_000_000).optional(),
+    project_name: optionalText(200),
+    preferred_time: z.enum(["any", "early_morning", "morning", "afternoon", "evening", "night"]).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    return_preferred_time: z.enum(["any", "early_morning", "morning", "afternoon", "evening", "night"]).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    hotel_required: z.boolean().default(false),
+    hotel_city: optionalText(120),
+    hotel_check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    hotel_check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    contact_phone: z.string().trim().regex(/^[0-9+() -]{6,20}$/, "Enter a valid phone number").optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    notes: optionalText(2000),
   })
-  .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] });
+  .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] })
+  .refine((v) => !v.hotel_check_in || !v.hotel_check_out || v.hotel_check_out >= v.hotel_check_in, { message: "Hotel check-out is before check-in", path: ["hotel_check_out"] })
+  .transform((v) => (v.hotel_required ? v : { ...v, hotel_city: null, hotel_check_in: null, hotel_check_out: null }));
 
 export type TravelRequestInput = z.input<typeof travelRequestInput>;
 
@@ -238,6 +273,16 @@ export async function listPendingApprovals(myProfileId: string): Promise<TravelR
     .order("departure_date", { ascending: true })
     .limit(200);
   if (error) throw friendlyError(error, "Could not load approvals.");
+  return (data ?? []) as TravelRequest[];
+}
+
+/** Every request the CEO or an Admin can see, newest first. RLS limits the rows. */
+export async function listAllRequests(opts: { status?: RequestStatus | "all"; employeeId?: string; limit?: number } = {}): Promise<TravelRequest[]> {
+  let q = getSupabase().from("travel_requests").select(REQUEST_SELECT).order("created_at", { ascending: false }).limit(Math.min(opts.limit ?? 300, 500));
+  if (opts.status && opts.status !== "all") q = q.eq("status", opts.status);
+  if (opts.employeeId) q = q.eq("employee_id", opts.employeeId);
+  const { data, error } = await q;
+  if (error) throw friendlyError(error, "Could not load travel requests. Has the latest SQL been run in Supabase?");
   return (data ?? []) as TravelRequest[];
 }
 

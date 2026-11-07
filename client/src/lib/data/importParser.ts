@@ -148,6 +148,22 @@ export function checkImportFile(name: string, size: number, firstBytes: Uint8Arr
   return { ok: true, kind };
 }
 
+export const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+/** Travel desk uploads also take a text PDF (a bulk booking list or past employee records). */
+export function checkTravelUploadFile(name: string, size: number, firstBytes: Uint8Array): { ok: true; kind: "csv" | "xlsx" | "pdf" } | { ok: false; error: string } {
+  if (!name.toLowerCase().endsWith(".pdf")) {
+    const c = checkImportFile(name, size, firstBytes);
+    if (!c.ok && /Please upload/.test(c.error)) return { ok: false, error: "Please upload an Excel (.xlsx), .csv or PDF file. (Old .xls files: open in Excel and save as .xlsx.)" };
+    return c;
+  }
+  if (size === 0) return { ok: false, error: "The file is empty." };
+  if (size > MAX_PDF_BYTES) return { ok: false, error: "The PDF is larger than 10 MB. Split it into smaller files." };
+  const isPdf = firstBytes[0] === 0x25 && firstBytes[1] === 0x50 && firstBytes[2] === 0x44 && firstBytes[3] === 0x46; // %PDF
+  if (!isPdf) return { ok: false, error: "This does not look like a real PDF file." };
+  return { ok: true, kind: "pdf" };
+}
+
 /** A small example sheet so the travel desk knows which columns to use. */
 export const SAMPLE_UPLOAD_HEADERS = ["Employee ID", "Employee Name", "Department", "Travel Date", "Return Date", "From", "To", "Travel Mode", "Airline", "PNR", "Ticket Number", "Amount", "Currency"];
 export const SAMPLE_UPLOAD_ROWS: string[][] = [

@@ -59,8 +59,16 @@ export default function BulkBookings({ canManage, canReview }: { canManage: bool
         eyebrow="Travel"
         title="Bulk & group bookings"
         description={canManage ? "Group movements with a traveller list. Every traveller gets their own trip record." : "Group bookings that include your team. Review the group budget here."}
-        actions={canManage ? <button type="button" className="button button-primary" onClick={() => setEditing({ booking: null, members: [] })}><Plus size={15} /> New bulk booking</button> : undefined}
+        actions={canManage ? <>
+          <Link href="/travel/import" className="button button-ghost"><FileUp size={15} /> Upload Excel / PDF</Link>
+          <button type="button" className="button button-primary" onClick={() => setEditing({ booking: null, members: [] })}><Plus size={15} /> New bulk booking</button>
+        </> : undefined}
       />
+      {canManage && (
+        <div className="panel p-4 text-sm">
+          Have the bookings already in a sheet or a PDF from the travel agent? Use <Link href="/travel/import" className="underline font-semibold">Upload Excel / PDF</Link>: every traveller and every charge in the file is read, matched to the employee and added to their history and spend.
+        </div>
+      )}
       <div className="panel table-panel">
         <div className="table-toolbar flex-wrap">
           <h2 className="section-heading">Bookings</h2>

@@ -5,7 +5,7 @@ import type { ColumnMapping } from "./importParser";
 export type ImportBatch = {
   id: string;
   original_filename: string;
-  file_kind: "csv" | "xlsx";
+  file_kind: "csv" | "xlsx" | "pdf";
   status: "staged" | "committed" | "cancelled";
   total_rows: number;
   valid_rows: number;
@@ -99,7 +99,7 @@ export async function listImportBatches(): Promise<ImportBatch[]> {
 // The original uploaded file, kept in the private "import-files" bucket
 // ---------------------------------------------------------------------------
 export const IMPORT_FILE_BUCKET = "import-files";
-const IMPORT_FILE_MIME = { xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv" } as const;
+const IMPORT_FILE_MIME = { xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv", pdf: "application/pdf" } as const;
 
 async function sha256Hex(file: Blob): Promise<string | null> {
   try {
@@ -114,7 +114,7 @@ async function sha256Hex(file: Blob): Promise<string | null> {
  * Stores the exact file behind an upload, once. The database only accepts it
  * in that upload's own folder and never lets it be replaced or deleted.
  */
-export async function storeImportFile(batchId: string, file: File, kind: "csv" | "xlsx"): Promise<void> {
+export async function storeImportFile(batchId: string, file: File, kind: "csv" | "xlsx" | "pdf"): Promise<void> {
   const supabase = getSupabase();
   const path = `${batchId}/${crypto.randomUUID()}.${kind}`;
   const { error: uploadError } = await supabase.storage.from(IMPORT_FILE_BUCKET).upload(path, file, { contentType: IMPORT_FILE_MIME[kind], upsert: false });
@@ -131,7 +131,7 @@ export async function getImportFileUrl(path: string, filename: string): Promise<
 }
 
 export type UploadHistoryRow = {
-  id: string; original_filename: string; file_kind: "csv" | "xlsx"; status: ImportBatch["status"]; format_version: number;
+  id: string; original_filename: string; file_kind: "csv" | "xlsx" | "pdf"; status: ImportBatch["status"]; format_version: number;
   total_rows: number; valid_rows: number; warning_rows: number; error_rows: number; duplicate_rows: number; imported_rows: number;
   created_at: string; committed_at: string | null; uploaded_by: string;
   file_path: string | null; file_size: number | null; file_stored_at: string | null; trips: number; spend: number;
@@ -198,7 +198,7 @@ export type UploadProject = { alias_key: string; label: string; rows: number; am
 export type Project = { id: string; name: string; kind: "project" | "cost_centre" | "event" | "other"; code: string | null; status: string; client: string | null };
 export type PersonOption = { id: string; full_name: string; employee_id: string; department: string | null };
 
-export async function stageWorkbook(filename: string, kind: "csv" | "xlsx", sheets: unknown[], lines: unknown[], createMissing: boolean, currency: string): Promise<string> {
+export async function stageWorkbook(filename: string, kind: "csv" | "xlsx" | "pdf", sheets: unknown[], lines: unknown[], createMissing: boolean, currency: string): Promise<string> {
   const { data, error } = await getSupabase().rpc("import_stage_v2", {
     p_filename: filename.slice(0, 255), p_file_kind: kind, p_sheets: sheets, p_rows: lines,
     p_create_missing: createMissing, p_currency: currency,
