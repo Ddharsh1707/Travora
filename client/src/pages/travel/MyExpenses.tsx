@@ -1,19 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Paperclip, Plus, X } from "lucide-react";
+import { Download, FileSpreadsheet, Paperclip, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   CATEGORY_LABELS, EXPENSE_CATEGORIES, PAYMENT_LABELS, PAYMENT_METHODS,
-  createExpense, listExpenses, summarizeExpenses, updateExpense, withdrawExpense,
-  type Expense, type ExpenseStatus,
+  createExpense, listExpenses, listProjectChoices, summarizeExpenses, updateExpense, withdrawExpense,
+  type Expense, type ExpenseStatus, type ProjectChoice,
 } from "../../lib/data/expenses";
 import { getDocumentUrl, uploadDocument } from "../../lib/data/documents";
 import { useLiveRefresh } from "../../lib/data/reports";
 import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney } from "./common";
 import { ExpenseStatusPill } from "./ExpenseStatusPill";
+import ExpenseUploadDialog from "./ExpenseUploadDialog";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const BLANK = { expense_date: "", category: "meals", description: "", amount: "", payment_method: "personal" };
+const BLANK = { expense_date: "", category: "meals", description: "", amount: "", payment_method: "personal", project_id: "", origin: "", destination: "" };
 
 /** An employee's own expense claims: add, edit while submitted, withdraw, track. */
 export default function MyExpenses({ profileId }: { profileId: string }) {
@@ -22,6 +23,10 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Expense | "new" | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [projects, setProjects] = useState<ProjectChoice[]>([]);
+  useEffect(() => { void listProjectChoices().then(setProjects); }, []);
+  const projectName = (id?: string | null) => (id ? projects.find((p) => p.id === id)?.name : undefined);
 
   const load = useCallback(async () => {
     setError("");
@@ -50,18 +55,19 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
     }
   }
 
-  async function openReceipt(e: Expense) {
-    if (!e.receipt) return;
+  async function openReceipt(e: Expense, which: "receipt" | "upload" = "receipt") {
+    const doc = which === "upload" ? e.upload : e.receipt;
+    if (!doc) return;
     try {
-      window.open(await getDocumentUrl(e.receipt), "_blank", "noopener,noreferrer");
+      window.open(await getDocumentUrl(doc), "_blank", "noopener,noreferrer");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "The receipt could not be opened.");
     }
   }
 
   function exportCsv() {
-    exportToCsv("my_expenses", ["Date", "Category", "Description", "Amount", "Paid by", "Status", "CEO note"],
-      shown.map((e) => [e.expense_date, CATEGORY_LABELS[e.category], e.description, e.amount, PAYMENT_LABELS[e.payment_method], e.status, e.review_note]));
+    exportToCsv("my_expenses", ["Date", "Category", "Description", "Project", "From", "To", "Amount", "Paid by", "Status", "Reviewer note"],
+      shown.map((e) => [e.expense_date, CATEGORY_LABELS[e.category], e.description, projectName(e.project_id) ?? "", e.origin, e.destination, e.amount, PAYMENT_LABELS[e.payment_method], e.status, e.review_note]));
   }
 
   return (
@@ -69,9 +75,10 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
       <PageHeader
         eyebrow="EXPENSES"
         title="My expenses"
-        description="Claim money you spent for work. The CEO reviews each claim; you can edit or withdraw it until then."
+        description="Claim money you spent for work, one at a time or from an Excel sheet. The Admin or CEO reviews each claim; you can edit or withdraw it until then."
         actions={<>
           <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}><Download size={15} /> Export</button>
+          <button type="button" className="button button-ghost" onClick={() => setUploading(true)}><FileSpreadsheet size={15} /> Upload from Excel</button>
           <button type="button" className="button button-primary" onClick={() => setEditing("new")}><Plus size={16} /> New expense</button>
         </>}
       />
@@ -96,7 +103,7 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
         {loading ? <Loading /> : shown.length === 0 ? <Empty title="No expenses here" description="Use “New expense” to claim a cab, meal, hotel or anything else you paid for." /> : (
           <div className="responsive-table">
             <table>
-              <thead><tr><th>Date</th><th>What for</th><th className="text-right">Amount</th><th>Status</th><th>CEO note</th><th><span className="sr-only">Actions</span></th></tr></thead>
+              <thead><tr><th>Date</th><th>What for</th><th className="text-right">Amount</th><th>Status</th><th>Reviewer note</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {shown.map((e) => (
                   <tr key={e.id}>
@@ -104,7 +111,10 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
                     <td className="max-w-[280px]">
                       <div className="truncate font-semibold" title={e.description}>{e.description}</div>
                       <div className="table-subline">{CATEGORY_LABELS[e.category]} · {PAYMENT_LABELS[e.payment_method]}
+                        {(e.origin || e.destination) && <> · {[e.origin, e.destination].filter(Boolean).join(" to ")}</>}
+                        {projectName(e.project_id) && <> · {projectName(e.project_id)}</>}
                         {e.receipt && <> · <button type="button" className="underline" onClick={() => openReceipt(e)}><Paperclip size={11} className="inline" /> receipt</button></>}
+                        {e.upload && <> · <button type="button" className="underline" onClick={() => openReceipt(e, "upload")}><FileSpreadsheet size={11} className="inline" /> from {e.upload.original_filename}</button></>}
                       </div>
                     </td>
                     <td className="text-right font-semibold">{formatMoney(e.amount, e.currency)}</td>
@@ -128,21 +138,34 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
         <ExpenseDialog
           profileId={profileId}
           expense={editing === "new" ? null : editing}
+          projects={projects}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); void load(); }}
+        />
+      )}
+      {uploading && (
+        <ExpenseUploadDialog
+          profileId={profileId}
+          projects={projects}
+          existing={rows}
+          onClose={() => setUploading(false)}
+          onSaved={() => { setUploading(false); void load(); }}
         />
       )}
     </div>
   );
 }
 
-function ExpenseDialog({ profileId, expense, onClose, onSaved }: { profileId: string; expense: Expense | null; onClose: () => void; onSaved: () => void }) {
+function ExpenseDialog({ profileId, expense, projects, onClose, onSaved }: { profileId: string; expense: Expense | null; projects: ProjectChoice[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<Record<string, string>>(() => expense ? {
     expense_date: expense.expense_date,
     category: expense.category,
     description: expense.description,
     amount: String(expense.amount),
     payment_method: expense.payment_method,
+    project_id: expense.project_id ?? "",
+    origin: expense.origin ?? "",
+    destination: expense.destination ?? "",
   } : { ...BLANK, expense_date: today() });
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -156,10 +179,10 @@ function ExpenseDialog({ profileId, expense, onClose, onSaved }: { profileId: st
     try {
       let receiptId = expense?.receipt_document_id ?? null;
       if (file) receiptId = (await uploadDocument(profileId, file, "invoice")).id;
-      const payload = { ...form, receipt_document_id: receiptId } as never;
+      const payload = { ...form, project_id: form.project_id || null, receipt_document_id: receiptId } as never;
       if (expense) await updateExpense(expense.id, payload);
       else await createExpense(profileId, payload);
-      toast.success(expense ? "Expense updated" : "Expense sent to the CEO for review");
+      toast.success(expense ? "Expense updated" : "Expense sent for review");
       onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the expense.");
@@ -187,6 +210,16 @@ function ExpenseDialog({ profileId, expense, onClose, onSaved }: { profileId: st
               {PAYMENT_METHODS.map((p) => <option key={p} value={p}>{PAYMENT_LABELS[p]}</option>)}
             </select>
           </label>
+          <label className="field"><span>From (optional)</span><input value={form.origin} onChange={set("origin")} maxLength={120} placeholder="e.g. Hyderabad airport" /></label>
+          <label className="field"><span>To (optional)</span><input value={form.destination} onChange={set("destination")} maxLength={120} placeholder="e.g. Site office" /></label>
+          {projects.length > 0 && (
+            <label className="field sm:col-span-2"><span>Project (optional)</span>
+              <select value={form.project_id} onChange={set("project_id")}>
+                <option value="">No project</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ""}</option>)}
+              </select>
+            </label>
+          )}
           <label className="field sm:col-span-2"><span>What was it for?</span><textarea value={form.description} onChange={set("description")} required maxLength={500} rows={2} placeholder="e.g. Cab from airport to client office" /></label>
           <label className="field sm:col-span-2"><span>Receipt (PDF or photo, optional)</span>
             <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />

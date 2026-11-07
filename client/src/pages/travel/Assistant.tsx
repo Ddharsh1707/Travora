@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, MessageSquarePlus, Send, ShieldCheck, Trash2, User } from "lucide-react";
+import { Bot, Download, MessageSquarePlus, Send, ShieldCheck, Table2, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
 import {
-  EXAMPLE_QUESTIONS, MAX_QUESTION, ask, deleteConversation, getMessages, listConversations, questionError, toolSummary,
-  type ChatMessage, type Conversation,
+  EXAMPLE_QUESTIONS, MAX_QUESTION, RECORD_COLUMN_LABELS, TOOL_LABELS, ask, deleteConversation, getMessages, listConversations, questionError, recordColumns, toolSummary,
+  type ChatMessage, type Conversation, type RecordSet,
 } from "../../lib/data/assistant";
+import { exportToCsv } from "../../utils/exportCsv";
 import { ErrorNotice, Loading, PageHeader, formatDate } from "./common";
 
 /**
  * Chat with the travel assistant. Answers only ever cover what this user may
  * see: the assistant looks things up with their own permissions.
  */
-export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
+export default function Assistant({ canSeeOthers, isManager = false }: { canSeeOthers: boolean; isManager?: boolean }) {
   const [conversations, setConversations] = useState<Conversation[] | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -51,7 +52,7 @@ export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
     setAsking(true);
     try {
       const res = await ask(q, activeId);
-      setMessages((m) => [...m, { id: `local-a-${now}`, role: "assistant", content: res.answer, created_at: new Date().toISOString(), tools_used: res.tools }]);
+      setMessages((m) => [...m, { id: `local-a-${now}`, role: "assistant", content: res.answer, created_at: new Date().toISOString(), tools_used: res.tools, records: res.records }]);
       if (!activeId) { setActiveId(res.conversationId); loadConversations(); }
       if (!res.saved) toast.warning("The answer could not be saved to your history.");
     } catch (err) {
@@ -75,14 +76,16 @@ export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
     }
   };
 
-  const examples = canSeeOthers ? [...EXAMPLE_QUESTIONS.team, EXAMPLE_QUESTIONS.self[0]] : EXAMPLE_QUESTIONS.self;
+  const examples = isManager ? EXAMPLE_QUESTIONS.manager : canSeeOthers ? [...EXAMPLE_QUESTIONS.team, EXAMPLE_QUESTIONS.self[0]] : EXAMPLE_QUESTIONS.self;
 
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow="Travel"
+        eyebrow={isManager ? "AI assistant" : "Travel"}
         title="Ask the assistant"
-        description="Ask about trips, travel spend, requests and approvals in plain words. It only sees what you are allowed to see, and it cannot book or change anything."
+        description={isManager
+          ? "Ask about anyone's trips, expense claims, projects, uploads and totals in plain words. Every answer shows the records it came from. It cannot change anything."
+          : "Ask about trips, travel spend, requests and approvals in plain words. It only sees what you are allowed to see, and it cannot book or change anything."}
         actions={<button type="button" className="button button-ghost" onClick={startNew}><MessageSquarePlus size={15} /> New chat</button>}
       />
       {error && <ErrorNotice message={error} onRetry={loadConversations} />}
@@ -134,6 +137,7 @@ export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
                   {m.role === "assistant" && toolSummary(m.tools_used) && (
                     <div className="text-xs opacity-60 mt-1">{toolSummary(m.tools_used)}</div>
                   )}
+                  {m.role === "assistant" && m.records?.map((r, i) => <RecordsUsed key={i} set={r} />)}
                 </div>
                 {m.role === "user" && <User size={18} className="mt-1 shrink-0 opacity-60" aria-hidden />}
               </div>
@@ -153,7 +157,7 @@ export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
                 maxLength={MAX_QUESTION}
                 rows={2}
                 style={{ minHeight: 56 }}
-                placeholder="For example: who is travelling to Delhi next week?"
+                placeholder={isManager ? "For example: how much did Ravi spend in September?" : "For example: who is travelling to Delhi next week?"}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!asking) submit(question); }
@@ -169,5 +173,28 @@ export default function Assistant({ canSeeOthers }: { canSeeOthers: boolean }) {
         </section>
       </div>
     </div>
+  );
+}
+
+/** The rows the assistant read for an answer, so figures can be checked. Plain text cells only. */
+function RecordsUsed({ set }: { set: RecordSet }) {
+  const cols = recordColumns(set.rows);
+  if (!cols.length) return null;
+  const label = TOOL_LABELS[set.tool] ?? "records";
+  const cell = (v: unknown) => (v === null || v === undefined ? "" : typeof v === "number" ? v.toLocaleString("en-IN") : String(v));
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="cursor-pointer inline-flex items-center gap-1 opacity-80"><Table2 size={12} /> Records used: {label} ({set.rows.length})</summary>
+      <div className="responsive-table mt-1 max-h-64 overflow-auto bg-white/60 dark:bg-black/20 rounded">
+        <table className="text-xs">
+          <thead><tr>{cols.map((c) => <th key={c}>{RECORD_COLUMN_LABELS[c] ?? c}</th>)}</tr></thead>
+          <tbody>{set.rows.map((r, i) => <tr key={i}>{cols.map((c) => <td key={c}>{cell(r[c])}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+      <button type="button" className="table-action mt-1 inline-flex items-center gap-1"
+        onClick={() => exportToCsv(`assistant_${set.tool}`, cols.map((c) => RECORD_COLUMN_LABELS[c] ?? c), set.rows.map((r) => cols.map((c) => r[c] as string | number | null)))}>
+        <Download size={12} /> CSV
+      </button>
+    </details>
   );
 }

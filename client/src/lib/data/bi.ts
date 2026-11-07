@@ -213,3 +213,105 @@ export function fillMonthGaps(points: MonthPoint[]): MonthPoint[] {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Part 3: travel, employees, finance, insights
+// ---------------------------------------------------------------------------
+export type TravelPlace = { key: string; name: string; country: string; lat: number; lng: number; visits: number; departures: number; connections: number; travellers: number; spend: number };
+export type TravelReport = {
+  base_currency: string;
+  home_country: string;
+  kpis: { bookings: number; on_map: number; not_on_map: number; international: number; domestic: number; places: number; countries: number; routes: number };
+  places: TravelPlace[];
+  legs: { from_key: string; to_key: string; bookings: number; travellers: number }[];
+  journeys: { from_name: string; to_name: string; bookings: number; costed: number; spend: number; avg_cost: number | null; has_connections: boolean }[];
+  countries: { country: string; bookings: number; travellers: number }[];
+  categories: { category: string; bookings: number; international: number; spend: number }[];
+  not_on_map: { label: string; bookings: number }[];
+};
+
+export type EmployeeRow = {
+  employee_id: string; full_name: string; employee_code: string; department: string;
+  bookings: number; spend: number; without_cost: number; cancelled: number; no_show: number;
+  projects: number; unassigned: number; places: number; first_date: string; last_date: string;
+  avg_advance_days: number | null; top_destination: string | null;
+  project_list: { id: string; name: string; bookings: number }[];
+};
+export type EmployeesReport = {
+  base_currency: string;
+  kpis: { travellers: number; bookings: number; avg_bookings: number | null; multi_project: number; spend: number; top5_spend: number };
+  frequency: { bucket: string; sort: number; travellers: number; spend: number }[];
+  departments: { department: string; travellers: number; bookings: number; spend: number }[];
+  employees: EmployeeRow[];
+};
+
+export type Period = "month" | "quarter" | "fy";
+export type FinanceReport = {
+  base_currency: string;
+  period: Period;
+  kpis: { spend: number; bookings: number; costed: number; missing_cost: number; shared_cost: number; zero_cost: number; cancelled: number; cancelled_cost: number; avg_cost: number | null };
+  other_currencies: OtherCurrency[];
+  periods: { period: string; bookings: number; spend: number; cancelled_cost: number; without_cost: number; by_category: Record<string, number> | null }[];
+  vendors: { provider: string; category: string; bookings: number; costed: number; spend: number; avg_cost: number | null }[];
+  payment_modes: { payment_mode: string; bookings: number; spend: number }[];
+  charges: { line_type: string; lines: number; amount: number }[];
+  completeness: { source: string; category: string; bookings: number; recorded: number; zero: number; shared: number; missing: number; cancelled: number; spend: number; cancelled_cost: number }[];
+  advance: { bucket: string; sort: number; bookings: number; avg_cost: number | null }[];
+};
+
+export type Insight = { id: string; kind: "spend" | "people" | "quality" | "time" | "travel"; title: string; value: number; basis: string; link: string };
+export type LocationHit = { id: number; kind: "airport" | "station" | "city"; code: string | null; name: string; city: string | null; region: string | null; country: string; lat: number; lng: number; source: string };
+
+export const getTravel = (f: BiFilters) => call<TravelReport>("bi_travel", { p_filters: cleanFilters(f) }, "Could not load Travel Intelligence.");
+export const getEmployees = (f: BiFilters) => call<EmployeesReport>("bi_employees", { p_filters: cleanFilters(f) }, "Could not load Employee Intelligence.");
+export const getFinance = (f: BiFilters, period: Period) => call<FinanceReport>("bi_finance", { p_filters: cleanFilters(f), p_period: period }, "Could not load Financial Intelligence.");
+export const getInsights = (f: BiFilters) => call<Insight[]>("bi_insights", { p_filters: cleanFilters(f) }, "Could not work out the insights.");
+export const searchLocations = (q: string) => call<LocationHit[]>("location_search", { p_query: q.slice(0, 80) }, "Could not search places.");
+/** Travel desk and CEO: put a sheet spelling on the map by linking it to a known place. */
+export async function linkPlace(label: string, locationId: number | null): Promise<void> {
+  await call<null>("location_alias_set", { p_label: label.slice(0, 200), p_location: locationId }, "Could not link the place.");
+}
+
+/** "FY 2026-27 Q2" stays; "2026-09" becomes "Sep 26". */
+export function periodLabel(p: string): string {
+  return /^\d{4}-\d{2}$/.test(p) ? new Date(Number(p.slice(0, 4)), Number(p.slice(5, 7)) - 1, 1).toLocaleDateString("en-IN", { month: "short", year: "2-digit" }) : p;
+}
+
+export const LINE_TYPE_LABEL: Record<string, string> = {
+  fare: "Fares", addon: "Extra charges on a booking", reissue: "Reissues", change_fee: "Change fees", cancellation_fee: "Cancellation fees",
+  refund: "Refunds", hotel: "Hotel stays", cab: "Cabs", visa: "Visas", forex: "Forex", other: "Other",
+};
+
+let countryNames: Intl.DisplayNames | null = null;
+export function countryName(code: string): string {
+  try {
+    countryNames ??= new Intl.DisplayNames(["en"], { type: "region" });
+    return countryNames.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Part 4: period reports for download
+// ---------------------------------------------------------------------------
+export type ReportGrain = "week" | "month" | "quarter" | "fy";
+export type ReportDimension = "project" | "department" | "category" | "employee";
+export type BiReport = {
+  base_currency: string;
+  grain: ReportGrain;
+  viewer_role: string | null;
+  generated_at: string;
+  totals: {
+    bookings: number; travellers: number; spend: number; costed: number; missing_cost: number; shared_cost: number;
+    zero_cost: number; cancelled: number; cancelled_cost: number; unassigned: number; first_date: string | null; last_date: string | null;
+  };
+  other_currencies: OtherCurrency[];
+  periods: { period: string; first_date: string; last_date: string; bookings: number; travellers: number; spend: number | null; cancelled_cost: number | null; costed: number; without_cost: number; cancelled: number }[];
+  breakdown: { dimension: ReportDimension; period: string; key: string; label: string; bookings: number; travellers: number; spend: number | null; without_cost: number }[];
+  dimensions: { dimension: ReportDimension; key: string; label: string; bookings: number; travellers: number; spend: number | null; without_cost: number; cancelled: number }[];
+  routes: { origin: string; destination: string; bookings: number; travellers: number; spend: number | null; avg_cost: number | null }[];
+  period_routes: { period: string; origin: string; destination: string; bookings: number; spend: number | null; rank: number }[];
+  completeness: { source: string; category: string; bookings: number; with_cost: number; shared: number; missing: number; cancelled: number; unassigned: number }[];
+};
+export const getReport = (f: BiFilters, grain: ReportGrain) => call<BiReport>("bi_report", { p_filters: cleanFilters(f), p_grain: grain }, "Could not build the report.");

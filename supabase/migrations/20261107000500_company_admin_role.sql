@@ -1,0 +1,11 @@
+-- =============================================================================
+-- New role: company_admin (shown as "Admin" in the app)
+--
+-- Sits between the travel desk and the CEO. The CEO stays the existing
+-- 'admin' role. Postgres only lets a new enum value be used after the
+-- statement that adds it has committed, so this file only adds the value;
+-- 20261107000510 gives the role its permissions.
+--
+-- Safe to run more than once.
+-- =============================================================================
+alter type public.app_role add value if not exists 'company_admin';

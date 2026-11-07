@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Check, ClipboardCheck, FileSpreadsheet, IndianRupee, Plane, Receipt, UserPlus, UsersRound } from "lucide-react";
+import { ArrowRight, Bot, Check, ClipboardCheck, FileSpreadsheet, IndianRupee, Plane, Receipt, UserPlus, UsersRound } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -17,8 +17,8 @@ const PRESETS: Array<[Exclude<RangePreset, "custom">, string]> = [
 const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
 const monthLabel = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
 
-/** CEO home: company-wide people, expenses and travel at a glance. */
-export default function CeoDashboard({ name, profileId }: { name: string; profileId: string }) {
+/** CEO and Admin home: company-wide people, expenses and travel at a glance. */
+export default function CeoDashboard({ name, profileId, isCeo = true }: { name: string; profileId: string; isCeo?: boolean }) {
   const [preset, setPreset] = useState<Exclude<RangePreset, "custom">>("last_12_months");
   const [dash, setDash] = useState<Dash | null>(null);
   const [pending, setPending] = useState<Expense[]>([]);
@@ -56,7 +56,7 @@ export default function CeoDashboard({ name, profileId }: { name: string; profil
     { label: "Active employees", value: String(dash.people.active), hint: dash.people.without_login ? `${dash.people.without_login} without a sign-in` : "All can sign in", href: "/travel/people", icon: <UsersRound size={16} /> },
     { label: "Expenses to review", value: String(dash.expenses.submitted_count), hint: formatMoney(dash.expenses.submitted_amount), href: "/travel/expenses/all", icon: <Receipt size={16} /> },
     { label: "Approved, to pay", value: formatMoney(dash.expenses.approved_amount), hint: "Mark as paid in All expenses", href: "/travel/expenses/all", icon: <IndianRupee size={16} /> },
-    { label: "Travel requests waiting", value: String(dash.pending_travel_requests), hint: "Pending approval", href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
+    { label: "Travel requests waiting", value: String(dash.pending_travel_requests), hint: isCeo ? "Pending approval" : "Approved by managers and the CEO", href: isCeo ? "/travel/approvals" : "/travel/search", icon: <ClipboardCheck size={16} /> },
     { label: "Total expenses claimed", value: formatMoney(dash.expenses.total), hint: `${dash.expenses.claims} claims · ${formatMoney(dash.expenses.reimbursed_amount)} paid`, href: "/travel/expenses/all", icon: <Receipt size={16} /> },
     { label: "Travel spend", value: formatMoney(dash.travel.spend), hint: `${dash.travel.trips} trips · ${dash.travel.travellers} travellers`, href: "/travel/reports", icon: <Plane size={16} /> },
     { label: "Upcoming trips", value: String(dash.travel.upcoming), hint: "From today, in range", href: "/travel/search", icon: <Plane size={16} /> },
@@ -66,13 +66,14 @@ export default function CeoDashboard({ name, profileId }: { name: string; profil
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow="CEO DASHBOARD"
-        title={`Good to see you, ${name.split(" ")[0] || "CEO"}`}
+        eyebrow={isCeo ? "CEO DASHBOARD" : "ADMIN DASHBOARD"}
+        title={`Good to see you, ${name.split(" ")[0] || (isCeo ? "CEO" : "Admin")}`}
         description="Everything across the company: people, expense claims and travel. Updates by itself."
         actions={<>
           <select aria-label="Date range" value={preset} onChange={(e) => setPreset(e.target.value as typeof preset)} className="button button-ghost">
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
+          <Link href="/travel/assistant" className="button button-ghost"><Bot size={15} /> Ask the assistant</Link>
           <Link href="/travel/import" className="button button-ghost"><FileSpreadsheet size={15} /> Upload travel data</Link>
           <Link href="/travel/people" className="button button-primary"><UserPlus size={15} /> Add employee</Link>
         </>}

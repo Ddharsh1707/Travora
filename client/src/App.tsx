@@ -373,7 +373,7 @@ const roleLabels: Record<Role, string> = {
   TRAVEL_DESK: "Travel desk",
   // In Supabase mode the admin role is the company's CEO.
   ADMIN: isSupabaseEnabled ? "CEO" : "Administrator",
-  COMPANY_ADMIN: "Company Administrator",
+  COMPANY_ADMIN: isSupabaseEnabled ? "Admin" : "Company Administrator",
   PLATFORM_ADMIN: "Platform Administrator",
 };
 

@@ -20,7 +20,7 @@ import Anthropic from "npm:@anthropic-ai/sdk@1.1.0";
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 import { adminClient, getCaller, type Caller } from "../_shared/auth.ts";
 import { corsHeaders, fail, json } from "../_shared/http.ts";
-import { MAX_ROWS, TOOLS, systemPrompt, trimTrip, validateToolInput, type ValidArgs } from "../_shared/assistantTools.ts";
+import { MANAGER_TOOL_NAMES, MAX_ROWS, systemPrompt, toolsFor, trimSpend, trimTrip, validateToolInput, type ValidArgs } from "../_shared/assistantTools.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-opus-5-5";
@@ -40,6 +40,51 @@ async function trips(query: PromiseLike<{ data: unknown; error: unknown }>): Pro
   if (error) throw error;
   const rows = (data as Record<string, unknown>[] | null) ?? [];
   return { count: Math.min(rows.length, MAX_ROWS), truncated: rows.length > MAX_ROWS, trips: rows.slice(0, MAX_ROWS).map(trimTrip) };
+}
+
+const SPEND_COLUMNS =
+  "spend_date, source, entered_by, employee_id, employee_name, employee_code, department, category, description, project_id, project_name, origin, destination, booking_reference, amount, currency, counted, status";
+
+type Person = { id: string; full_name: string; employee_id: string; department: string | null };
+
+/** Finds people the caller can see by name or employee ID. An exact ID or name wins. */
+async function findPeople(db: SupabaseClient, term: string): Promise<Person[]> {
+  const { data, error } = await db.from("profiles")
+    .select("id, full_name, employee_id, department")
+    .or(`full_name.ilike.${like(term)},employee_id.ilike.${like(term)}`)
+    .order("full_name")
+    .limit(10);
+  if (error) throw error;
+  const rows = (data ?? []) as Person[];
+  const exact = rows.filter((p) => p.employee_id.toLowerCase() === term.toLowerCase() || p.full_name.toLowerCase() === term.toLowerCase());
+  return exact.length ? exact : rows;
+}
+
+/** Resolves a person filter: one match → their id; none or several → an answer for the model instead. */
+async function onePerson(db: SupabaseClient, term: string | undefined): Promise<{ id?: string; stop?: ToolOutput }> {
+  if (!term) return {};
+  const people = await findPeople(db, term);
+  if (people.length === 0) return { stop: { found: false, note: `No employee the user can see matches "${term}".` } };
+  if (people.length > 1) return { stop: { found: false, ambiguous: true, candidates: people.map(({ id: _id, ...p }) => p) } };
+  return { id: people[0].id };
+}
+
+async function oneProject(db: SupabaseClient, term: string | null | undefined): Promise<{ id?: string; name?: string; stop?: ToolOutput }> {
+  if (!term) return {};
+  const { data, error } = await db.from("projects").select("id, name, code").or(`name.ilike.${like(term)},code.ilike.${like(term)}`).limit(10);
+  if (error) throw error;
+  const rows = (data ?? []) as Array<{ id: string; name: string; code: string | null }>;
+  const exact = rows.filter((p) => p.name.toLowerCase() === term.toLowerCase() || (p.code ?? "").toLowerCase() === term.toLowerCase());
+  const hits = exact.length ? exact : rows;
+  if (hits.length === 0) return { stop: { found: false, note: `No project matches "${term}".` } };
+  if (hits.length > 1) return { stop: { found: false, ambiguous: true, candidates: hits.map((p) => ({ name: p.name, code: p.code })) } };
+  return { id: hits[0].id, name: hits[0].name };
+}
+
+async function summary(db: SupabaseClient, p: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { data, error } = await db.rpc("spend_summary", { p });
+  if (error) throw error;
+  return data as Record<string, unknown>;
 }
 
 async function runTool(name: string, a: ValidArgs, caller: Caller): Promise<ToolOutput> {
@@ -139,11 +184,111 @@ async function runTool(name: string, a: ValidArgs, caller: Caller): Promise<Tool
         }),
       };
     }
+    case "get_person_profile": {
+      const people = await findPeople(db, a.employee!);
+      if (people.length === 0) return { found: false, note: `No employee the user can see matches "${a.employee}".` };
+      if (people.length > 1) return { found: false, ambiguous: true, candidates: people.map(({ id: _id, ...p }) => p) };
+      const id = people[0].id;
+      const { data: prof, error } = await db.from("profiles")
+        .select("full_name, employee_id, department, designation, role, active, created_at, manager:profiles!profiles_manager_id_fkey(full_name, employee_id)")
+        .eq("id", id).maybeSingle();
+      if (error) throw error;
+      const range = { from: a.from ?? null, to: a.to ?? null, employee: id };
+      const [totals, byProject, byCategory, byMonth, byStatus, recent] = await Promise.all([
+        summary(db, { ...range, group_by: "source" }),
+        summary(db, { ...range, group_by: "project" }),
+        summary(db, { ...range, group_by: "category" }),
+        summary(db, { ...range, group_by: "month" }),
+        summary(db, { ...range, group_by: "status" }),
+        (async () => {
+          let q = db.from("spend_items").select(SPEND_COLUMNS).eq("employee_id", id);
+          if (a.from) q = q.gte("spend_date", a.from);
+          if (a.to) q = q.lte("spend_date", a.to);
+          const { data, error: e } = await q.order("spend_date", { ascending: false }).limit(25);
+          if (e) throw e;
+          return (data ?? []) as Record<string, unknown>[];
+        })(),
+      ]);
+      const m = prof ? (Array.isArray(prof.manager) ? prof.manager[0] : prof.manager) as Record<string, unknown> | null : null;
+      return {
+        found: true,
+        profile: prof ? { name: prof.full_name, employee_id: prof.employee_id, department: prof.department, designation: prof.designation,
+          role: prof.role, active: prof.active, manager: m ? `${m.full_name} (${m.employee_id})` : null } : null,
+        period: { from: a.from ?? "all dates", to: a.to ?? "all dates" },
+        totals: totals.totals,
+        by_source: totals.groups,
+        by_project: (byProject.groups as unknown[]).slice(0, 15),
+        by_category: byCategory.groups,
+        by_month: byMonth.groups,
+        by_status: byStatus.groups,
+        latest_records: recent.map(trimSpend),
+      };
+    }
+    case "find_spend": {
+      const person = await onePerson(db, a.employee);
+      if (person.stop) return person.stop;
+      const project = await oneProject(db, a.project);
+      if (project.stop) return project.stop;
+      let q = db.from("spend_items").select(SPEND_COLUMNS);
+      if (person.id) q = q.eq("employee_id", person.id);
+      if (project.id) q = q.eq("project_id", project.id);
+      if (a.category) q = q.eq("category", a.category);
+      if (a.source) q = q.eq("source", a.source);
+      if (a.status) q = q.eq("status", a.status);
+      if (a.from) q = q.gte("spend_date", a.from);
+      if (a.to) q = q.lte("spend_date", a.to);
+      const [{ data, error }, totals] = await Promise.all([
+        q.order("spend_date", { ascending: false }).limit(MAX_ROWS + 1),
+        summary(db, { from: a.from ?? null, to: a.to ?? null, employee: person.id ?? null, project: project.id ?? null,
+          category: a.category ?? null, source: a.source ?? null, status: a.status ?? null, group_by: "none" }),
+      ]);
+      if (error) throw error;
+      const rows = (data ?? []) as Record<string, unknown>[];
+      return {
+        totals_for_all_matching_records: totals.totals,
+        shown: Math.min(rows.length, MAX_ROWS),
+        truncated: rows.length > MAX_ROWS,
+        records: rows.slice(0, MAX_ROWS).map(trimSpend),
+      };
+    }
+    case "spend_summary": {
+      const person = await onePerson(db, a.employee);
+      if (person.stop) return person.stop;
+      const project = await oneProject(db, a.project);
+      if (project.stop) return project.stop;
+      const s = await summary(db, { from: a.from ?? null, to: a.to ?? null, group_by: a.group_by, employee: person.id ?? null,
+        project: project.id ?? null, source: a.source ?? null });
+      return { ...s, groups: (s.groups as unknown[]).slice(0, 100) };
+    }
+    case "list_uploads": {
+      const { data, error } = await db.rpc("import_history", { p_limit: 200, p_offset: 0 });
+      if (error) throw error;
+      const rows = ((data ?? []) as Record<string, unknown>[]).filter((r) => {
+        const d = String(r.created_at ?? "").slice(0, 10);
+        return (!a.from || d >= a.from) && (!a.to || d <= a.to);
+      });
+      return {
+        count: Math.min(rows.length, MAX_ROWS),
+        truncated: rows.length > MAX_ROWS,
+        uploads: rows.slice(0, MAX_ROWS).map((r) => ({
+          file: r.original_filename, uploaded_by: r.uploaded_by, uploaded_on: String(r.created_at).slice(0, 10), status: r.status,
+          rows: r.total_rows, imported_rows: r.imported_rows, error_rows: r.error_rows, trips: r.trips, spend: r.spend,
+          original_file_stored: !!r.file_path,
+        })),
+      };
+    }
   }
   throw new Error("Unknown tool");
 }
 
-const ROLE_LABEL: Record<string, string> = { employee: "employee", approver: "approver", travel_desk: "travel_desk", admin: "admin" };
+/** The rows behind an answer, for the "records used" panel. Same trimmed fields the model saw. */
+function recordsFrom(name: string, out: ToolOutput): { tool: string; rows: Record<string, unknown>[] } | null {
+  const rows = (out.trips ?? out.records ?? out.latest_records ?? out.requests ?? out.uploads ?? out.travellers ?? out.groups ?? out.by_month ?? out.by_department ?? out.candidates) as unknown;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return { tool: name, rows: rows.slice(0, MAX_ROWS) as Record<string, unknown>[] };
+}
+
+const ROLE_LABEL: Record<string, string> = { employee: "employee", approver: "approver", travel_desk: "travel_desk", company_admin: "company_admin", admin: "admin" };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(req) });
@@ -207,7 +352,10 @@ Deno.serve(async (req) => {
     });
 
     const messages: Anthropic.Beta.BetaMessageParam[] = [...history, { role: "user", content: question }];
-    const tools = TOOLS.map((t) => ({ ...t, strict: true })) as unknown as Anthropic.Beta.BetaToolUnion[];
+    const role = ROLE_LABEL[caller.role] ?? "employee";
+    const isManager = role === "admin" || role === "company_admin";
+    const tools = toolsFor(role).map((t) => ({ ...t, strict: true })) as unknown as Anthropic.Beta.BetaToolUnion[];
+    const records: Array<{ tool: string; rows: Record<string, unknown>[] }> = [];
     const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 60_000 });
     const used: string[] = [];
     let answer = "";
@@ -251,9 +399,15 @@ Deno.serve(async (req) => {
           results.push({ type: "tool_result", tool_use_id: call.id, is_error: true, content: checked.error });
           continue;
         }
+        if (MANAGER_TOOL_NAMES.has(call.name) && !isManager) {
+          results.push({ type: "tool_result", tool_use_id: call.id, is_error: true, content: "This tool is only for the Admin and the CEO." });
+          continue;
+        }
         if (used.length < 20) used.push(call.name);
         try {
           const out = await runTool(call.name, checked.args, caller);
+          const rec = recordsFrom(call.name, out);
+          if (rec && records.length < 8) records.push(rec);
           results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(out) });
         } catch (err) {
           console.error("assistant tool failed", call.name, err instanceof Error ? err.message : "error");
@@ -275,7 +429,7 @@ Deno.serve(async (req) => {
     });
     if (saveError) console.error("Could not save the conversation", saveError.message);
 
-    return json(req, 200, { conversationId, answer, tools: used, saved: !saveError });
+    return json(req, 200, { conversationId, answer, tools: used, records, saved: !saveError });
   } catch (err) {
     return fail(req, 500, "Something went wrong", err);
   }

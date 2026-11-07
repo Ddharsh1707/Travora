@@ -6,15 +6,16 @@ import { MAX_FILE_BYTES, MAX_ROWS, checkImportFile, type CellValue } from "../..
 import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type WbField, type WorkbookSummary } from "../../lib/data/workbook";
 import { readMerges } from "../../lib/data/xlsxMerges";
 import {
-  cancelImport, commitWorkbook, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
-  listPeopleOptions, listProjects, setProjectAlias, stageWorkbook,
+  cancelImport, commitWorkbook, markNewPeopleLeft, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
+  listPeopleOptions, listProjects, setProjectAlias, stageWorkbook, storeImportFile,
   type ImportBatch, type NameReview, type PersonOption, type Project, type UploadProject, type WorkbookRow,
 } from "../../lib/data/imports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
+import { DownloadOriginal } from "./UploadHistory";
 
 type Step = "upload" | "sheets" | "lines" | "people" | "projects" | "done";
 type Mappings = Record<string, Record<number, WbField | "">>;
-type FileInfo = { name: string; kind: "csv" | "xlsx"; sheets: SheetInput[] };
+type FileInfo = { name: string; kind: "csv" | "xlsx"; sheets: SheetInput[]; blob: File };
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: "upload", label: "Upload" },
@@ -51,13 +52,14 @@ function Badge({ tone, children }: { tone: string; children: ReactNode }) {
   return <span className={`status-badge status-${tone}`}>{children}</span>;
 }
 
-export default function ImportTravel() {
+export default function ImportTravel({ isManager = false }: { isManager?: boolean }) {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<FileInfo | null>(null);
   const [mappings, setMappings] = useState<Mappings>({});
   const [excluded, setExcluded] = useState<Record<string, boolean>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [createMissing, setCreateMissing] = useState(true);
+  const [pastEmployees, setPastEmployees] = useState(false);
   const [currency, setCurrency] = useState("INR");
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [rows, setRows] = useState<WorkbookRow[]>([]);
@@ -86,7 +88,7 @@ export default function ImportTravel() {
     setBusy(true);
     try {
       const sheets = await readFile(f, check.kind);
-      setFile({ name: f.name, kind: check.kind, sheets });
+      setFile({ name: f.name, kind: check.kind, sheets, blob: f });
       setMappings({});
       setExcluded({});
       const firstData = analyzeWorkbook(sheets).sheets.find((s) => s.status === "data");
@@ -108,6 +110,9 @@ export default function ImportTravel() {
     try {
       const sheets = sheetSummaryForDb(summary, mappings).map((s) => ({ ...s, included: !excluded[s.name] }));
       const id = await stageWorkbook(file.name, file.kind, sheets, includedLines, createMissing, currency);
+      // Keep the exact file so it can be downloaded from the upload history.
+      await storeImportFile(id, file.blob, file.kind).catch((err) =>
+        toast.error(err instanceof Error ? err.message : "The original file could not be stored."));
       const [b, r] = await Promise.all([getImportBatch(id), getWorkbookRows(id)]);
       setBatch(b);
       setRows(r);
@@ -186,6 +191,14 @@ export default function ImportTravel() {
       setRows(await getWorkbookRows(b.id));
       setStep("done");
       toast.success(`${b.imported_rows} booking lines imported${b.created_employees ? `, ${b.created_employees} new employees added` : ""}`);
+      if (isManager && createMissing && pastEmployees && b.created_employees) {
+        try {
+          const n = await markNewPeopleLeft(b.id);
+          toast.success(`${n} ${n === 1 ? "person" : "people"} saved as past employees`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Could not mark the new people as past employees.");
+        }
+      }
       void loadHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not import the rows.");
@@ -231,6 +244,14 @@ export default function ImportTravel() {
                 <span className="block text-xs opacity-70 mt-0.5">You still confirm every person on the People step. New people get an ID like NEW-1A2B3C4D and no login.</span>
               </span>
             </label>
+            {isManager && createMissing && (
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" className="mt-1" checked={pastEmployees} onChange={(e) => setPastEmployees(e.target.checked)} />
+                <span><strong>This sheet is for past employees</strong>
+                  <span className="block text-xs opacity-70 mt-0.5">People this upload adds are saved as past employees: no login, and their trips stay in every report, search and export.</span>
+                </span>
+              </label>
+            )}
             <label className="flex items-start gap-3">
               <span className="flex-1"><strong>Currency when the sheet has none</strong>
                 <span className="block text-xs opacity-70 mt-0.5">Saved with the upload and shown in reports. A currency column in the sheet always wins.</span>
@@ -290,7 +311,7 @@ export default function ImportTravel() {
       )}
 
       <div className="panel table-panel">
-        <div className="table-toolbar"><h2 className="section-heading">Recent uploads</h2></div>
+        <div className="table-toolbar"><h2 className="section-heading">Recent uploads</h2><Link href="/travel/uploads" className="table-action ml-auto">Full upload history</Link></div>
         {history.length === 0 ? <Empty title="No uploads yet" description="Uploaded files and their reports will be listed here." /> : (
           <div className="responsive-table">
             <table>
@@ -303,7 +324,10 @@ export default function ImportTravel() {
                     <td className="text-right">{b.total_rows}</td>
                     <td className="text-right">{b.imported_rows}</td>
                     <td><StatusPill status={b.status} /></td>
-                    <td>{b.status === "committed" && b.imported_rows > 0 ? <Link href={`/travel/uploads/${b.id}`} className="table-action inline-flex items-center gap-1"><BarChart3 size={13} /> Report</Link> : null}</td>
+                    <td className="whitespace-nowrap"><div className="flex flex-wrap items-center gap-3">
+                      {b.status === "committed" && b.imported_rows > 0 ? <Link href={`/travel/uploads/${b.id}`} className="table-action inline-flex items-center gap-1"><BarChart3 size={13} /> Report</Link> : null}
+                      <DownloadOriginal path={b.file_path} filename={b.original_filename} compact />
+                    </div></td>
                   </tr>
                 ))}
               </tbody>

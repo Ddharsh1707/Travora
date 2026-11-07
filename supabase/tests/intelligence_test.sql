@@ -225,5 +225,96 @@ select ti.ok((select count(*) from public.audit_logs where action = 'trip_projec
 
 select ti.ok((select count(*) from public.audit_logs where action in ('project_alias_set', 'name_match_decided')) >= 4, 'mappings and people decisions are audited');
 
+-- ===== Part 3: places, travel, employees, finance, insights =====
+select ti.ok((select count(*) from public.locations where kind = 'airport') > 3000, 'places: airports loaded');
+select ti.ok((select code from public.locations where id = private.resolve_place('HYD')) = 'HYD', 'places: airport code on a flight');
+select ti.ok(private.resolve_place('GOA', false) is null, 'places: a 3-letter word on a hotel line is not read as an airport code');
+select ti.ok((select code from public.locations where id = private.resolve_place('SAMALKOT JN (SLO)', false)) = 'SLO', 'places: station code in brackets');
+select ti.ok((select kind from public.locations where id = private.resolve_place('Hyderabad', false)) = 'city', 'places: town name');
+select ti.ok(private.resolve_place('TRICHY', false) is null, 'places: an unknown spelling is not guessed');
+select ti.ok(private.resolve_place('VOM') is null, 'places: an airport code missing from the data stays off the map');
+select ti.ok((select array_agg(role order by seq) from private.trip_stops('BOM', 'DEL -VTZ')) = array['origin', 'via', 'destination'],
+  'places: "DEL -VTZ" is read as a connection through DEL');
+select ti.ok((select (p).place_key from (select private.place_of(private.resolve_place('HYD')) as p) x)
+           = (select (p).place_key from (select private.place_of(private.resolve_place('HYDERABAD', false)) as p) x),
+  'places: HYD airport and the town Hyderabad are one place');
+select ti.ok(private.fin_period('2027-03-31', 'fy') = 'FY 2026-27' and private.fin_period('2026-04-01', 'quarter') = 'FY 2026-27 Q1'
+             and private.fin_period('2027-01-15', 'quarter') = 'FY 2026-27 Q4' and private.fin_period('2026-09-07', 'month') = '2026-09',
+  'finance: Indian financial year and quarters (April to March)');
+select ti.ok(private.money_text(4740713.10, 'INR') = '₹47,40,713' and private.money_text(999, 'INR') = '₹999' and private.money_text(1234.4, 'USD') = 'USD 1,234',
+  'insights: money written the Indian way');
+
+set local role authenticated;
+select ti.login('30000000-0000-0000-0000-0000000000e1');
+select ti.throws($$select public.bi_travel()$$, 'travel: employees refused');
+select ti.throws($$select public.bi_employees()$$, 'employees: employees refused');
+select ti.throws($$select public.bi_finance()$$, 'finance: employees refused');
+select ti.throws($$select public.bi_insights()$$, 'insights: employees refused');
+
+select ti.login('30000000-0000-0000-0000-0000000000b1');
+select ti.throws($$select public.location_alias_set('TRICHY', (select id from public.locations where kind = 'airport' and code = 'TRZ'))$$, 'places: approver cannot link places');
+select ti.ok((select (public.bi_employees()->'kpis'->>'travellers')::int) = 1, 'employees: approver sees only their team');
+
+select ti.login('30000000-0000-0000-0000-0000000000d1');
+select public.location_alias_set('TRICHY', (select id from public.locations where kind = 'airport' and code = 'TRZ'));
+select ti.ok((select code from public.locations where id = private.resolve_place('Trichy', false)) = 'TRZ', 'places: travel desk links a spelling once');
+
+select ti.login('30000000-0000-0000-0000-0000000000a1');
+create temp table tv as select public.bi_travel() as j;
+grant select on tv to authenticated;
+select ti.ok((select (j->'kpis'->>'bookings')::int from tv) = (select count(*) from public.travel_records), 'travel: every booking counted');
+select ti.ok((select (x->>'visits')::int = 2 and (x->>'departures')::int = 2 from tv, jsonb_array_elements(j->'places') x where x->>'key' = 'HYDERABAD|IN'),
+  'travel: Hyderabad = 2 hotel stays + 2 flights out of HYD, in one place');
+select ti.ok((select (j->'kpis'->>'international')::int from tv) = 2, 'travel: Monrovia and Singapore trips counted as international');
+select ti.ok((select (x->>'lat')::numeric between 6 and 7 from tv, jsonb_array_elements(j->'places') x where x->>'country' = 'LR'),
+  'travel: Liberia shown at Roberts International Airport''s real latitude');
+
+create temp table fin as select public.bi_finance('{}', 'quarter') as j;
+grant select on fin to authenticated;
+select ti.ok((select (j->'kpis'->>'spend')::numeric from fin) = (select (public.bi_overview()->'kpis'->>'spend')::numeric),
+  'finance: spend matches the overview');
+select ti.ok((select sum((x->>'amount')::numeric) from fin, jsonb_array_elements(j->'charges') x) = (select (j->'kpis'->>'spend')::numeric from fin),
+  'finance: fares plus extra charges add up to spend exactly (no double counting)');
+select ti.ok((select array_agg(x->>'period' order by x->>'period') from fin, jsonb_array_elements(j->'periods') x) = array['FY 2026-27 Q2', 'FY 2026-27 Q3'],
+  'finance: September is Q2 and October is Q3');
+select ti.ok((select j->'other_currencies'->0->>'currency' from fin) = 'USD', 'finance: USD listed apart');
+
+create temp table ins as select public.bi_insights() as j;
+grant select on ins to authenticated;
+select ti.ok((select bool_and(x ? 'basis' and length(x->>'basis') > 20) from ins, jsonb_array_elements(j) x), 'insights: each one states how it was calculated');
+select ti.ok((select j @> '[{"id":"missing_cost"},{"id":"unassigned"},{"id":"cancelled"}]' from ins), 'insights: missing costs, unlinked travel and cancellations reported');
+select ti.ok((select (x->>'value')::int from ins, jsonb_array_elements(j) x where x->>'id' = 'missing_cost') = 1, 'insights: missing cost count is the real count');
+select ti.ok((select jsonb_array_length(public.location_search('SLO')) > 0 and public.location_search('SLO')->0->>'code' = 'SLO'), 'places: search finds a station by code');
+reset role;
+select ti.ok((select count(*) from public.audit_logs where action = 'location_alias_set') = 1, 'places: linking is audited');
+
+-- Period reports
+set local role authenticated;
+select ti.login('30000000-0000-0000-0000-0000000000e1');
+select ti.throws($$select public.bi_report()$$, 'reports: employees refused');
+select ti.login('30000000-0000-0000-0000-0000000000b1');
+select ti.ok((select (public.bi_report('{}', 'month')->'totals'->>'travellers')::int) = 1, 'reports: approver sees only their team');
+select ti.login('30000000-0000-0000-0000-0000000000a1');
+create temp table rep as select public.bi_report('{}', 'week') as j;
+grant select on rep to authenticated;
+select ti.ok((select bool_and(extract(isodow from (x->>'period')::date) = 1) from rep, jsonb_array_elements(j->'periods') x), 'reports: weeks start on Monday');
+select ti.ok((select (j->'totals'->>'spend')::numeric from rep) = (select (public.bi_overview()->'kpis'->>'spend')::numeric), 'reports: spend matches the overview');
+select ti.ok((select sum((x->>'spend')::numeric) from rep, jsonb_array_elements(j->'periods') x) = (select (j->'totals'->>'spend')::numeric from rep), 'reports: periods add up to the total');
+select ti.ok((select bool_and(s = (select (j->'totals'->>'spend')::numeric from rep)) from (
+    select sum((x->>'spend')::numeric) s from rep, jsonb_array_elements(j->'breakdown') x group by x->>'dimension') d)
+  and (select count(distinct x->>'dimension') from rep, jsonb_array_elements(j->'breakdown') x) = 4,
+  'reports: project, department, type and employee breakdowns each add up to the total');
+select ti.ok((select bool_and(s = (select (j->'totals'->>'spend')::numeric from rep)) from (
+    select sum((x->>'spend')::numeric) s from rep, jsonb_array_elements(j->'dimensions') x group by x->>'dimension') d)
+  and (select sum((x->>'travellers')::int) from rep, jsonb_array_elements(j->'dimensions') x where x->>'dimension' = 'employee') = (select (j->'totals'->>'travellers')::int from rep),
+  'reports: whole-range totals add up and count each traveller once');
+select ti.ok((select (j->'totals'->>'missing_cost')::int from rep) = 1, 'reports: blank costs counted, not treated as zero');
+select ti.ok((select array_agg(x->>'period' order by x->>'period') from (select public.bi_report('{}', 'fy') j) r, jsonb_array_elements(j->'periods') x) = array['FY 2026-27'],
+  'reports: financial-year grain');
+select public.record_report_generated('period_report');
+select ti.throws($$select public.record_report_generated('made_up_report')$$, 'reports: unknown report names refused');
+reset role;
+select ti.ok((select count(*) from public.audit_logs where action = 'report_generated' and entity_id = 'period_report') = 1, 'reports: downloads are audited');
+
 \echo 'ALL TRAVEL INTELLIGENCE TESTS PASSED'
 rollback;

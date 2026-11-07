@@ -2,7 +2,7 @@
 // role from the database. Never trusts a role sent by the browser.
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.118.0";
 
-export type AppRole = "employee" | "approver" | "travel_desk" | "admin";
+export type AppRole = "employee" | "approver" | "travel_desk" | "company_admin" | "admin";
 
 export type Caller = {
   userId: string;

@@ -14,6 +14,7 @@ const ROLE_MAP: Record<string, Role> = {
   approver: "APPROVER",
   travel_desk: "TRAVEL_DESK",
   admin: "ADMIN",
+  company_admin: "COMPANY_ADMIN",
 };
 
 type ProfileRow = {
