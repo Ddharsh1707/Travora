@@ -57,6 +57,16 @@ public class AIOrchestratorService {
             AIConversation conversation,
             String userPrompt
     ) {
+        return processChat(company, user, conversation, userPrompt, null);
+    }
+
+    public AIChatResponse processChat(
+            Company company,
+            User user,
+            AIConversation conversation,
+            String userPrompt,
+            Map<String, Object> clientContext
+    ) {
         // 1. Quota & Rate Limit verification
         usageService.validateUsageQuota(company, user);
 
@@ -75,7 +85,7 @@ public class AIOrchestratorService {
 
         // 3. Prepare Prompt Messages
         List<AIChatMessage> messages = new ArrayList<>();
-        messages.add(buildSystemMessage(company, user));
+        messages.add(buildSystemMessage(company, user, clientContext));
 
         // Load recent history (last 10 messages for context)
         List<AIMessageResponse> history = conversationService.getMessages(conversation.getId(), company, user);
@@ -186,7 +196,7 @@ public class AIOrchestratorService {
         );
     }
 
-    private AIChatMessage buildSystemMessage(Company company, User user) {
+    private AIChatMessage buildSystemMessage(Company company, User user, Map<String, Object> clientContext) {
         String roleName = user.getRole() != null ? user.getRole().name() : "EMPLOYEE";
         String userName = user.getUsername();
 
@@ -197,6 +207,16 @@ public class AIOrchestratorService {
         sb.append("Current Authenticated User Context:\n");
         sb.append("- Username: ").append(userName).append("\n");
         sb.append("- Role: ").append(roleName).append("\n\n");
+
+        if (clientContext != null && !clientContext.isEmpty()) {
+            sb.append("Current User Interface & Screen Context:\n");
+            clientContext.forEach((k, v) -> {
+                if (v != null) {
+                    sb.append("- ").append(k).append(": ").append(v).append("\n");
+                }
+            });
+            sb.append("\n");
+        }
 
         sb.append("CRITICAL INSTRUCTIONS & ACCURACY RULES:\n");
         sb.append("1. Always query the provided corporate ledger tools to retrieve verified financial and travel data before answering questions about spend, projects, or employees. Never guess, invent, or extrapolate figures.\n");

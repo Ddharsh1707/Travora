@@ -77,6 +77,7 @@ import { ActivateAccount } from "./pages/ActivateAccount";
 import { ExcelImport } from "./pages/ExcelImport";
 import { TravelSpendReports } from "./pages/TravelSpendReports";
 import { AIAssistant } from "./pages/AIAssistant";
+import { TrappleAIFloatingChat } from "./components/TrappleAIFloatingChat";
 import { LandingPage } from "./pages/LandingPage";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
@@ -284,7 +285,6 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "FINANCE & INSIGHTS",
       items: [
-        { label: "AI Assistant", href: "/employee/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Expenses", href: "/employee/expenses", icon: <WalletCards size={16} /> },
         { label: "Reports", href: "/employee/reports", icon: <BarChart3 size={16} /> },
         { label: "Profile", href: "/employee/profile", icon: <UserRound size={16} /> },
@@ -305,7 +305,6 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS & SUPPORT",
       items: [
-        { label: "AI Assistant", href: "/approver/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/approver/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/approver/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Support", href: "/employee/support", icon: <CircleHelp size={16} /> },
@@ -327,7 +326,6 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS",
       items: [
-        { label: "AI Assistant", href: "/travel-desk/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/travel-desk/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/travel-desk/spend-reports", icon: <TrendingUp size={16} /> },
       ],
@@ -348,7 +346,6 @@ const categorizedNavByRole: Record<Role, NavCategory[]> = {
     {
       category: "INSIGHTS & SYSTEM",
       items: [
-        { label: "AI Assistant", href: "/admin/ai-assistant", icon: <Sparkles size={16} /> },
         { label: "Reports", href: "/admin/reports", icon: <BarChart3 size={16} /> },
         { label: "Travel Spend Reports", href: "/admin/spend-reports", icon: <TrendingUp size={16} /> },
         { label: "Settings", href: "/admin/settings", icon: <Settings2 size={16} /> },
@@ -581,6 +578,15 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         </button>
         <button
           type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-trapple-ai"))}
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all font-medium"
+          title="Open Trapple AI Assistant"
+        >
+          <Sparkles size={13} className="text-emerald-500" />
+          <span>Ask AI</span>
+        </button>
+        <button
+          type="button"
           className="sync-live-button"
           onClick={handleSyncClick}
           title="Click to sync latest data across all devices"
@@ -679,6 +685,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
         <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
         <main className="content-wrap">{children}</main>
       </div>
+      <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
     </div>
   );
 }
@@ -7641,6 +7648,7 @@ function AppRouter() {
     "/admin/reports",
     "/admin/spend-reports",
     "/admin/settings",
+    "/admin/ai-assistant",
   ];
   const allowedPaths: Record<Role, string[]> = {
     EMPLOYEE: [
@@ -7652,6 +7660,7 @@ function AppRouter() {
       "/employee/profile",
       "/employee/reports",
       "/employee/support",
+      "/employee/ai-assistant",
     ],
     APPROVER: [
       "/approver",
@@ -7662,6 +7671,7 @@ function AppRouter() {
       "/approver/spend-reports",
       "/employee/reports",
       "/employee/support",
+      "/approver/ai-assistant",
     ],
     TRAVEL_DESK: [
       "/travel-desk",
@@ -7673,6 +7683,7 @@ function AppRouter() {
       "/travel-desk/reports",
       "/travel-desk/spend-reports",
       "/employee/reports",
+      "/travel-desk/ai-assistant",
     ],
     ADMIN: adminPaths,
     COMPANY_ADMIN: adminPaths,

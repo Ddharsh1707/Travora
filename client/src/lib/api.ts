@@ -1692,10 +1692,10 @@ export type AIChatResult = {
 };
 
 export const aiAssistantApi = {
-  chat: async (message: string, conversationId?: number | null): Promise<AIChatResult> => {
+  chat: async (message: string, conversationId?: number | null, clientContext?: Record<string, any>): Promise<AIChatResult> => {
     return await apiRequest<AIChatResult>("/api/ai/chat", {
       method: "POST",
-      body: JSON.stringify({ message, conversationId }),
+      body: JSON.stringify({ message, conversationId, clientContext }),
       timeoutMs: 60000,
     });
   },

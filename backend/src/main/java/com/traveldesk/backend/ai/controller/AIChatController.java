@@ -145,7 +145,8 @@ public class AIChatController {
                 company,
                 user,
                 conversation,
-                request.getMessage()
+                request.getMessage(),
+                request.getClientContext()
         );
 
         return ResponseEntity.ok(clientResponse);
