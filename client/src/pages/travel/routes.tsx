@@ -18,6 +18,7 @@ import MyExpenses from "./MyExpenses";
 import CeoDashboard from "./CeoDashboard";
 import AllExpenses from "./AllExpenses";
 import PeopleManager from "./PeopleManager";
+import UploadReport from "./UploadReport";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -46,20 +47,22 @@ const ROUTES: TravelRoute[] = [
   { group: "MY WORKSPACE", href: "/travel/overview", label: "Overview", icon: <LayoutDashboard size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/requests", label: "My travel requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
-  { group: "MY WORKSPACE", href: "/travel/my", label: "My trips", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
+  { group: "MY WORKSPACE", href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   // CEO portal
   { group: "CEO", href: "/travel/ceo", label: "CEO dashboard", icon: <Briefcase size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/approvals", label: "Travel approvals", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
+  // Travel desk: upload the employee travel sheet, then see its report and each employee's history
+  { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
+  { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: STAFF },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
   { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   // Travel tools
   { group: "TRAVEL", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: OVERSIGHT },
-  { group: "TRAVEL", href: "/travel/employees", label: "Employee travel", icon: <UsersRound size={16} />, roles: OVERSIGHT },
+  { group: "TRAVEL", href: "/travel/employees", label: "Employee travel", icon: <UsersRound size={16} />, roles: ["APPROVER"] },
   { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: OVERSIGHT },
-  { group: "TRAVEL", href: "/travel/import", label: "Excel / CSV import", icon: <FileSpreadsheet size={16} />, roles: STAFF },
   { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ALL },
   { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ALL },
 ];
@@ -85,7 +88,7 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/approvals": { eyebrow: "Travel", title: "Approvals" },
   "/travel/search": { eyebrow: "Travel", title: "Travel search" },
   "/travel/employees": { eyebrow: "Travel", title: "Employees" },
-  "/travel/import": { eyebrow: "Travel", title: "Excel / CSV import" },
+  "/travel/import": { eyebrow: "Travel desk", title: "Upload travel data" },
   "/travel/documents": { eyebrow: "Travel", title: "Tickets & documents" },
   "/travel/bulk": { eyebrow: "Travel", title: "Bulk & group bookings" },
 };
@@ -104,6 +107,8 @@ export function travelNavCategories(role: Role): { category: string; items: { la
 export function isTravelPathAllowed(role: Role, path: string): boolean {
   const employeeMatch = path.match(/^\/travel\/employees\/([^/]+)$/);
   if (employeeMatch) return OVERSIGHT.includes(role) && UUID.test(employeeMatch[1]);
+  const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
+  if (uploadMatch) return STAFF.includes(role) && UUID.test(uploadMatch[1]);
   return ROUTES.some((r) => r.href === path && r.roles.includes(role));
 }
 
@@ -115,6 +120,10 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
   const employeeMatch = path.match(/^\/travel\/employees\/([^/]+)$/);
   if (employeeMatch && UUID.test(employeeMatch[1])) {
     return <EmployeeHistory key={employeeMatch[1]} employeeId={employeeMatch[1]} canManage={canManage} showBack />;
+  }
+  const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
+  if (uploadMatch && UUID.test(uploadMatch[1])) {
+    return canManage ? <UploadReport key={uploadMatch[1]} batchId={uploadMatch[1]} /> : null;
   }
   const name = (user as SupabaseAuthUser).fullName ?? "";
   switch (path) {

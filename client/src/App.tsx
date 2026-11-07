@@ -651,7 +651,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
   };
 
   const path = location === "/" ? "/employee" : location;
-  const meta = pageMeta[path] ?? travelPageMeta[path] ?? (path.startsWith("/travel/employees/") ? { eyebrow: "Travel", title: "Employee travel history" } : pageMeta["/employee"]);
+  const meta = pageMeta[path] ?? travelPageMeta[path] ?? (path.startsWith("/travel/employees/") ? { eyebrow: "Travel", title: "Employee travel history" } : path.startsWith("/travel/uploads/") ? { eyebrow: "Travel desk", title: "Upload report" } : pageMeta["/employee"]);
   useEffect(() => setMobileOpen(false), [location]);
   return (
     <div className="app-shell">

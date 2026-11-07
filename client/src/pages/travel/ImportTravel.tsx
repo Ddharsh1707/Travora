@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload, XCircle } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, Download, FileSpreadsheet, Upload, UserPlus, XCircle } from "lucide-react";
+import { Link } from "wouter";
 import { toast } from "sonner";
 import {
-  IMPORT_FIELDS, MAX_ROWS, checkImportFile, detectMapping, isBlankRow, mapRows, missingRequired, cellToText,
+  IMPORT_FIELDS, MAX_ROWS, SAMPLE_UPLOAD_HEADERS, SAMPLE_UPLOAD_ROWS, checkImportFile, detectMapping, isBlankRow, mapRows, missingRequired, cellToText,
   type CellValue, type ColumnMapping,
 } from "../../lib/data/importParser";
 import { cancelImport, commitImport, getImportBatch, getImportRows, listImportBatches, stageImport, type ImportBatch, type ImportRow } from "../../lib/data/imports";
+import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
 
 type Parsed = { name: string; kind: "csv" | "xlsx"; headers: string[]; rows: CellValue[][] };
@@ -51,6 +53,7 @@ export default function ImportTravel() {
   const [rows, setRows] = useState<ImportRow[]>([]);
   const [filter, setFilter] = useState<"all" | ImportRow["status"]>("all");
   const [includeWarnings, setIncludeWarnings] = useState(true);
+  const [createMissing, setCreateMissing] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<ImportBatch[]>([]);
@@ -85,7 +88,7 @@ export default function ImportTravel() {
     setBusy(true);
     setError("");
     try {
-      const id = await stageImport(parsed.name, parsed.kind, mapping, mapRows(parsed.headers, parsed.rows, mapping));
+      const id = await stageImport(parsed.name, parsed.kind, mapping, mapRows(parsed.headers, parsed.rows, mapping), createMissing);
       const [b, r] = await Promise.all([getImportBatch(id), getImportRows(id)]);
       setBatch(b);
       setRows(r);
@@ -108,7 +111,7 @@ export default function ImportTravel() {
       setBatch(b);
       setRows(await getImportRows(b.id));
       setStep("done");
-      toast.success(`${b.imported_rows} trips imported`);
+      toast.success(`${b.imported_rows} trips imported${b.created_employees ? `, ${b.created_employees} new employees added` : ""}`);
       void loadHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not import the rows.");
@@ -132,7 +135,12 @@ export default function ImportTravel() {
 
   return (
     <div className="page-stack animate-page">
-      <PageHeader eyebrow="TRAVEL DESK" title="Import travel from Excel / CSV" description="Upload a spreadsheet, match its columns, review every row, then confirm. Nothing is saved until you confirm." />
+      <PageHeader
+        eyebrow="TRAVEL DESK"
+        title="Upload employee travel data"
+        description="Upload the travel Excel sheet, match its columns, review every row, then confirm. Each upload gets its own report, and every trip goes into the employee's travel history. Nothing is saved until you confirm."
+        actions={<button type="button" className="button button-ghost" onClick={() => exportToCsv("travel_upload_sample", SAMPLE_UPLOAD_HEADERS, SAMPLE_UPLOAD_ROWS)}><Download size={14} /> Sample sheet</button>}
+      />
 
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Import steps">
         {(["upload", "map", "preview", "done"] as Step[]).map((s, i) => (
@@ -143,12 +151,21 @@ export default function ImportTravel() {
       {error && <ErrorNotice message={error} />}
 
       {step === "upload" && (
+        <label className="panel p-4 flex items-start gap-3 text-sm cursor-pointer">
+          <input type="checkbox" className="mt-1" checked={createMissing} onChange={(e) => setCreateMissing(e.target.checked)} />
+          <span><strong className="inline-flex items-center gap-1"><UserPlus size={14} /> Add employees who are not in the system yet</strong>
+            <span className="block text-xs opacity-70 mt-0.5">They are added as employees without a login, using the name, ID and department in the sheet. You will see who is new before you confirm. Logins can be created later from Manage employees.</span>
+          </span>
+        </label>
+      )}
+
+      {step === "upload" && (
         <label className="panel p-8 grid place-items-center text-center gap-3 cursor-pointer border-dashed" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); void onFile(e.dataTransfer.files?.[0]); }}>
           {busy ? <Loading label="Reading file…" /> : (
             <>
               <FileSpreadsheet size={32} />
               <strong>Drop a .xlsx or .csv file here, or click to choose</strong>
-              <span className="text-xs opacity-70">Up to 5 MB and {MAX_ROWS.toLocaleString("en-IN")} rows. First row must be the column names.</span>
+              <span className="text-xs opacity-70">Up to 5 MB and {MAX_ROWS.toLocaleString("en-IN")} rows. First row must be the column names. Needed: employee ID or name, travel date, from and to. Department, mode, airline, PNR and amount are used in the reports.</span>
               <span className="button button-primary"><Upload size={15} /> Choose file</span>
             </>
           )}
@@ -204,7 +221,11 @@ export default function ImportTravel() {
           </div>
 
           {step === "done" ? (
-            <div className="panel p-4 flex items-center gap-3"><CheckCircle2 className="text-green-600" /> <span><strong>{batch.imported_rows} trips imported.</strong> Employee histories, search and totals are already updated.</span><button type="button" className="button button-ghost ml-auto" onClick={reset}>Import another file</button></div>
+            <div className="panel p-4 flex items-center gap-3"><CheckCircle2 className="text-green-600" /> <span><strong>{batch.imported_rows} trips imported{batch.created_employees ? `, ${batch.created_employees} new employee${batch.created_employees === 1 ? "" : "s"} added` : ""}.</strong> Employee histories, search and totals are already updated.</span>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Link href={`/travel/uploads/${batch.id}`} className="button button-primary"><BarChart3 size={14} /> View report</Link>
+                <button type="button" className="button button-ghost" onClick={reset}>Upload another file</button>
+              </div></div>
           ) : (
             <div className="panel p-4 flex flex-wrap items-center gap-3">
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={includeWarnings} onChange={(e) => setIncludeWarnings(e.target.checked)} /> Also import rows with warnings</label>
@@ -238,7 +259,7 @@ export default function ImportTravel() {
                     {shown.map((r) => (
                       <tr key={r.id}>
                         <td>{r.row_number + 1}</td>
-                        <td>{r.profile?.full_name ?? r.employee_name ?? "—"}<div className="table-subline">{r.profile?.employee_id ?? r.employee_code ?? ""}</div></td>
+                        <td>{r.profile?.full_name ?? r.employee_name ?? "—"}{r.new_employee && !r.profile && <span className="status-badge status-pending-approval ml-2">New employee</span>}<div className="table-subline">{r.profile?.employee_id ?? r.employee_code ?? ""}{r.department ? ` · ${r.department}` : ""}</div></td>
                         <td>{formatDate(r.departure_date)}</td>
                         <td>{r.origin ?? "—"} → {r.destination ?? "—"}</td>
                         <td>{r.provider ?? "—"}</td>
@@ -257,11 +278,11 @@ export default function ImportTravel() {
       )}
 
       <div className="panel table-panel">
-        <div className="table-toolbar"><h2 className="section-heading">Recent imports</h2></div>
-        {history.length === 0 ? <Empty title="No imports yet" description="Imported files will be listed here." /> : (
+        <div className="table-toolbar"><h2 className="section-heading">Recent uploads</h2></div>
+        {history.length === 0 ? <Empty title="No uploads yet" description="Uploaded files and their reports will be listed here." /> : (
           <div className="responsive-table">
             <table>
-              <thead><tr><th>File</th><th>When</th><th className="text-right">Rows</th><th className="text-right">Imported</th><th>Status</th></tr></thead>
+              <thead><tr><th>File</th><th>When</th><th className="text-right">Rows</th><th className="text-right">Imported</th><th>Status</th><th><span className="sr-only">Report</span></th></tr></thead>
               <tbody>
                 {history.map((b) => (
                   <tr key={b.id}>
@@ -270,6 +291,7 @@ export default function ImportTravel() {
                     <td className="text-right">{b.total_rows}</td>
                     <td className="text-right">{b.imported_rows}</td>
                     <td><StatusPill status={b.status} /></td>
+                    <td>{b.status === "committed" && b.imported_rows > 0 ? <Link href={`/travel/uploads/${b.id}`} className="table-action inline-flex items-center gap-1"><BarChart3 size={13} /> Report</Link> : null}</td>
                   </tr>
                 ))}
               </tbody>
