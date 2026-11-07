@@ -106,15 +106,15 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
       </div>
 
       {/* Hero Profile Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#101828] via-[#0F172A] to-[#134E4A] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md border border-white/10">
+      <div className="p-6 rounded-2xl bg-gradient-to-r from-[#10243A] via-[#0F172A] to-[#163050] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-md border border-white/10">
         <div className="flex items-center gap-5">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#14B8A6] to-[#0D9488] text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-teal-500/20">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#F28C28] to-[#D9761A] text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-teal-500/20">
             {(user.username || "TV").slice(0, 2).toUpperCase()}
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <h2 className="text-2xl font-bold tracking-tight text-white">{profile.name}</h2>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30">
                 {profile.role}
               </span>
             </div>
@@ -123,10 +123,10 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
             </p>
             <div className="flex flex-wrap items-center gap-4 text-xs text-[#E2E8F0] pt-1">
               <span className="flex items-center gap-1.5">
-                <Building2 size={13} className="text-[#14B8A6]" /> {profile.officeLocation}
+                <Building2 size={13} className="text-[#F28C28]" /> {profile.officeLocation}
               </span>
               <span className="flex items-center gap-1.5">
-                <Mail size={13} className="text-[#14B8A6]" /> {profile.email}
+                <Mail size={13} className="text-[#F28C28]" /> {profile.email}
               </span>
             </div>
           </div>
@@ -191,7 +191,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
                 <span className="card-kicker">PERSONALIZED FLIGHT SETTINGS</span>
                 <h2 className="section-heading">Travel Preferences</h2>
               </div>
-              <Plane size={18} className="panel-icon text-[#14B8A6]" />
+              <Plane size={18} className="panel-icon text-[#F28C28]" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -295,7 +295,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
         {/* Sidebar Info & Corporate Policy */}
         <aside className="space-y-6">
           <div className="aside-card aside-dark p-6 space-y-4">
-            <div className="flex items-center gap-2 text-[#14B8A6]">
+            <div className="flex items-center gap-2 text-[#F28C28]">
               <ShieldCheck size={20} />
               <h3 className="font-bold text-white text-base">Duty of Care Active</h3>
             </div>
@@ -320,7 +320,7 @@ export function Profile({ user, journeys = [] }: { user: AuthUser; journeys?: Jo
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-[#E4E7EC] dark:border-[#1E293B]">
                 <span className="text-[#667085] dark:text-[#94A3B8]">Schengen Visa:</span>
-                <strong className="text-[#14B8A6]">Eligible for auto-sponsor</strong>
+                <strong className="text-[#F28C28]">Eligible for auto-sponsor</strong>
               </div>
             </div>
           </div>

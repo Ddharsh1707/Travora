@@ -584,7 +584,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
       {/* 1. Header & Navigation Tabs */}
       <div className="page-heading flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#14B8A6]">
+          <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#F28C28]">
             <ShieldCheck size={14} /> Travel Desk Operations
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
@@ -602,7 +602,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             onClick={() => setActiveTab("upload")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "upload"
-                ? "bg-[#0D9488] text-white shadow-sm"
+                ? "bg-[#D9761A] text-white shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:hover:text-white"
             }`}
           >
@@ -613,7 +613,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             onClick={() => setActiveTab("history")}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === "history"
-                ? "bg-[#0D9488] text-white shadow-sm"
+                ? "bg-[#D9761A] text-white shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-900 dark:hover:text-white"
             }`}
           >
@@ -648,7 +648,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
                   id="excel-file-input"
                   disabled={uploading}
                 />
-                <div className="w-12 h-12 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center mb-3">
+                <div className="w-12 h-12 rounded-xl bg-[#F28C28]/10 text-[#F28C28] flex items-center justify-center mb-3">
                   <FileSpreadsheet size={24} />
                 </div>
                 <label
@@ -721,7 +721,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
                   {currentBatch.status === "PREVIEW" && (
                     <div className="mt-3 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-[11px] text-[#94A3B8] flex items-center gap-2">
-                      <Clock3 size={14} className="text-[#14B8A6] shrink-0" />
+                      <Clock3 size={14} className="text-[#F28C28] shrink-0" />
                       <span>Preview mode active. Temporary data expires in 24 hours.</span>
                     </div>
                   )}
@@ -868,7 +868,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               {/* Responsive Table */}
               {previewLoading ? (
                 <div className="py-16 text-center text-xs text-[#94A3B8] flex items-center justify-center gap-2">
-                  <Clock3 size={18} className="animate-spin text-[#14B8A6]" />
+                  <Clock3 size={18} className="animate-spin text-[#F28C28]" />
                   <span>Loading spreadsheet preview…</span>
                 </div>
               ) : previewRecords && previewRecords.length > 0 ? (
@@ -1143,7 +1143,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
             {/* History Table */}
             {historyLoading ? (
               <div className="py-16 text-center text-xs text-[#94A3B8] flex items-center justify-center gap-2">
-                <Clock3 size={18} className="animate-spin text-[#14B8A6]" />
+                <Clock3 size={18} className="animate-spin text-[#F28C28]" />
                 <span>Searching travel history…</span>
               </div>
             ) : historyRecords.length > 0 ? (

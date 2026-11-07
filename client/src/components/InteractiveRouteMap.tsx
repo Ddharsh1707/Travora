@@ -208,7 +208,7 @@ export function InteractiveRouteMap() {
         <div>
           <span className="card-kicker">GLOBAL CORPORATE TRAVEL NETWORK</span>
           <h2 className="section-heading flex items-center gap-2">
-            <Globe2 size={20} className="text-[#14B8A6]" /> Interactive Flight Corridors
+            <Globe2 size={20} className="text-[#F28C28]" /> Interactive Flight Corridors
           </h2>
           <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-0.5">
             Real-time corporate flight corridors across global hubs. Click or hover any hub for corridor analysis.
@@ -224,7 +224,7 @@ export function InteractiveRouteMap() {
                 onClick={() => setFilterRegion(region)}
                 className={`px-2.5 py-1 rounded-lg font-semibold transition-all ${
                   filterRegion === region
-                    ? "bg-[#14B8A6] text-white shadow-sm"
+                    ? "bg-[#F28C28] text-white shadow-sm"
                     : "text-[#64748B] dark:text-[#94A3B8] hover:text-[#0F172A] dark:hover:text-white"
                 }`}
               >
@@ -233,8 +233,8 @@ export function InteractiveRouteMap() {
             ))}
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] font-semibold border border-[#14B8A6]/20 text-xs">
-            <span className="w-2 h-2 rounded-full bg-[#14B8A6] animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] font-semibold border border-[#F28C28]/20 text-xs">
+            <span className="w-2 h-2 rounded-full bg-[#F28C28] animate-pulse" />
             10 Active Hubs
           </span>
         </div>
@@ -259,8 +259,8 @@ export function InteractiveRouteMap() {
           <defs>
             {/* Gradients */}
             <linearGradient id="corridorGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2DD4BF" stopOpacity="0.95" />
-              <stop offset="50%" stopColor="#14B8A6" stopOpacity="0.85" />
+              <stop offset="0%" stopColor="#F6A85A" stopOpacity="0.95" />
+              <stop offset="50%" stopColor="#F28C28" stopOpacity="0.85" />
               <stop offset="100%" stopColor="#0EA5E9" stopOpacity="0.9" />
             </linearGradient>
 
@@ -392,7 +392,7 @@ export function InteractiveRouteMap() {
                   <path
                     d={`M ${from.x} ${from.y} Q ${midX} ${midY} ${to.x} ${to.y}`}
                     fill="none"
-                    stroke="#14B8A6"
+                    stroke="#F28C28"
                     strokeWidth="5"
                     opacity="0.3"
                     strokeLinecap="round"
@@ -457,7 +457,7 @@ export function InteractiveRouteMap() {
                     cy={hub.y}
                     r={isActive ? 14 : 10}
                     fill="none"
-                    stroke={hub.isHq ? "#2DD4BF" : "#14B8A6"}
+                    stroke={hub.isHq ? "#F6A85A" : "#F28C28"}
                     strokeWidth={hub.isHq ? 1.8 : 1.2}
                     className="animate-ping opacity-75 origin-center"
                     style={{ transformOrigin: `${hub.x}px ${hub.y}px` }}
@@ -469,8 +469,8 @@ export function InteractiveRouteMap() {
                   cx={hub.x}
                   cy={hub.y}
                   r={isActive ? 7 : hub.isHq ? 6 : 4.5}
-                  fill={hub.isHq ? "#0D9488" : isActive ? "#14B8A6" : "#1E293B"}
-                  stroke={hub.isHq ? "#2DD4BF" : isActive ? "#FFFFFF" : "#0EA5E9"}
+                  fill={hub.isHq ? "#D9761A" : isActive ? "#F28C28" : "#1E293B"}
+                  stroke={hub.isHq ? "#F6A85A" : isActive ? "#FFFFFF" : "#0EA5E9"}
                   strokeWidth={isActive ? 2 : 1.2}
                   filter={isActive ? "url(#hubGlow)" : undefined}
                   className="transition-all duration-200"
@@ -495,14 +495,14 @@ export function InteractiveRouteMap() {
                     isActive
                       ? "rgba(15, 23, 42, 0.95)"
                       : hub.isHq
-                      ? "rgba(13, 148, 136, 0.35)"
+                      ? "rgba(217, 118, 26, 0.35)"
                       : "rgba(15, 23, 42, 0.82)"
                   }
                   stroke={
                     isActive
-                      ? "#14B8A6"
+                      ? "#F28C28"
                       : hub.isHq
-                      ? "#2DD4BF"
+                      ? "#F6A85A"
                       : "rgba(255, 255, 255, 0.15)"
                   }
                   strokeWidth={isActive ? "1" : "0.5"}
@@ -516,9 +516,9 @@ export function InteractiveRouteMap() {
                   textAnchor={hub.textAnchor}
                   fill={
                     isActive
-                      ? "#2DD4BF"
+                      ? "#F6A85A"
                       : hub.isHq
-                      ? "#5EEAD4"
+                      ? "#F9C48D"
                       : "#E2E8F0"
                   }
                   fontSize={hub.isHq || isActive ? "10" : "8.5"}
@@ -539,7 +539,7 @@ export function InteractiveRouteMap() {
             <div
               className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white shadow-md ${
                 selectedHub.isHq
-                  ? "bg-gradient-to-br from-[#14B8A6] to-[#0D9488] ring-2 ring-[#2DD4BF]/40"
+                  ? "bg-gradient-to-br from-[#F28C28] to-[#D9761A] ring-2 ring-[#F6A85A]/40"
                   : "bg-gradient-to-br from-[#0284C7] to-[#0369A1]"
               }`}
             >
@@ -554,11 +554,11 @@ export function InteractiveRouteMap() {
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/10 text-slate-300 font-bold">
                   {selectedHub.code}
                 </span>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30 font-semibold">
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30 font-semibold">
                   {selectedHub.tripsCount} journeys
                 </span>
                 {selectedHub.isHq && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0D9488] text-white font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#D9761A] text-white font-bold">
                     Primary Corporate Hub
                   </span>
                 )}
@@ -566,7 +566,7 @@ export function InteractiveRouteMap() {
 
               <div className="flex items-center gap-4 text-xs text-slate-300 mt-1 flex-wrap">
                 <span className="flex items-center gap-1.5">
-                  <Clock size={13} className="text-[#2DD4BF]" /> Timezone: {selectedHub.timezone}
+                  <Clock size={13} className="text-[#F6A85A]" /> Timezone: {selectedHub.timezone}
                 </span>
                 <span className="text-slate-600">·</span>
                 <span className="flex items-center gap-1.5">

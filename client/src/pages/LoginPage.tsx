@@ -382,12 +382,14 @@ export function LoginPage({
       <main className="auth-layout">
         <section className="auth-story">
           <motion.span className="auth-kicker" {...rise(0.1)}>
-            <ShieldCheck size={14} /> Corporate mobility platform
+            Corporate travel platform
           </motion.span>
           <motion.h1 {...rise(0.18)}>
-            Corporate travel,
+            Every journey.
             <br />
-            <span className="auth-gradient-text">reimagined.</span>
+            One desk.
+            <br />
+            <span className="auth-gradient-text">Zero chaos.</span>
           </motion.h1>
           <motion.p {...rise(0.26)}>
             Plan trips, get manager sign-off and receive your tickets from one place. Built for Mahathi Infra Services

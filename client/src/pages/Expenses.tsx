@@ -451,7 +451,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                     <tr key={item.id}>
                       <td>
                         <div className="table-journey">
-                          <span className="w-8 h-8 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] flex items-center justify-center text-[#14B8A6]">
+                          <span className="w-8 h-8 rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] flex items-center justify-center text-[#F28C28]">
                             <Icon size={16} />
                           </span>
                           <span>
@@ -522,7 +522,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                               <button
                                 type="button"
                                 onClick={() => handleReimburse(item)}
-                                className="px-2 py-1 rounded-md text-xs font-semibold bg-[#14B8A6] text-white hover:bg-[#0D9488]"
+                                className="px-2 py-1 rounded-md text-xs font-semibold bg-[#F28C28] text-white hover:bg-[#D9761A]"
                                 title="Disburse payment"
                               >
                                 Reimburse
@@ -572,17 +572,17 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
           >
             <div className="flex items-center justify-between border-b border-[#E4E7EC] dark:border-[#1E293B] pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#14B8A6]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F28C28]">
                   TRAVEL REIMBURSEMENT
                 </span>
-                <h2 className="text-xl font-bold text-[#101828] dark:text-[#F8FAFC]">
+                <h2 className="text-xl font-bold text-[#10243A] dark:text-[#F8FAFC]">
                   Log Business Expense
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateOpen(false)}
-                className="text-[#667085] hover:text-[#101828] dark:hover:text-white"
+                className="text-[#667085] hover:text-[#10243A] dark:hover:text-white"
               >
                 <X size={18} />
               </button>
@@ -656,7 +656,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
                 </span>
                 <label className="border-2 border-dashed border-[#E4E7EC] dark:border-[#1E293B] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-[#F8FAFC] dark:hover:bg-[#1E293B] transition-colors">
                   <Upload size={20} className="text-[#94A3B8] mb-1" />
-                  <span className="text-xs text-[#101828] dark:text-[#F8FAFC] font-medium">
+                  <span className="text-xs text-[#10243A] dark:text-[#F8FAFC] font-medium">
                     {receiptFile || "Click to upload bill / receipt PDF or image"}
                   </span>
                   <span className="text-[10px] text-[#94A3B8]">Max size: 10MB</span>
