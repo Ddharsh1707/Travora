@@ -16,7 +16,7 @@ export type TravelRecord = {
   department: string | null;
   request_id: string | null;
   booking_reference: string | null;
-  origin: string;
+  origin: string | null;
   destination: string;
   departure_date: string;
   return_date: string | null;
@@ -60,9 +60,33 @@ export type TravelRequest = {
   status: RequestStatus;
   approver_id: string | null;
   created_at: string;
-  employee?: { full_name: string; employee_id: string; department: string | null } | null;
+  project_name?: string | null;
+  preferred_time?: TimeOfDay | null;
+  return_preferred_time?: TimeOfDay | null;
+  hotel_required?: boolean;
+  hotel_city?: string | null;
+  hotel_check_in?: string | null;
+  hotel_check_out?: string | null;
+  contact_phone?: string | null;
+  notes?: string | null;
+  decided_by_name?: string | null;
+  decided_by_role?: "CEO" | "Admin" | "Manager" | null;
+  decided_at?: string | null;
+  decision_comment?: string | null;
+  employee?: { full_name: string; employee_id: string; department: string | null; role?: string | null } | null;
   approver?: { full_name: string } | null;
 };
+
+export const TIMES_OF_DAY = [
+  { key: "any", label: "Any time" },
+  { key: "early_morning", label: "Early morning (before 8 am)" },
+  { key: "morning", label: "Morning (8 am to 12 pm)" },
+  { key: "afternoon", label: "Afternoon (12 to 5 pm)" },
+  { key: "evening", label: "Evening (5 to 9 pm)" },
+  { key: "night", label: "Night (after 9 pm)" },
+] as const;
+export type TimeOfDay = (typeof TIMES_OF_DAY)[number]["key"];
+export const TIME_LABEL: Record<string, string> = Object.fromEntries(TIMES_OF_DAY.map((t) => [t.key, t.label]));
 
 /** Turns database errors into messages that are safe to show. */
 export function friendlyError(error: { code?: string; message?: string } | null | undefined, fallback = "Something went wrong. Please try again."): Error {
@@ -88,7 +112,7 @@ export function friendlyError(error: { code?: string; message?: string } | null 
 // Employees
 // ---------------------------------------------------------------------------
 
-export async function listEmployees(opts: { q?: string; department?: string; limit?: number; offset?: number } = {}) {
+export async function listEmployees(opts: { q?: string; department?: string; status?: "current" | "past" | ""; limit?: number; offset?: number } = {}) {
   const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
   const offset = Math.max(opts.offset ?? 0, 0);
   let query = getSupabase()
@@ -100,6 +124,8 @@ export async function listEmployees(opts: { q?: string; department?: string; lim
   if (term) query = query.or(`employee_name.ilike.*${term}*,employee_code.ilike.*${term}*`);
   const dept = sanitizeTerm(opts.department);
   if (dept) query = query.ilike("department", `%${dept}%`);
+  if (opts.status === "current") query = query.eq("active", true);
+  if (opts.status === "past") query = query.eq("active", false);
   const { data, error, count } = await query;
   if (error) throw friendlyError(error, "Could not load employees.");
   return { rows: (data ?? []) as EmployeeSummary[], count: count ?? (data?.length ?? 0) };
@@ -146,7 +172,8 @@ export const travelRecordInput = z
   .object({
     employee_id: z.string().uuid("Choose an employee"),
     request_id: z.string().uuid().optional().nullable(),
-    origin: z.string().trim().min(1, "From is required").max(120),
+    // A hotel stay or a cab has a place, not a route.
+    origin: z.string().trim().max(120).optional().nullable().transform((v) => (v ? v : null)),
     destination: z.string().trim().min(1, "To is required").max(120),
     departure_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a travel date"),
     return_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
@@ -156,8 +183,9 @@ export const travelRecordInput = z
     amount: z.coerce.number().min(0, "Amount cannot be negative").max(10_000_000).optional(),
     currency: z.string().regex(/^[A-Z]{3}$/).default("INR"),
     booking_type: z.enum(["flight", "train", "bus", "cab", "hotel", "multi_modal", "other"]).default("flight"),
-    status: z.enum(["confirmed", "cancelled", "completed"]).default("confirmed"),
+    status: z.enum(["confirmed", "cancelled", "completed", "no_show", "reissued", "refunded"]).default("confirmed"),
   })
+  .refine((v) => v.origin || v.booking_type === "hotel" || v.booking_type === "cab" || v.booking_type === "other", { message: "From is required", path: ["origin"] })
   .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] });
 
 export type TravelRecordInput = z.input<typeof travelRecordInput>;
@@ -185,7 +213,7 @@ export async function updateTravelRecord(id: string, input: TravelRecordInput): 
 // ---------------------------------------------------------------------------
 
 const REQUEST_SELECT =
-  "*, employee:profiles!travel_requests_employee_id_fkey(full_name, employee_id, department), approver:profiles!travel_requests_approver_id_fkey(full_name)";
+  "*, employee:profiles!travel_requests_employee_id_fkey(full_name, employee_id, department, role), approver:profiles!travel_requests_approver_id_fkey(full_name)";
 
 export const travelRequestInput = z
   .object({
@@ -196,8 +224,19 @@ export const travelRequestInput = z
     purpose: z.string().trim().min(3, "Tell us the purpose of the trip").max(2000),
     travel_type: z.enum(["flight", "train", "bus", "cab", "hotel", "multi_modal", "other"]).default("flight"),
     estimated_cost: z.coerce.number().min(0).max(10_000_000).optional(),
+    project_name: optionalText(200),
+    preferred_time: z.enum(["any", "early_morning", "morning", "afternoon", "evening", "night"]).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    return_preferred_time: z.enum(["any", "early_morning", "morning", "afternoon", "evening", "night"]).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    hotel_required: z.boolean().default(false),
+    hotel_city: optionalText(120),
+    hotel_check_in: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    hotel_check_out: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    contact_phone: z.string().trim().regex(/^[0-9+() -]{6,20}$/, "Enter a valid phone number").optional().or(z.literal("")).transform((v) => (v ? v : null)),
+    notes: optionalText(2000),
   })
-  .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] });
+  .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] })
+  .refine((v) => !v.hotel_check_in || !v.hotel_check_out || v.hotel_check_out >= v.hotel_check_in, { message: "Hotel check-out is before check-in", path: ["hotel_check_out"] })
+  .transform((v) => (v.hotel_required ? v : { ...v, hotel_city: null, hotel_check_in: null, hotel_check_out: null }));
 
 export type TravelRequestInput = z.input<typeof travelRequestInput>;
 
@@ -237,12 +276,22 @@ export async function listPendingApprovals(myProfileId: string): Promise<TravelR
   return (data ?? []) as TravelRequest[];
 }
 
+/** Every request the CEO or an Admin can see, newest first. RLS limits the rows. */
+export async function listAllRequests(opts: { status?: RequestStatus | "all"; employeeId?: string; limit?: number } = {}): Promise<TravelRequest[]> {
+  let q = getSupabase().from("travel_requests").select(REQUEST_SELECT).order("created_at", { ascending: false }).limit(Math.min(opts.limit ?? 300, 500));
+  if (opts.status && opts.status !== "all") q = q.eq("status", opts.status);
+  if (opts.employeeId) q = q.eq("employee_id", opts.employeeId);
+  const { data, error } = await q;
+  if (error) throw friendlyError(error, "Could not load travel requests. Has the latest SQL been run in Supabase?");
+  return (data ?? []) as TravelRequest[];
+}
+
 export async function decideRequest(id: string, decision: "approved" | "rejected", comments?: string): Promise<void> {
   const note = comments?.trim().slice(0, 2000) || null;
   const { error } = await getSupabase().rpc("decide_travel_request", { p_request_id: id, p_decision: decision, p_comments: note });
   if (error) throw friendlyError(error, "Could not record the decision.");
 }
 
-export async function recordReportGenerated(report: "employee_travel_history" | "travel_search", employeeId?: string): Promise<void> {
+export async function recordReportGenerated(report: "employee_travel_history" | "travel_search" | "travel_report" | "upload_report" | "project_intelligence" | "project_detail" | "employee_intelligence" | "financial_intelligence" | "management_summary" | "period_report" | "project_report" | "employee_report" | "travel_report_bi" | "financial_report" | "data_completeness", employeeId?: string): Promise<void> {
   await getSupabase().rpc("record_report_generated", { p_report: report, p_employee: employeeId ?? null });
 }

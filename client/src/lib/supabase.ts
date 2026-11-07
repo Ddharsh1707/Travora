@@ -49,6 +49,9 @@ function looksLikeServiceRoleKey(key: string): boolean {
 
 export const isSupabaseEnabled = AUTH_PROVIDER === "supabase";
 
+/** The Supabase address this build was made with, for error messages (never secret). */
+export const supabaseUrlForDisplay = SUPABASE_URL || "(not set)";
+
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {

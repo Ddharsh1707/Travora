@@ -74,13 +74,13 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
   const getIcon = (type: ActivityEvent["type"]) => {
     switch (type) {
       case "booking":
-        return <TicketCheck size={16} className="text-[#14B8A6]" />;
+        return <TicketCheck size={16} className="text-[#F28C28]" />;
       case "approval":
         return <CheckCircle2 size={16} className="text-[#16A34A]" />;
       case "expense":
         return <WalletCards size={16} className="text-[#2563EB]" />;
       case "request":
-        return <FileText size={16} className="text-[#14B8A6]" />;
+        return <FileText size={16} className="text-[#F28C28]" />;
       default:
         return <Clock size={16} className="text-[#94A3B8]" />;
     }
@@ -114,10 +114,10 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
 
       {events.length === 0 ? (
         <div className="p-6 text-center rounded-xl bg-[#F8FAFC] dark:bg-[#0F172A] border border-dashed border-[#E4E7EC] dark:border-[#1E293B] space-y-2">
-          <div className="w-10 h-10 mx-auto rounded-full bg-[#14B8A6]/10 flex items-center justify-center text-[#0D9488] dark:text-[#2DD4BF]">
+          <div className="w-10 h-10 mx-auto rounded-full bg-[#F28C28]/10 flex items-center justify-center text-[#D9761A] dark:text-[#F6A85A]">
             <Sparkles size={18} />
           </div>
-          <strong className="block text-sm text-[#101828] dark:text-[#F8FAFC]">
+          <strong className="block text-sm text-[#10243A] dark:text-[#F8FAFC]">
             No travel activity yet
           </strong>
           <p className="text-xs text-[#667085] dark:text-[#94A3B8] max-w-sm mx-auto">
@@ -128,15 +128,15 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
         <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E4E7EC] dark:before:bg-[#1E293B]">
           {filtered.map((item) => (
             <div key={item.id} className="relative group">
-              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-[#111827] border-2 border-[#E4E7EC] dark:border-[#1E293B] flex items-center justify-center group-hover:border-[#14B8A6] transition-colors">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]" />
+              <div className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-[#111827] border-2 border-[#E4E7EC] dark:border-[#1E293B] flex items-center justify-center group-hover:border-[#F28C28] transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#F28C28]" />
               </div>
 
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     {getIcon(item.type)}
-                    <strong className="text-[#101828] dark:text-[#F8FAFC] font-semibold">
+                    <strong className="text-[#10243A] dark:text-[#F8FAFC] font-semibold">
                       {item.actor}
                     </strong>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#F1F5F9] dark:bg-[#1E293B] text-[#475467] dark:text-[#CBD5E1]">
@@ -150,7 +150,7 @@ export function ActivityTimeline({ journeys = [], user }: ActivityTimelineProps)
 
                 <p className="text-xs text-[#475467] dark:text-[#94A3B8]">
                   {item.action}:{" "}
-                  <span className="font-medium text-[#101828] dark:text-[#F8FAFC]">{item.target}</span>
+                  <span className="font-medium text-[#10243A] dark:text-[#F8FAFC]">{item.target}</span>
                 </p>
               </div>
             </div>

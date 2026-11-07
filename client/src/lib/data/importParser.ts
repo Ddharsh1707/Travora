@@ -8,6 +8,7 @@ import { parseDateQuery } from "./travelQuery";
 export const IMPORT_FIELDS = [
   { key: "employee_code", label: "Employee ID" },
   { key: "employee_name", label: "Employee name" },
+  { key: "department", label: "Department" },
   { key: "departure_date", label: "Travel date" },
   { key: "return_date", label: "Return date" },
   { key: "origin", label: "From" },
@@ -30,6 +31,7 @@ export const MAX_ROWS = 5000;
 const ALIASES: Record<ImportField, string[]> = {
   employee_code: ["employee id", "employee code", "emp id", "emp code", "empid", "staff id", "employee number", "emp no", "employee no", "badge id"],
   employee_name: ["employee name", "employee", "passenger name", "passenger", "name", "full name", "emp name", "staff name", "traveler name", "traveller name", "traveller", "traveler"],
+  department: ["department", "dept", "division", "business unit", "team", "department name"],
   departure_date: ["travel date", "departure date", "date of travel", "journey date", "depart date", "date", "start date", "flight date", "onward date"],
   return_date: ["return date", "arrival date", "end date", "trip end date", "return"],
   origin: ["from", "origin", "source", "from location", "departure city", "from city", "departure location", "source station", "sector from"],
@@ -145,3 +147,26 @@ export function checkImportFile(name: string, size: number, firstBytes: Uint8Arr
   }
   return { ok: true, kind };
 }
+
+export const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+/** Travel desk uploads also take a text PDF (a bulk booking list or past employee records). */
+export function checkTravelUploadFile(name: string, size: number, firstBytes: Uint8Array): { ok: true; kind: "csv" | "xlsx" | "pdf" } | { ok: false; error: string } {
+  if (!name.toLowerCase().endsWith(".pdf")) {
+    const c = checkImportFile(name, size, firstBytes);
+    if (!c.ok && /Please upload/.test(c.error)) return { ok: false, error: "Please upload an Excel (.xlsx), .csv or PDF file. (Old .xls files: open in Excel and save as .xlsx.)" };
+    return c;
+  }
+  if (size === 0) return { ok: false, error: "The file is empty." };
+  if (size > MAX_PDF_BYTES) return { ok: false, error: "The PDF is larger than 10 MB. Split it into smaller files." };
+  const isPdf = firstBytes[0] === 0x25 && firstBytes[1] === 0x50 && firstBytes[2] === 0x44 && firstBytes[3] === 0x46; // %PDF
+  if (!isPdf) return { ok: false, error: "This does not look like a real PDF file." };
+  return { ok: true, kind: "pdf" };
+}
+
+/** A small example sheet so the travel desk knows which columns to use. */
+export const SAMPLE_UPLOAD_HEADERS = ["Employee ID", "Employee Name", "Department", "Travel Date", "Return Date", "From", "To", "Travel Mode", "Airline", "PNR", "Ticket Number", "Amount", "Currency"];
+export const SAMPLE_UPLOAD_ROWS: string[][] = [
+  ["EMP001", "Arun Kumar", "Engineering", "2026-10-14", "2026-10-16", "Chennai", "Delhi", "Flight", "IndiGo", "AB12CD", "0981234567890", "8450", "INR"],
+  ["EMP002", "Bina Rao", "Finance", "2026-10-21", "", "Mumbai", "Pune", "Train", "IRCTC", "PNR4455", "", "1250", "INR"],
+];

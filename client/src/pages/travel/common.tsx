@@ -89,9 +89,15 @@ const STATUS_TONE: Record<string, string> = {
 
 export function StatusPill({ status }: { status: string }) {
   const tone = STATUS_TONE[status] ?? "pending";
-  return <span className={`approval-pill ${tone}`}>{status.replace(/_/g, " ")}</span>;
+  return <span className={`approval-pill ${tone}`}>{(status ?? "").replace(/_/g, " ")}</span>;
 }
 
 export function labelFor(type: string): string {
   return type === "multi_modal" ? "Multi-modal" : type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+/** "HYD → BOM", or just the place for a hotel stay or a cab. */
+export function routeLabel(origin: string | null | undefined, destination: string | null | undefined): string {
+  if (origin && destination) return `${origin} → ${destination}`;
+  return destination || origin || "—";
 }

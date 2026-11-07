@@ -4,7 +4,7 @@ import { CalendarDays, Download, Filter, Plus, Search, UserRound, X } from "luci
 import { exportToCsv } from "../../utils/exportCsv";
 import { listEmployees, recordReportGenerated, searchTravelRecords, type EmployeeSummary, type TravelRecord } from "../../lib/data/travel";
 import { parseDateQuery, type TravelFilters } from "../../lib/data/travelQuery";
-import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor } from "./common";
+import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import { TravelRecordDialog } from "./TravelRecordDialog";
 
 const EMPTY: TravelFilters = { q: "", date: "", from: "", to: "", department: "", origin: "", destination: "", provider: "", bookingReference: "", ticketNumber: "", bookingType: "", status: "" };
@@ -174,7 +174,7 @@ export default function TravelSearch({ canManage, canSeeOthers }: { canManage: b
                         <div className="table-subline">{r.employee_code}{r.department ? ` · ${r.department}` : ""}</div>
                       </td>
                     )}
-                    <td>{r.origin} → {r.destination}<div className="table-subline">{labelFor(r.booking_type)}</div></td>
+                    <td>{routeLabel(r.origin, r.destination)}<div className="table-subline">{labelFor(r.booking_type)}</div></td>
                     <td>{r.airline_or_provider ?? "—"}</td>
                     <td>{r.booking_reference ?? "—"}<div className="table-subline">{r.ticket_number ?? ""}</div></td>
                     <td className="text-right">{formatMoney(r.amount, r.currency)}</td>

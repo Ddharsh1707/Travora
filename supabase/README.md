@@ -1,4 +1,4 @@
-# Supabase (Phase 1)
+# Supabase
 
 Database, Row Level Security, private storage and Edge Functions for Trapple.
 The full plan, including which credentials are needed and where they go, is in
@@ -15,6 +15,11 @@ supabase functions deploy admin-users
 Then run `bootstrap_first_admin.sql` in the SQL Editor and invite that email
 from Authentication > Users. In Vercel set `VITE_AUTH_PROVIDER=supabase`,
 `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (anon key only).
+
+## Self sign-up
+
+People can create their own account from the login page; they always start as
+`employee`. Dashboard steps are in `docs/SIGNUP.md`.
 
 ## Tests
 
@@ -53,3 +58,81 @@ and Admin can upload for any employee, scan, and confirm.
   not use the service-role key.
 - What is sent to Anthropic: the document text (or file, when it has no text
   layer). Nothing else from the database.
+
+## Phase 5: bulk / group bookings
+
+**Bulk & group bookings** (`/travel/bulk`) is for Travel Desk, Admin and
+approvers. Nothing to deploy beyond `supabase db push`.
+
+- Travellers are real employees (add by name or paste employee IDs, up to
+  500). Each one gets their own travel record (`source = 'bulk_booking'`), so
+  the trip appears in their history, search and totals straight away. An
+  existing trip with the same person, date and PNR is re-used, not duplicated.
+- Cost is split evenly unless a traveller has their own amount; PNR defaults
+  to the group reference.
+- Removing a traveller cancels their trip; cancelling the booking cancels all
+  of them. Changing cost, date or destination sends it back for review.
+- Approvers review the group budget for bookings with their team on board,
+  and see only their own team on the manifest. Employees see only their own
+  row. Nobody reviews a booking they created.
+- Tickets per traveller are normal documents attached to that traveller's
+  trip, so the scanner and its privacy rules apply to them too.
+- Tables are read-only to the API; `bulk_save`, `bulk_cancel` and
+  `bulk_review` do all writes and are audited.
+
+## Phase 6: reports, dashboard and live updates
+
+Nothing to deploy beyond `supabase db push`. In the Supabase dashboard,
+Realtime must be enabled for the project (it is by default); the migration adds
+`travel_records`, `travel_requests`, `documents` and `bulk_bookings` to the
+`supabase_realtime` publication.
+
+- **Overview** (`/travel/overview`) is the new home page in Supabase mode:
+  next trip and the counts that need the user's attention
+  (`dashboard_counts()`).
+- **Reports** (`/travel/reports`) for every role: spend and trips by month,
+  department, mode, top routes, travellers and providers, with period
+  (financial year, last 12 months, custom), department and mode filters, and a
+  CSV download (audited, formula-injection safe).
+- `travel_report()`, `dashboard_counts()` and the `report_*` views run with the
+  caller's permissions, so an employee's report covers their own trips, an
+  approver's their team, and Travel Desk / Admin everyone.
+- Live updates: pages listen for changes and re-run their own queries.
+  Realtime applies RLS before sending a change, and the change itself is not
+  used for display.
+
+## Phase 7: AI assistant
+
+```bash
+supabase db push
+supabase functions deploy ai-assistant
+# uses the same ANTHROPIC_API_KEY secret as the document scanner (Phase 4)
+```
+
+- **Ask the assistant** (`/travel/assistant`) for every role. Questions such as
+  "who is travelling to Mumbai next week?", "which requests are waiting for my
+  approval?" or "travel spend by department this quarter".
+- The model never writes SQL and never sees a key. It can only ask for one of
+  nine fixed, read-only tools (`supabase/functions/_shared/assistantTools.ts`).
+  Every tool call is checked in code (unknown tools, extra arguments, bad dates
+  and filter characters are refused) and then runs a fixed query **with the
+  user's own token**, so RLS limits the answer exactly as it limits the screens.
+- Results sent to the model are trimmed (no emails, no ticket numbers) and
+  capped at 50 rows per lookup. Tool results are treated as data, not
+  instructions.
+- Conversations belong to one user. The browser can read, rename and delete its
+  own conversations but cannot write messages: the function saves each
+  question and answer through `ai_record_exchange()`, which only the service
+  role may call. This is the function's only service-role call.
+- Rate limit: 50 questions per user per day (`consume_rate_limit`).
+- The audit log records that a question was asked and which tools ran, never
+  the question or the answer.
+
+## Phase 8: security hardening
+
+```bash
+supabase db push   # 20261106000500_hardening.sql
+```
+
+See [`docs/SECURITY.md`](../docs/SECURITY.md) for the controls, the test list,
+the go-live checklist and the plan for retiring the Spring Boot backend.

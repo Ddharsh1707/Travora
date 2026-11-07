@@ -1,5 +1,5 @@
 import type { AuthUser, Role } from "./api";
-import { getSupabase } from "./supabase";
+import { getSupabase, supabaseUrlForDisplay } from "./supabase";
 
 /**
  * Supabase sign-in for the existing UI.
@@ -14,6 +14,7 @@ const ROLE_MAP: Record<string, Role> = {
   approver: "APPROVER",
   travel_desk: "TRAVEL_DESK",
   admin: "ADMIN",
+  company_admin: "COMPANY_ADMIN",
 };
 
 type ProfileRow = {
@@ -72,8 +73,24 @@ export async function supabaseSignIn(email: string, password: string): Promise<S
 
   const { error } = await getSupabase().auth.signInWithPassword({ email: cleanEmail, password });
   if (error) {
+    const msg = error.message.toLowerCase();
     // Same message for unknown user and wrong password (no account probing).
-    throw new Error("Invalid email or password.");
+    if (msg.includes("invalid login credentials") || (error as { code?: string }).code === "invalid_credentials") {
+      throw new Error("Invalid email or password.");
+    }
+    if (msg.includes("email not confirmed")) {
+      throw new Error("This email address has not been confirmed yet. Use the link in the confirmation email, or ask an administrator.");
+    }
+    if (msg.includes("api key")) {
+      throw new Error("The site's Supabase key is wrong (Invalid API key). Check VITE_SUPABASE_ANON_KEY in the hosting settings.");
+    }
+    if (msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed") || error.status === 0) {
+      throw new Error(
+        `Could not reach Supabase at "${supabaseUrlForDisplay}". Check that this exact address opens in your browser (add /auth/v1/health), that the project is not paused, and that VITE_SUPABASE_URL in Amplify is your Project URL (ends in .supabase.co). Redeploy after changing it.`
+      );
+    }
+    // Anything else is a setup or network problem: show Supabase's reason.
+    throw new Error(`Could not sign in: ${error.message}`);
   }
   return loadMyProfile();
 }
@@ -108,4 +125,91 @@ export async function supabaseSendPasswordReset(email: string): Promise<void> {
   const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
   // Always resolve, so the UI cannot be used to discover which emails exist.
   await getSupabase().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo }).catch(() => undefined);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Self sign-up                                                               */
+/* ------------------------------------------------------------------------- */
+
+/** Mirrors supabase/config.toml: 12+ chars with lower case, upper case and a digit. */
+export function passwordProblems(password: string): string[] {
+  const problems: string[] = [];
+  if (password.length < 12) problems.push("at least 12 characters");
+  if (!/[a-z]/.test(password)) problems.push("a lower-case letter");
+  if (!/[A-Z]/.test(password)) problems.push("an upper-case letter");
+  if (!/[0-9]/.test(password)) problems.push("a number");
+  return problems;
+}
+
+/** 0–4, for the strength meter on the sign-up form. */
+export function passwordStrength(password: string): number {
+  if (!password) return 0;
+  const problems = passwordProblems(password).length;
+  // Anything that does not meet the rules tops out at "Fair".
+  if (problems > 0) return Math.max(0, Math.min(2, 4 - problems - 1));
+  return password.length >= 16 || /[^A-Za-z0-9]/.test(password) ? 4 : 3;
+}
+
+export type SignUpInput = { fullName: string; email: string; password: string; confirmPassword: string };
+
+export function validateSignUp(input: SignUpInput): string | null {
+  const name = input.fullName.trim();
+  if (name.length < 2) return "Please enter your full name.";
+  if (name.length > 120) return "Name is too long.";
+  const email = input.email.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return "Please enter a valid work email address.";
+  const problems = passwordProblems(input.password);
+  if (problems.length) return `Password needs ${problems.join(", ")}.`;
+  if (input.password !== input.confirmPassword) return "Passwords do not match.";
+  return null;
+}
+
+/**
+ * Creates an account. The new person only becomes an 'employee' once they
+ * click the link in the confirmation email; the role is decided by the
+ * database, never by anything sent from here.
+ */
+export async function supabaseSignUp(input: SignUpInput): Promise<{ needsConfirmation: boolean; user?: SupabaseAuthUser }> {
+  const problem = validateSignUp(input);
+  if (problem) throw new Error(problem);
+  const email = input.email.trim().toLowerCase();
+  const emailRedirectTo = typeof window !== "undefined" ? `${window.location.origin}/login?confirmed=1` : undefined;
+  const { data, error } = await getSupabase().auth.signUp({
+    email,
+    password: input.password,
+    options: {
+      emailRedirectTo,
+      data: { full_name: input.fullName.trim(), signup_source: "self" },
+    },
+  });
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if ((msg.includes("signup") || msg.includes("sign up")) && (msg.includes("disabled") || msg.includes("not allowed"))) {
+      throw new Error("New sign-ups are switched off. Ask an administrator for an invite.");
+    }
+    if (msg.includes("rate limit") || error.status === 429) {
+      throw new Error("Too many attempts right now. Please wait a few minutes and try again.");
+    }
+    if (msg.includes("email address not authorized")) {
+      throw new Error("Sign-up emails can't be sent to this address yet. The site needs its own email sender (Supabase > Authentication > Emails > SMTP Settings).");
+    }
+    if (msg.includes("sending") && msg.includes("email")) {
+      throw new Error("Your account was created, but the confirmation email could not be sent. The site's email settings need attention (Supabase > Authentication > Emails).");
+    }
+    if (msg.includes("password")) throw new Error(error.message);
+    // Show Supabase's own reason so setup problems are easy to spot.
+    throw new Error(`Could not create your account: ${error.message}`);
+  }
+  // Email confirmation switched off in Supabase: the user is signed in already.
+  if (data.session) return { needsConfirmation: false, user: await loadMyProfile() };
+  // Supabase returns the same answer whether or not the email was already
+  // registered, so this cannot be used to find out who has an account.
+  return { needsConfirmation: true };
+}
+
+export async function supabaseResendConfirmation(email: string): Promise<void> {
+  const emailRedirectTo = typeof window !== "undefined" ? `${window.location.origin}/login?confirmed=1` : undefined;
+  await getSupabase()
+    .auth.resend({ type: "signup", email: email.trim().toLowerCase(), options: { emailRedirectTo } })
+    .catch(() => undefined);
 }
