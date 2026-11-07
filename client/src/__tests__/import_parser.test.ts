@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert";
-import { checkImportFile, detectMapping, mapRows, missingRequired, normalizeDateCell } from "../lib/data/importParser.ts";
+import { SAMPLE_UPLOAD_HEADERS, checkImportFile, detectMapping, mapRows, missingRequired, normalizeDateCell } from "../lib/data/importParser.ts";
 
 const ZIP = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
 const TEXT = new TextEncoder().encode("Employee");
@@ -38,6 +38,13 @@ test("column detection handles the usual spreadsheet headings", () => {
   assert.strictEqual(alt["Origin"], "origin");
   assert.strictEqual(alt["Destination"], "destination");
   assert.deepStrictEqual(missingRequired(detectMapping(["Notes"])), ["Employee ID or employee name", "Travel date", "From", "To"]);
+});
+
+test("department column is detected and the sample sheet maps fully", () => {
+  const m = detectMapping(["Emp ID", "Name", "Dept", "Date", "From", "To"]);
+  assert.strictEqual(m["Dept"], "department");
+  const sample = detectMapping(SAMPLE_UPLOAD_HEADERS);
+  assert.ok(Object.values(sample).every((v) => v !== ""), "every sample column is recognised");
 });
 
 test("dates from Excel and text become YYYY-MM-DD", () => {

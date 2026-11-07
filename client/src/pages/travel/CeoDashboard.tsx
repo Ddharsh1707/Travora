@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, Check, ClipboardCheck, IndianRupee, Plane, Receipt, UserPlus, UsersRound } from "lucide-react";
+import { ArrowRight, Check, ClipboardCheck, FileSpreadsheet, IndianRupee, Plane, Receipt, UserPlus, UsersRound } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -73,6 +73,7 @@ export default function CeoDashboard({ name, profileId }: { name: string; profil
           <select aria-label="Date range" value={preset} onChange={(e) => setPreset(e.target.value as typeof preset)} className="button button-ghost">
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
+          <Link href="/travel/import" className="button button-ghost"><FileSpreadsheet size={15} /> Upload travel data</Link>
           <Link href="/travel/people" className="button button-primary"><UserPlus size={15} /> Add employee</Link>
         </>}
       />

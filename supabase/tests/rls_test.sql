@@ -798,5 +798,66 @@ select t.ok(exists (select 1 from public.audit_logs where action = 'create_login
 select t.ok(not exists (select 1 from public.audit_logs where metadata::text ~ '(Welcome2026Pass|NewPassword2026)'),
   'logins: passwords never reach the audit log');
 
+-- ---------------------------------------------------------------------------
+-- Travel desk uploads: department, new employees, per-upload report
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select t.login('10000000-0000-0000-0000-0000000000d1');
+create temp table up_off as select public.import_stage('no-create.xlsx', 'xlsx', '{}', $j$[
+  {"employee_code":"NEW900","employee_name":"Kavya New","departure_date":"2026-09-02","origin":"Chennai","destination":"Hyderabad","booking_reference":"NW1","amount":"3000"}
+]$j$::jsonb) as id;
+select t.ok((select status from public.import_rows where batch_id = (select id from up_off)) = 'error',
+  'uploads: unknown employee is still an error unless "add missing employees" is on');
+select public.import_cancel((select id from up_off));
+
+create temp table up as select public.import_stage('travel-sept.xlsx', 'xlsx', '{}', $j$[
+  {"employee_code":"NEW900","employee_name":"Kavya New","department":"Sales","departure_date":"2026-09-02","origin":"Chennai","destination":"Hyderabad","booking_reference":"NW1","amount":"3000"},
+  {"employee_code":"new900","employee_name":"Kavya New","department":"Sales","departure_date":"2026-09-10","origin":"Hyderabad","destination":"Chennai","booking_reference":"NW2","amount":"3200","booking_type":"Train"},
+  {"employee_code":"NEW900","employee_name":"Kavya New","departure_date":"2026-09-02","origin":"Chennai","destination":"Hyderabad","booking_reference":"NW1","amount":"3000"},
+  {"employee_name":"Ravi Sheetonly","department":"Ops","departure_date":"2026-09-05","origin":"Pune","destination":"Delhi","booking_reference":"RS1","amount":"5100"},
+  {"employee_code":"bad id!","employee_name":"Bad Code","departure_date":"2026-09-05","origin":"A","destination":"B"},
+  {"employee_code":"NEW901","departure_date":"2026-09-05","origin":"A","destination":"B"},
+  {"employee_code":"EMP001","departure_date":"2026-09-12","origin":"Chennai","destination":"Bengaluru","booking_reference":"E1SEP","amount":"2500"}
+]$j$::jsonb, true) as id;
+grant select on up to authenticated;
+select t.ok((select array_agg(status order by row_number) from public.import_rows where batch_id = (select id from up))
+            = array['warning','warning','duplicate','warning','error','error','valid'],
+  'uploads: new employees are warnings, repeats in the file are duplicates, bad or nameless IDs are errors');
+select t.ok((select employee_code from public.import_rows where batch_id = (select id from up) and row_number = 4) ~ '^NEW-[0-9A-F]{8}$',
+  'uploads: a name-only new employee gets a generated ID');
+select t.ok(not exists (select 1 from public.profiles where employee_id = 'NEW900'), 'uploads: nobody is created before confirmation');
+
+select public.import_commit((select id from up));
+select t.ok((select (imported_rows, created_employees) = (4, 2) from public.import_batches where id = (select id from up)),
+  'uploads: trips imported and two new employees created on confirmation');
+select t.ok((select department = 'Sales' and role = 'employee' and user_id is null from public.profiles where employee_id = 'NEW900'),
+  'uploads: new employees get the sheet''s department, the employee role and no login');
+select t.ok((select count(*) from public.travel_records where import_batch_id = (select id from up)) = 4,
+  'uploads: every imported trip is tagged with its upload');
+
+select t.ok((select (r -> 'totals' ->> 'trips')::int = 4 and (r -> 'totals' ->> 'travellers')::int = 3
+                    and (r -> 'totals' ->> 'spend')::numeric = 13800
+                    and jsonb_array_length(r -> 'employees') = 3
+                    and (r -> 'batch' ->> 'created_employees')::int = 2
+               from public.import_report((select id from up)) r),
+  'uploads: the upload report adds up trips, travellers, spend and employees');
+
+-- A trip's upload link cannot be forged or removed from the browser.
+update public.travel_records set import_batch_id = null where import_batch_id = (select id from up);
+select t.ok((select count(*) from public.travel_records where import_batch_id = (select id from up)) = 4,
+  'uploads: users cannot change which upload a trip came from');
+select public.record_report_generated('upload_report');
+
+select t.login('10000000-0000-0000-0000-0000000000a1');
+select t.ok((select (r -> 'totals' ->> 'trips')::int = 4 from public.import_report((select id from up)) r), 'uploads: the CEO can open upload reports');
+
+select t.login('10000000-0000-0000-0000-0000000000e1');
+select t.throws($$select public.import_report((select id from up))$$, 'uploads: employees cannot open upload reports');
+select t.ok(t.cnt($$select 1 from public.travel_records where booking_reference = 'E1SEP'$$) = 1, 'uploads: employee sees their own uploaded trip');
+select t.ok(t.cnt($$select 1 from public.travel_records where booking_reference in ('NW1', 'NW2', 'RS1')$$) = 0, 'uploads: employee cannot see other people''s uploaded trips');
+select t.login('10000000-0000-0000-0000-0000000000b1');
+select t.throws($$select public.import_report((select id from up))$$, 'uploads: approvers cannot open upload reports');
+reset role;
+
 \echo 'ALL AUTHORIZATION TESTS PASSED'
 rollback;

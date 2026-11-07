@@ -13,6 +13,8 @@ export type ImportBatch = {
   error_rows: number;
   duplicate_rows: number;
   imported_rows: number;
+  create_missing_employees?: boolean;
+  created_employees?: number;
   created_at: string;
   committed_at: string | null;
 };
@@ -22,6 +24,8 @@ export type ImportRow = {
   row_number: number;
   employee_code: string | null;
   employee_name: string | null;
+  department?: string | null;
+  new_employee?: boolean;
   profile_id: string | null;
   origin: string | null;
   destination: string | null;
@@ -39,12 +43,13 @@ export type ImportRow = {
 };
 
 /** Sends mapped rows to the database, which validates them and returns a batch id. Nothing is imported yet. */
-export async function stageImport(filename: string, kind: "csv" | "xlsx", mapping: ColumnMapping, rows: Array<Record<string, string>>): Promise<string> {
+export async function stageImport(filename: string, kind: "csv" | "xlsx", mapping: ColumnMapping, rows: Array<Record<string, string>>, createMissing = false): Promise<string> {
   const { data, error } = await getSupabase().rpc("import_stage", {
     p_filename: filename.slice(0, 255),
     p_file_kind: kind,
     p_mapping: mapping,
     p_rows: rows,
+    p_create_missing: createMissing,
   });
   if (error) throw friendlyError(error, "Could not check the file.");
   return data as string;
@@ -83,3 +88,25 @@ export async function listImportBatches(): Promise<ImportBatch[]> {
   if (error) throw friendlyError(error, "Could not load past imports.");
   return (data ?? []) as ImportBatch[];
 }
+
+export type UploadReport = {
+  batch: {
+    id: string; original_filename: string; status: ImportBatch["status"]; created_at: string; committed_at: string | null;
+    total_rows: number; imported_rows: number; error_rows: number; duplicate_rows: number; created_employees: number;
+  };
+  totals: { trips: number; travellers: number; spend: number; trips_without_cost: number; currencies: string[]; upcoming: number; first_date: string | null; last_date: string | null };
+  by_month: Array<{ month: string; trips: number; spend: number; travellers: number }>;
+  by_department: Array<{ department: string; trips: number; spend: number; travellers: number }>;
+  by_mode: Array<{ mode: string; trips: number; spend: number }>;
+  top_routes: Array<{ origin: string; destination: string; trips: number; spend: number }>;
+  top_providers: Array<{ provider: string; trips: number; spend: number }>;
+  employees: Array<{ employee_id: string; employee_code: string; full_name: string; department: string; trips: number; spend: number; first_trip: string; last_trip: string }>;
+};
+
+/** The report for one uploaded file. Travel Desk / CEO only (checked by the database). */
+export async function getUploadReport(id: string): Promise<UploadReport> {
+  const { data, error } = await getSupabase().rpc("import_report", { p_batch: id });
+  if (error) throw friendlyError(error, "Could not load the upload report.");
+  return data as UploadReport;
+}
+
