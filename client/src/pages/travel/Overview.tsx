@@ -3,7 +3,7 @@ import { ArrowRight, BarChart3, ClipboardCheck, FileText, Plane, ScanLine, Searc
 import { Link } from "wouter";
 import type { Role } from "../../lib/api";
 import { getDashboardCounts, useLiveRefresh, type DashboardCounts } from "../../lib/data/reports";
-import { ErrorNotice, Loading, PageHeader, formatDate, labelFor } from "./common";
+import { ErrorNotice, Loading, PageHeader, formatDate, labelFor, routeLabel } from "./common";
 
 type Tile = { label: string; value: number | null | undefined; href: string; icon: React.ReactNode; hint: string };
 
@@ -46,7 +46,7 @@ export default function Overview({ role, name }: { role: Role; name: string }) {
               <Plane size={20} className="text-teal-600" />
               <div className="min-w-0">
                 <span className="card-kicker">Your next trip</span>
-                <div className="font-semibold">{counts.my_next_trip.origin} → {counts.my_next_trip.destination}</div>
+                <div className="font-semibold">{routeLabel(counts.my_next_trip.origin, counts.my_next_trip.destination)}</div>
                 <div className="text-xs opacity-70">{formatDate(counts.my_next_trip.departure_date)} · {labelFor(counts.my_next_trip.booking_type)}</div>
               </div>
               <ArrowRight size={16} className="ml-auto" />

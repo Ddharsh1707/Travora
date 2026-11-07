@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { getDashboardCounts, useLiveRefresh, type DashboardCounts } from "../../lib/data/reports";
 import { CATEGORY_LABELS, listExpenses, summarizeExpenses, type Expense } from "../../lib/data/expenses";
 import { getEmployeeHistory, type TravelRecord } from "../../lib/data/travel";
-import { ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor } from "./common";
+import { ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import { ExpenseStatusPill } from "./ExpenseStatusPill";
 
 /** Employee home: only the signed-in person's own trips, requests and expenses. */
@@ -58,7 +58,7 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
               <Plane size={20} className="text-teal-600" />
               <div className="min-w-0">
                 <span className="card-kicker">Your next trip</span>
-                <div className="font-semibold">{counts.my_next_trip.origin} → {counts.my_next_trip.destination}</div>
+                <div className="font-semibold">{routeLabel(counts.my_next_trip.origin, counts.my_next_trip.destination)}</div>
                 <div className="text-xs opacity-70">{formatDate(counts.my_next_trip.departure_date)} · {labelFor(counts.my_next_trip.booking_type)}</div>
               </div>
               <ArrowRight size={16} className="ml-auto" />
@@ -106,7 +106,7 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
                   {recentTrips.map((t) => (
                     <li key={t.id} className="flex items-center gap-2 text-sm">
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold truncate">{t.origin} → {t.destination}</div>
+                        <div className="font-semibold truncate">{routeLabel(t.origin, t.destination)}</div>
                         <div className="text-xs opacity-70">{formatDate(t.departure_date)} · {labelFor(t.booking_type)}{t.airline_or_provider ? ` · ${t.airline_or_provider}` : ""}</div>
                       </div>
                       <span>{formatMoney(t.amount, t.currency)}</span>

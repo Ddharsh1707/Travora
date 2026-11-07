@@ -6,7 +6,7 @@ import { getUploadReport, type UploadReport as Report } from "../../lib/data/imp
 import { monthLabel } from "../../lib/data/reports";
 import { recordReportGenerated } from "../../lib/data/travel";
 import { exportToCsv } from "../../utils/exportCsv";
-import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney, labelFor } from "./common";
+import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 
 const PALETTE = ["var(--saffron)", "var(--blue)", "var(--green)", "#f59e0b", "#a855f7", "#64748b", "#ef4444"];
 const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
@@ -129,7 +129,7 @@ export default function UploadReport({ batchId }: { batchId: string }) {
             </ChartPanel>
             <TablePanel title="Top routes" headers={["Route", "Trips", "Spend"]}>
               {report.top_routes.map((r) => (
-                <tr key={`${r.origin}-${r.destination}`}><td>{r.origin} → {r.destination}</td><td className="text-right">{r.trips}</td><td className="text-right">{formatMoney(r.spend, currency)}</td></tr>
+                <tr key={`${r.origin}-${r.destination}`}><td>{routeLabel(r.origin, r.destination)}</td><td className="text-right">{r.trips}</td><td className="text-right">{formatMoney(r.spend, currency)}</td></tr>
               ))}
             </TablePanel>
           </div>

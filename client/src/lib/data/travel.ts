@@ -16,7 +16,7 @@ export type TravelRecord = {
   department: string | null;
   request_id: string | null;
   booking_reference: string | null;
-  origin: string;
+  origin: string | null;
   destination: string;
   departure_date: string;
   return_date: string | null;
@@ -146,7 +146,8 @@ export const travelRecordInput = z
   .object({
     employee_id: z.string().uuid("Choose an employee"),
     request_id: z.string().uuid().optional().nullable(),
-    origin: z.string().trim().min(1, "From is required").max(120),
+    // A hotel stay or a cab has a place, not a route.
+    origin: z.string().trim().max(120).optional().nullable().transform((v) => (v ? v : null)),
     destination: z.string().trim().min(1, "To is required").max(120),
     departure_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a travel date"),
     return_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")).transform((v) => (v ? v : null)),
@@ -156,8 +157,9 @@ export const travelRecordInput = z
     amount: z.coerce.number().min(0, "Amount cannot be negative").max(10_000_000).optional(),
     currency: z.string().regex(/^[A-Z]{3}$/).default("INR"),
     booking_type: z.enum(["flight", "train", "bus", "cab", "hotel", "multi_modal", "other"]).default("flight"),
-    status: z.enum(["confirmed", "cancelled", "completed"]).default("confirmed"),
+    status: z.enum(["confirmed", "cancelled", "completed", "no_show", "reissued", "refunded"]).default("confirmed"),
   })
+  .refine((v) => v.origin || v.booking_type === "hotel" || v.booking_type === "cab" || v.booking_type === "other", { message: "From is required", path: ["origin"] })
   .refine((v) => !v.return_date || v.return_date >= v.departure_date, { message: "Return date is before the travel date", path: ["return_date"] });
 
 export type TravelRecordInput = z.input<typeof travelRecordInput>;
