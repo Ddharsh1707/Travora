@@ -168,7 +168,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
 
   const employeeMatch = path.match(/^\/travel\/employees\/([^/]+)$/);
   if (employeeMatch && UUID.test(employeeMatch[1])) {
-    return <EmployeeHistory key={employeeMatch[1]} employeeId={employeeMatch[1]} canManage={canManage} showBack />;
+    return <EmployeeHistory key={employeeMatch[1]} employeeId={employeeMatch[1]} canManage={canManage} canGiveLogin={MANAGERS.includes(user.role)} showBack />;
   }
   const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
   if (uploadMatch && UUID.test(uploadMatch[1])) {

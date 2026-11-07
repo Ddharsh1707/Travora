@@ -97,7 +97,7 @@ export default function EmployeeDirectory({ withExpenses = false }: { withExpens
                   <tr key={e.employee_id}>
                     <td>
                       <Link href={`/travel/employees/${e.employee_id}`} className="font-semibold hover:underline">{e.employee_name}</Link>
-                      <div className="table-subline">{e.employee_code}{e.active ? "" : " · past employee"}</div>
+                      <div className="table-subline">{e.employee_code}{e.active ? "" : " · past employee"}{showMoney && /^NEW-/i.test(e.employee_code) ? " · from upload" : ""}{showMoney && spend.get(e.employee_id) && !spend.get(e.employee_id)?.has_login ? " · no login yet" : ""}</div>
                     </td>
                     <td>{e.department ?? "—"}<div className="table-subline">{e.designation ?? ""}</div></td>
                     <td className="text-right">{e.total_trips}</td>

@@ -11,6 +11,7 @@ import { useLiveRefresh } from "../../lib/data/reports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import { RequestDecision, RequestStatusBadge } from "./RequestParts";
 import { TravelRecordDialog } from "./TravelRecordDialog";
+import { EmployeeLoginCard } from "./EmployeeLoginCard";
 import { WorkbookViewer } from "./WorkbookViewer";
 
 const CHARGE_LABEL: Record<string, string> = {
@@ -24,7 +25,7 @@ const monthLabel = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateStrin
  * it came from, money worked out the same way as the reports, claims and
  * travel requests. The URL holds an employee id, but RLS decides what shows.
  */
-export default function EmployeeHistory({ employeeId, canManage, showBack }: { employeeId: string; canManage: boolean; showBack: boolean }) {
+export default function EmployeeHistory({ employeeId, canManage, showBack, canGiveLogin = false }: { employeeId: string; canManage: boolean; showBack: boolean; canGiveLogin?: boolean }) {
   const [summary, setSummary] = useState<EmployeeSummary | null>(null);
   const [trips, setTrips] = useState<DetailedTrip[]>([]);
   const [columns, setColumns] = useState<Record<string, UploadColumns>>({});
@@ -181,6 +182,8 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
           </>
         }
       />
+
+      {canGiveLogin && <EmployeeLoginCard profileId={employeeId} />}
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Stat label="Trips" value={String(money.trips)} detail={money.firstTrip ? `${formatDate(money.firstTrip)} to ${formatDate(money.lastTrip)}` : "None yet"} />
