@@ -97,7 +97,7 @@ export function TravelRecordDialog({ record, presetEmployee, onClose, onSaved }:
               </div>
             )}
           </label>
-          <label className="field"><span>From</span><input value={form.origin} onChange={set("origin")} required maxLength={120} /></label>
+          <label className="field"><span>From</span><input value={form.origin ?? ""} onChange={set("origin")} required={!["hotel", "cab", "other"].includes(form.booking_type ?? "")} maxLength={120} /></label>
           <label className="field"><span>To</span><input value={form.destination} onChange={set("destination")} required maxLength={120} /></label>
           <label className="field"><span>Travel date</span><input type="date" value={form.departure_date} onChange={set("departure_date")} required /></label>
           <label className="field"><span>Return date</span><input type="date" value={form.return_date} onChange={set("return_date")} /></label>

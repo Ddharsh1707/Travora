@@ -15,6 +15,9 @@ export type ImportBatch = {
   imported_rows: number;
   create_missing_employees?: boolean;
   created_employees?: number;
+  format_version?: number;
+  assumed_currency?: string | null;
+  sheets?: unknown[];
   created_at: string;
   committed_at: string | null;
 };
@@ -110,3 +113,108 @@ export async function getUploadReport(id: string): Promise<UploadReport> {
   return data as UploadReport;
 }
 
+
+// ---------------------------------------------------------------------------
+// Multi-sheet workbook upload (import_stage_v2 → People → Projects → import_commit_v2)
+// ---------------------------------------------------------------------------
+export type WorkbookRow = ImportRow & {
+  sheet_name: string | null;
+  source_row: number | null;
+  name_key: string | null;
+  project_raw: string | null;
+  line_type: string | null;
+  amount_state: "recorded" | "zero" | "missing" | "included_in_group" | null;
+  record_status: string | null;
+  details: Record<string, string>;
+};
+
+export type NameReview = {
+  id: number;
+  name_key: string;
+  display_name: string;
+  raw_names: string[];
+  employee_code: string | null;
+  department: string | null;
+  row_count: number;
+  suggested_profile_id: string | null;
+  match_reason: string | null;
+  decision: "pending" | "link" | "create" | "skip";
+  profile_id: string | null;
+  suggested?: { full_name: string; employee_id: string; department: string | null } | null;
+};
+
+export type UploadProject = { alias_key: string; label: string; rows: number; amount: number; project_id: string | null; project_name: string | null; project_kind: string | null };
+export type Project = { id: string; name: string; kind: "project" | "cost_centre" | "event" | "other"; code: string | null; status: string; client: string | null };
+export type PersonOption = { id: string; full_name: string; employee_id: string; department: string | null };
+
+export async function stageWorkbook(filename: string, kind: "csv" | "xlsx", sheets: unknown[], lines: unknown[], createMissing: boolean, currency: string): Promise<string> {
+  const { data, error } = await getSupabase().rpc("import_stage_v2", {
+    p_filename: filename.slice(0, 255), p_file_kind: kind, p_sheets: sheets, p_rows: lines,
+    p_create_missing: createMissing, p_currency: currency,
+  });
+  if (error) throw friendlyError(error, "Could not check the file.");
+  return data as string;
+}
+
+export async function getWorkbookRows(id: string): Promise<WorkbookRow[]> {
+  const { data, error } = await getSupabase()
+    .from("import_rows")
+    .select("*, profile:profiles(full_name, employee_id)")
+    .eq("batch_id", id)
+    .order("row_number", { ascending: true })
+    .limit(5000);
+  if (error) throw friendlyError(error, "Could not load the preview.");
+  return (data ?? []) as WorkbookRow[];
+}
+
+export async function getNameReviews(id: string): Promise<NameReview[]> {
+  const { data, error } = await getSupabase()
+    .from("name_match_reviews")
+    .select("*, suggested:profiles!name_match_reviews_suggested_profile_id_fkey(full_name, employee_id, department)")
+    .eq("batch_id", id)
+    .order("row_count", { ascending: false })
+    .limit(5000);
+  if (error) throw friendlyError(error, "Could not load the people to review.");
+  return (data ?? []) as NameReview[];
+}
+
+export async function decideNames(id: string, decisions: Array<{ name_key: string; decision: NameReview["decision"]; profile_id?: string | null }>): Promise<void> {
+  const { error } = await getSupabase().rpc("name_match_decide", { p_batch: id, p_decisions: decisions });
+  if (error) throw friendlyError(error, "Could not save the people decisions.");
+}
+
+export async function listPeopleOptions(): Promise<PersonOption[]> {
+  const { data, error } = await getSupabase().from("profiles").select("id, full_name, employee_id, department").eq("active", true).order("full_name").limit(5000);
+  if (error) throw friendlyError(error, "Could not load employees.");
+  return (data ?? []) as PersonOption[];
+}
+
+export async function getUploadProjects(id: string): Promise<UploadProject[]> {
+  const { data, error } = await getSupabase().rpc("import_projects", { p_batch: id });
+  if (error) throw friendlyError(error, "Could not load the project names.");
+  return (data ?? []) as UploadProject[];
+}
+
+export async function listProjects(): Promise<Project[]> {
+  const { data, error } = await getSupabase().from("projects").select("id, name, kind, code, status, client").order("name").limit(2000);
+  if (error) throw friendlyError(error, "Could not load projects.");
+  return (data ?? []) as Project[];
+}
+
+export async function createProject(name: string, kind: Project["kind"]): Promise<string> {
+  const { data, error } = await getSupabase().rpc("project_create", { p_name: name.slice(0, 200), p_kind: kind, p_code: null });
+  if (error) throw friendlyError(error, "Could not create the project.");
+  return data as string;
+}
+
+export async function setProjectAlias(alias: string, projectId: string | null): Promise<number> {
+  const { data, error } = await getSupabase().rpc("project_alias_set", { p_alias: alias.slice(0, 200), p_project: projectId });
+  if (error) throw friendlyError(error, "Could not save the project mapping.");
+  return Number(data ?? 0);
+}
+
+export async function commitWorkbook(id: string, includeWarnings: boolean): Promise<ImportBatch> {
+  const { data, error } = await getSupabase().rpc("import_commit_v2", { p_batch: id, p_include_warnings: includeWarnings });
+  if (error) throw friendlyError(error, "Could not import the rows.");
+  return data as ImportBatch;
+}

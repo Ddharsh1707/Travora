@@ -90,7 +90,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
                 {rows.map((r) => (
                   <tr key={r.id}>
                     <td>{formatDate(r.departure_date)}<div className="table-subline">{labelFor(r.booking_type)}</div></td>
-                    <td>{r.origin}</td>
+                    <td>{r.origin ?? "—"}</td>
                     <td>{r.destination}</td>
                     <td>{r.airline_or_provider ?? "—"}</td>
                     <td>{r.booking_reference ?? "—"}<div className="table-subline">{r.ticket_number ?? ""}</div></td>

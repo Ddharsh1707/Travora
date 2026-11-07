@@ -17,3 +17,4 @@ for f in "$HERE"/../migrations/*.sql; do
   "${PSQL[@]}" -f "$f"
 done
 "${PSQL[@]}" -f "$HERE/rls_test.sql"
+"${PSQL[@]}" -f "$HERE/intelligence_test.sql"
