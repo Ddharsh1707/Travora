@@ -13,17 +13,18 @@
 -- still see only their own trips through the existing RLS policies.
 -- =============================================================================
 
+-- Safe to run more than once.
 alter table public.import_batches
-  add column create_missing_employees boolean not null default false,
-  add column created_employees integer not null default 0;
+  add column if not exists create_missing_employees boolean not null default false,
+  add column if not exists created_employees integer not null default 0;
 
 alter table public.import_rows
-  add column department text check (department is null or char_length(department) <= 120),
-  add column new_employee boolean not null default false;
+  add column if not exists department text check (department is null or char_length(department) <= 120),
+  add column if not exists new_employee boolean not null default false;
 
 alter table public.travel_records
-  add column import_batch_id uuid references public.import_batches (id) on delete set null;
-create index travel_records_import_batch_idx on public.travel_records (import_batch_id) where import_batch_id is not null;
+  add column if not exists import_batch_id uuid references public.import_batches (id) on delete set null;
+create index if not exists travel_records_import_batch_idx on public.travel_records (import_batch_id) where import_batch_id is not null;
 
 -- Only import_commit() may set which upload a trip came from.
 create or replace function private.guard_import_batch_link()
@@ -43,6 +44,7 @@ begin
 end;
 $$;
 
+drop trigger if exists travel_records_import_batch_guard on public.travel_records;
 create trigger travel_records_import_batch_guard
   before insert or update on public.travel_records
   for each row execute function private.guard_import_batch_link();
