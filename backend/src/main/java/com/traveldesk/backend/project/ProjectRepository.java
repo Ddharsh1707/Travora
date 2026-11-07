@@ -20,13 +20,13 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     Optional<Project> findByCompanyIdAndProjectNameIgnoreCase(Long companyId, String projectName);
 
     @Query("SELECT p FROM Project p WHERE p.company.id = :companyId " +
-           "AND (:search IS NULL OR LOWER(p.projectName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(p.projectCode) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "     OR LOWER(p.clientName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
-           "AND (:status IS NULL OR p.status = :status)")
+           "AND (cast(:searchPattern as String) IS NULL OR LOWER(p.projectName) LIKE cast(:searchPattern as String) " +
+           "     OR LOWER(p.projectCode) LIKE cast(:searchPattern as String) " +
+           "     OR LOWER(p.clientName) LIKE cast(:searchPattern as String)) " +
+           "AND (cast(:status as String) IS NULL OR p.status = :status)")
     Page<Project> searchProjects(
             @Param("companyId") Long companyId,
-            @Param("search") String search,
+            @Param("searchPattern") String searchPattern,
             @Param("status") String status,
             Pageable pageable
     );

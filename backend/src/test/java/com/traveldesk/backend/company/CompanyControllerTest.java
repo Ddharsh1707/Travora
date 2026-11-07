@@ -33,6 +33,9 @@ class CompanyControllerTest {
     private UserRepository userRepository;
 
     @Autowired
+    private com.traveldesk.backend.employee.EmployeeRepository employeeRepository;
+
+    @Autowired
     private JwtService jwtService;
 
     @Autowired
@@ -42,11 +45,17 @@ class CompanyControllerTest {
 
     @BeforeEach
     void setUp() {
-        userRepository.findByUsername("acme_admin").ifPresent(userRepository::delete);
-        userRepository.findByUsername("another_admin").ifPresent(userRepository::delete);
+        userRepository.findByUsername("acme_reg_admin").ifPresent(userRepository::delete);
+        userRepository.findByUsername("another_reg_admin").ifPresent(userRepository::delete);
         userRepository.findByUsername("tech_lead").ifPresent(userRepository::delete);
-        companyRepository.findByCodeIgnoreCase("ACME").ifPresent(companyRepository::delete);
-        companyRepository.findByCodeIgnoreCase("TECH").ifPresent(companyRepository::delete);
+        companyRepository.findByCodeIgnoreCase("ACME_REG").ifPresent(c -> {
+            employeeRepository.deleteAll(employeeRepository.findByCompanyId(c.getId()));
+            companyRepository.delete(c);
+        });
+        companyRepository.findByCodeIgnoreCase("TECH").ifPresent(c -> {
+            employeeRepository.deleteAll(employeeRepository.findByCompanyId(c.getId()));
+            companyRepository.delete(c);
+        });
     }
 
     @Test
@@ -54,9 +63,9 @@ class CompanyControllerTest {
     void shouldRegisterNewCompany() throws Exception {
         CompanyRegistrationRequest req = new CompanyRegistrationRequest();
         req.setName("Acme Corporation");
-        req.setCode("ACME");
+        req.setCode("ACME_REG");
         req.setDomain("acme.com");
-        req.setAdminUsername("acme_admin");
+        req.setAdminUsername("acme_reg_admin");
         req.setAdminPassword("Password123!");
         req.setAdminEmail("admin@acme.com");
 
@@ -66,7 +75,7 @@ class CompanyControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.name", is("Acme Corporation")))
-                .andExpect(jsonPath("$.code", is("ACME")))
+                .andExpect(jsonPath("$.code", is("ACME_REG")))
                 .andExpect(jsonPath("$.domain", is("acme.com")))
                 .andExpect(jsonPath("$.active", is(true)));
     }
@@ -74,14 +83,14 @@ class CompanyControllerTest {
     @Test
     @DisplayName("SaaS Onboarding: Duplicate company code returns 409 Conflict")
     void shouldRejectDuplicateCompanyCode() throws Exception {
-        Company existing = new Company("Existing Corp", "ACME", "existing.com");
+        Company existing = new Company("Existing Corp", "ACME_REG", "existing.com");
         companyRepository.save(existing);
 
         CompanyRegistrationRequest req = new CompanyRegistrationRequest();
         req.setName("Another Acme Corp");
-        req.setCode("acme");
+        req.setCode("acme_reg");
         req.setDomain("anotheracme.com");
-        req.setAdminUsername("another_admin");
+        req.setAdminUsername("another_reg_admin");
         req.setAdminPassword("Password123!");
 
         mockMvc.perform(post("/api/companies/register")

@@ -80,6 +80,8 @@ import { UserManagement } from "./pages/UserManagement";
 import { ActivateAccount } from "./pages/ActivateAccount";
 import { ExcelImport } from "./pages/ExcelImport";
 import { TravelSpendReports } from "./pages/TravelSpendReports";
+import { AIAssistant } from "./pages/AIAssistant";
+import { TrappleAIFloatingChat } from "./components/TrappleAIFloatingChat";
 import { LandingPage } from "./pages/LandingPage";
 import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
 import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
@@ -262,6 +264,10 @@ const pageMeta: Record<string, { eyebrow: string; title: string; description?: s
   "/travel-desk/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
   "/approver/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
   "/admin/spend-reports": { eyebrow: "Spend Intelligence", title: "Travel Spend Reports", description: "Company-wide travel expenditure, employee travel frequency, and historical budget intelligence." },
+  "/employee/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Role-aware corporate travel intelligence, policy guidance, and personal travel assistant." },
+  "/approver/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Department spend intelligence, approval queue queries, and budget analytics." },
+  "/travel-desk/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Operations intelligence, route analytics, vendor breakdown, and audit assistant." },
+  "/admin/ai-assistant": { eyebrow: "Enterprise AI", title: "Trapple AI Assistant", description: "Executive travel spend intelligence, anomaly detection, and organization analytics." },
 };
 
 type NavCategory = {
@@ -576,6 +582,15 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         </button>
         <button
           type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-trapple-ai"))}
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all font-medium"
+          title="Open Trapple AI Assistant"
+        >
+          <Sparkles size={13} className="text-emerald-500" />
+          <span>Ask AI</span>
+        </button>
+        <button
+          type="button"
           className="sync-live-button"
           onClick={handleSyncClick}
           title="Click to sync latest data across all devices"
@@ -690,6 +705,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
           </AnimatePresence>
         </main>
       </div>
+      <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
     </div>
   );
 }
@@ -7384,6 +7400,7 @@ function AppRouter() {
     "/admin/reports",
     "/admin/spend-reports",
     "/admin/settings",
+    "/admin/ai-assistant",
   ];
   const allowedPaths: Record<Role, string[]> = {
     EMPLOYEE: [
@@ -7395,6 +7412,7 @@ function AppRouter() {
       "/employee/profile",
       "/employee/reports",
       "/employee/support",
+      "/employee/ai-assistant",
     ],
     APPROVER: [
       "/approver",
@@ -7405,6 +7423,7 @@ function AppRouter() {
       "/approver/spend-reports",
       "/employee/reports",
       "/employee/support",
+      "/approver/ai-assistant",
     ],
     TRAVEL_DESK: [
       "/travel-desk",
@@ -7416,6 +7435,7 @@ function AppRouter() {
       "/travel-desk/reports",
       "/travel-desk/spend-reports",
       "/employee/reports",
+      "/travel-desk/ai-assistant",
     ],
     ADMIN: adminPaths,
     COMPANY_ADMIN: adminPaths,
@@ -7517,6 +7537,7 @@ function AppRouter() {
   else if (path === "/employee/expenses") page = <ExpensesPage />;
   else if (path === "/employee/profile") page = <ProfilePage user={user} />;
   else if (path === "/employee/approvals") page = <Approvals history />;
+  else if (path === "/employee/ai-assistant" || path === "/approver/ai-assistant" || path === "/travel-desk/ai-assistant" || path === "/admin/ai-assistant") page = <AIAssistant user={user} />;
   else if (path === "/travel-desk/spend-reports" || path === "/approver/spend-reports" || path === "/admin/spend-reports") page = <TravelSpendReports user={user} />;
   else if (path === "/employee/reports" || path === "/approver/reports" || path === "/travel-desk/reports") page = <Reports />;
   else if (path === "/employee/support") page = <Support />;

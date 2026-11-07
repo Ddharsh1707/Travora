@@ -116,7 +116,7 @@ public class DerivedJourney {
     public LocalDate getEndDate() { return endDate; }
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
-    public int getTotalLegs() { return totalLegs != null ? totalLegs : 1; }
+    public Integer getTotalLegs() { return totalLegs != null ? totalLegs : 1; }
     public void setTotalLegs(Integer totalLegs) { this.totalLegs = totalLegs != null ? totalLegs : 1; }
 
     public BigDecimal getGrossSpend() { return grossSpend; }

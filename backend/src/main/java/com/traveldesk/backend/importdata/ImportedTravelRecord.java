@@ -193,7 +193,8 @@ public class ImportedTravelRecord {
     public DerivedJourney getJourney() { return journey; }
     public void setJourney(DerivedJourney journey) { this.journey = journey; }
 
-    public boolean isCreditNote() { return Boolean.TRUE.equals(isCreditNote); }
+    public Boolean isCreditNote() { return Boolean.TRUE.equals(isCreditNote); }
+    public Boolean getIsCreditNote() { return Boolean.TRUE.equals(isCreditNote); }
     public void setCreditNote(Boolean creditNote) {
         this.isCreditNote = creditNote != null ? creditNote : false;
         if (this.cost != null) {
@@ -207,10 +208,11 @@ public class ImportedTravelRecord {
     public BigDecimal getNetCost() { return netCost; }
     public void setNetCost(BigDecimal netCost) { this.netCost = netCost; }
 
-    public boolean isZeroFareTransit() { return Boolean.TRUE.equals(isZeroFareTransit); }
+    public Boolean isZeroFareTransit() { return Boolean.TRUE.equals(isZeroFareTransit); }
+    public Boolean getIsZeroFareTransit() { return Boolean.TRUE.equals(isZeroFareTransit); }
     public void setZeroFareTransit(Boolean zeroFareTransit) { this.isZeroFareTransit = zeroFareTransit != null ? zeroFareTransit : false; }
 
-    public int getLegSequence() { return legSequence != null ? legSequence : 1; }
+    public Integer getLegSequence() { return legSequence != null ? legSequence : 1; }
     public void setLegSequence(Integer legSequence) { this.legSequence = legSequence != null ? legSequence : 1; }
 
     public String getTravelCategory() { return travelCategory; }
@@ -243,13 +245,14 @@ public class ImportedTravelRecord {
     public String getValidationErrors() { return validationErrors; }
     public void setValidationErrors(String validationErrors) { this.validationErrors = validationErrors; }
 
-    public int getSourceRowNumber() { return sourceRowNumber != null ? sourceRowNumber : 1; }
+    public Integer getSourceRowNumber() { return sourceRowNumber != null ? sourceRowNumber : 1; }
     public void setSourceRowNumber(Integer sourceRowNumber) { this.sourceRowNumber = sourceRowNumber != null ? sourceRowNumber : 1; }
 
     public String getRawRowData() { return rawRowData; }
     public void setRawRowData(String rawRowData) { this.rawRowData = rawRowData; }
 
-    public boolean isImported() { return Boolean.TRUE.equals(imported); }
+    public Boolean isImported() { return Boolean.TRUE.equals(imported); }
+    public Boolean getImported() { return Boolean.TRUE.equals(imported); }
     public void setImported(Boolean imported) { this.imported = imported != null ? imported : false; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }

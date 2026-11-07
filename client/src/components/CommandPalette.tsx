@@ -132,6 +132,18 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
             >
               <Command.Item
                 onSelect={() => {
+                  window.dispatchEvent(new CustomEvent("open-trapple-ai"));
+                  onOpenChange(false);
+                }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#101828] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+              >
+                <Sparkles size={16} className="text-[#14B8A6]" />
+                <span>Ask Trapple AI Assistant</span>
+                <span className="ml-auto text-xs text-[#94A3B8]">AI Chat</span>
+              </Command.Item>
+
+              <Command.Item
+                onSelect={() => {
                   toggleTheme();
                   onOpenChange(false);
                 }}

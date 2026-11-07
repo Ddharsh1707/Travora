@@ -41,7 +41,7 @@ public class Booking {
 
     private LocalDateTime bookedAt = LocalDateTime.now();
 
-    private boolean cancelled = false;
+    private Boolean cancelled = false;
 
     private String cancellationReason;
 
@@ -127,12 +127,16 @@ public class Booking {
         this.bookedAt = bookedAt;
     }
 
-    public boolean isCancelled() {
-        return cancelled;
+    public Boolean isCancelled() {
+        return Boolean.TRUE.equals(cancelled);
     }
 
-    public void setCancelled(boolean cancelled) {
-        this.cancelled = cancelled;
+    public Boolean getCancelled() {
+        return Boolean.TRUE.equals(cancelled);
+    }
+
+    public void setCancelled(Boolean cancelled) {
+        this.cancelled = cancelled != null ? cancelled : false;
     }
 
     public String getCancellationReason() {

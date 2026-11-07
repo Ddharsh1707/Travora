@@ -45,7 +45,7 @@ public class BulkBooking {
     private String groupReference;
 
     @Column(nullable = false)
-    private int headcount = 1;
+    private Integer headcount = 1;
 
     @Column(nullable = false)
     private BigDecimal totalCost;
@@ -174,12 +174,12 @@ public class BulkBooking {
         this.groupReference = groupReference;
     }
 
-    public int getHeadcount() {
-        return headcount;
+    public Integer getHeadcount() {
+        return headcount != null ? headcount : 1;
     }
 
-    public void setHeadcount(int headcount) {
-        this.headcount = headcount;
+    public void setHeadcount(Integer headcount) {
+        this.headcount = headcount != null ? headcount : 1;
     }
 
     public BigDecimal getTotalCost() {

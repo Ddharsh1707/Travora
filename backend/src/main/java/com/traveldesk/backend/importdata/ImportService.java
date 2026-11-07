@@ -454,8 +454,9 @@ public class ImportService {
             Pageable pageable
     ) {
         Long companyId = getRequiredCompanyId(currentUser);
+        String searchPattern = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
         Page<ImportedTravelRecord> page = recordRepository.searchTravelHistoryFiltered(
-                companyId, employeeId, fromDate, toDate, search, pageable
+                companyId, employeeId, fromDate, toDate, searchPattern, pageable
         );
         return page.map(ImportedRecordResponse::from);
     }
@@ -468,7 +469,8 @@ public class ImportService {
             String search
     ) {
         Long companyId = getRequiredCompanyId(currentUser);
-        List<ImportedTravelRecord> records = recordRepository.findForExport(companyId, employeeId, fromDate, toDate, search);
+        String searchPattern = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
+        List<ImportedTravelRecord> records = recordRepository.findForExport(companyId, employeeId, fromDate, toDate, searchPattern);
 
         StringBuilder sb = new StringBuilder();
         sb.append("Employee ID,Employee Name,Travel Date,Return Date,From,To,Ticket Reference,Department,Travel Mode,Category,Provider,Gross Cost (INR),Net Cost (INR),Credit Note,Project,Status\r\n");

@@ -25,6 +25,37 @@ const STEPS: Array<{ key: Step; label: string }> = [
   { key: "projects", label: "Projects" },
   { key: "done", label: "Imported" },
 ];
+type Parsed = { name: string; kind: "csv" | "xlsx"; headers: string[]; rows: CellValue[][] };
+type Step = "upload" | "map" | "preview" | "done";
+
+async function parseFile(file: File, kind: "csv" | "xlsx"): Promise<{ headers: string[]; rows: CellValue[][] }> {
+  let all: CellValue[][];
+  const XLSX = await import("xlsx");
+  if (kind === "xlsx") {
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    all = XLSX.utils.sheet_to_json(ws, { header: 1 }) as CellValue[][];
+  } else {
+    const text = await file.text();
+    const wb = XLSX.read(text, { type: "string" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    all = XLSX.utils.sheet_to_json(ws, { header: 1 }) as CellValue[][];
+  }
+  const nonBlank = all.filter((r) => Array.isArray(r) && !isBlankRow(r));
+  if (nonBlank.length < 2) throw new Error("The file needs a header row and at least one data row.");
+  // Header = first row; make names unique so two "Date" columns stay separate.
+  const seen = new Map<string, number>();
+  const headers = nonBlank[0].map((h, i) => {
+    const base = cellToText(h, 80) || `Column ${i + 1}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return n > 1 ? `${base} (${n})` : base;
+  });
+  const rows = nonBlank.slice(1);
+  if (rows.length > MAX_ROWS) throw new Error(`The file has ${rows.length} rows. Import at most ${MAX_ROWS} at a time.`);
+  return { headers, rows };
+}
 
 const KIND_LABEL: Record<string, string> = { flight: "Air tickets", train: "Train", bus: "Bus / train", cab: "Cab", hotel: "Hotel", visa: "Visa", forex: "Forex", other: "Other" };
 const ROW_TONE: Record<WorkbookRow["status"], string> = { valid: "approved", warning: "pending-approval", error: "rejected", duplicate: "cancelled", imported: "booked", skipped: "completed" };
