@@ -288,5 +288,33 @@ select ti.ok((select jsonb_array_length(public.location_search('SLO')) > 0 and p
 reset role;
 select ti.ok((select count(*) from public.audit_logs where action = 'location_alias_set') = 1, 'places: linking is audited');
 
+-- Period reports
+set local role authenticated;
+select ti.login('30000000-0000-0000-0000-0000000000e1');
+select ti.throws($$select public.bi_report()$$, 'reports: employees refused');
+select ti.login('30000000-0000-0000-0000-0000000000b1');
+select ti.ok((select (public.bi_report('{}', 'month')->'totals'->>'travellers')::int) = 1, 'reports: approver sees only their team');
+select ti.login('30000000-0000-0000-0000-0000000000a1');
+create temp table rep as select public.bi_report('{}', 'week') as j;
+grant select on rep to authenticated;
+select ti.ok((select bool_and(extract(isodow from (x->>'period')::date) = 1) from rep, jsonb_array_elements(j->'periods') x), 'reports: weeks start on Monday');
+select ti.ok((select (j->'totals'->>'spend')::numeric from rep) = (select (public.bi_overview()->'kpis'->>'spend')::numeric), 'reports: spend matches the overview');
+select ti.ok((select sum((x->>'spend')::numeric) from rep, jsonb_array_elements(j->'periods') x) = (select (j->'totals'->>'spend')::numeric from rep), 'reports: periods add up to the total');
+select ti.ok((select bool_and(s = (select (j->'totals'->>'spend')::numeric from rep)) from (
+    select sum((x->>'spend')::numeric) s from rep, jsonb_array_elements(j->'breakdown') x group by x->>'dimension') d)
+  and (select count(distinct x->>'dimension') from rep, jsonb_array_elements(j->'breakdown') x) = 4,
+  'reports: project, department, type and employee breakdowns each add up to the total');
+select ti.ok((select bool_and(s = (select (j->'totals'->>'spend')::numeric from rep)) from (
+    select sum((x->>'spend')::numeric) s from rep, jsonb_array_elements(j->'dimensions') x group by x->>'dimension') d)
+  and (select sum((x->>'travellers')::int) from rep, jsonb_array_elements(j->'dimensions') x where x->>'dimension' = 'employee') = (select (j->'totals'->>'travellers')::int from rep),
+  'reports: whole-range totals add up and count each traveller once');
+select ti.ok((select (j->'totals'->>'missing_cost')::int from rep) = 1, 'reports: blank costs counted, not treated as zero');
+select ti.ok((select array_agg(x->>'period' order by x->>'period') from (select public.bi_report('{}', 'fy') j) r, jsonb_array_elements(j->'periods') x) = array['FY 2026-27'],
+  'reports: financial-year grain');
+select public.record_report_generated('period_report');
+select ti.throws($$select public.record_report_generated('made_up_report')$$, 'reports: unknown report names refused');
+reset role;
+select ti.ok((select count(*) from public.audit_logs where action = 'report_generated' and entity_id = 'period_report') = 1, 'reports: downloads are audited');
+
 \echo 'ALL TRAVEL INTELLIGENCE TESTS PASSED'
 rollback;

@@ -291,3 +291,27 @@ export function countryName(code: string): string {
     return code;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Part 4: period reports for download
+// ---------------------------------------------------------------------------
+export type ReportGrain = "week" | "month" | "quarter" | "fy";
+export type ReportDimension = "project" | "department" | "category" | "employee";
+export type BiReport = {
+  base_currency: string;
+  grain: ReportGrain;
+  viewer_role: string | null;
+  generated_at: string;
+  totals: {
+    bookings: number; travellers: number; spend: number; costed: number; missing_cost: number; shared_cost: number;
+    zero_cost: number; cancelled: number; cancelled_cost: number; unassigned: number; first_date: string | null; last_date: string | null;
+  };
+  other_currencies: OtherCurrency[];
+  periods: { period: string; first_date: string; last_date: string; bookings: number; travellers: number; spend: number | null; cancelled_cost: number | null; costed: number; without_cost: number; cancelled: number }[];
+  breakdown: { dimension: ReportDimension; period: string; key: string; label: string; bookings: number; travellers: number; spend: number | null; without_cost: number }[];
+  dimensions: { dimension: ReportDimension; key: string; label: string; bookings: number; travellers: number; spend: number | null; without_cost: number; cancelled: number }[];
+  routes: { origin: string; destination: string; bookings: number; travellers: number; spend: number | null; avg_cost: number | null }[];
+  period_routes: { period: string; origin: string; destination: string; bookings: number; spend: number | null; rank: number }[];
+  completeness: { source: string; category: string; bookings: number; with_cost: number; shared: number; missing: number; cancelled: number; unassigned: number }[];
+};
+export const getReport = (f: BiFilters, grain: ReportGrain) => call<BiReport>("bi_report", { p_filters: cleanFilters(f), p_grain: grain }, "Could not build the report.");
