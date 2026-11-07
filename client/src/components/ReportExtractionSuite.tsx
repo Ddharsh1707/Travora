@@ -460,7 +460,7 @@ export function ReportExtractionSuite({
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
-                border-bottom: 2px solid #0d9488;
+                border-bottom: 2px solid #D9761A;
                 padding-bottom: 16px;
                 margin-bottom: 20px;
               }
@@ -474,7 +474,7 @@ export function ReportExtractionSuite({
               .logo-title p {
                 margin: 4px 0 0;
                 font-size: 12px;
-                color: #0d9488;
+                color: #D9761A;
                 font-weight: 600;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
@@ -516,7 +516,7 @@ export function ReportExtractionSuite({
               }
               .kpi-card span {
                 font-size: 11px;
-                color: #0d9488;
+                color: #D9761A;
                 font-weight: 600;
               }
               table {
@@ -568,14 +568,14 @@ export function ReportExtractionSuite({
                 <div>Report Reference: <strong>${reportId}</strong></div>
                 <div>Extraction Date: <strong>${reportDate}</strong></div>
                 <div>Extracted By: <strong>${escapeHtml(getUserDisplayName(currentUser))} (${escapeHtml(currentUser?.role || "PORTAL")})</strong></div>
-                <div>Classification: <strong style="color: #0d9488;">CONFIDENTIAL / CORPORATE AUDIT</strong></div>
+                <div>Classification: <strong style="color: #D9761A;">CONFIDENTIAL / CORPORATE AUDIT</strong></div>
               </div>
             </div>
 
             <div class="kpi-grid">
-              <div class="kpi-card" style="border-left: 4px solid #0d9488;">
+              <div class="kpi-card" style="border-left: 4px solid #D9761A;">
                 <small>Total Travel Spend</small>
-                <strong style="color: #0d9488;">${formatINR(analytics.totalSpend)}</strong>
+                <strong style="color: #D9761A;">${formatINR(analytics.totalSpend)}</strong>
                 <span>${analytics.bookedCount} Confirmed Bookings</span>
               </div>
               <div class="kpi-card" style="border-left: 4px solid #0284c7;">
@@ -696,12 +696,12 @@ export function ReportExtractionSuite({
         <div>
           <div className="flex items-center gap-2">
             <span className="card-kicker">FINANCIAL & OPERATIONS INTELLIGENCE</span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] border border-[#14B8A6]/20">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] border border-[#F28C28]/20">
               <ShieldCheck size={12} /> Audit Verified
             </span>
           </div>
           <h2 className="section-heading text-xl md:text-2xl mt-1 flex items-center gap-2">
-            <TrendingUp size={22} className="text-[#14B8A6]" /> Overall Bookings Cost & Travel Extraction
+            <TrendingUp size={22} className="text-[#F28C28]" /> Overall Bookings Cost & Travel Extraction
           </h2>
           <p className="text-xs text-[#667085] dark:text-[#94A3B8] mt-0.5 max-w-2xl">
             Extract complete cost breakdowns, employee manifests, and ticket PNRs across Mahathi Infra corporate travel operations in ready-to-use Excel or PDF formats.
@@ -826,7 +826,7 @@ export function ReportExtractionSuite({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search employee, PNR, project or destination..."
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#14B8A6]"
+            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#F28C28]"
           />
         </div>
 
@@ -955,7 +955,7 @@ export function ReportExtractionSuite({
       {filteredRecords.length > 15 && (
         <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
           <span>Showing first 15 of {filteredRecords.length} records in preview.</span>
-          <span className="font-medium text-[#14B8A6]">
+          <span className="font-medium text-[#F28C28]">
             Export to Excel or PDF to extract complete archive ({filteredRecords.length} records).
           </span>
         </div>

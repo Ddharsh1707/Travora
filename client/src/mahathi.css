@@ -1,0 +1,478 @@
+/* ==========================================================================
+   MAHATHI DESIGN LAYER
+   Loaded after index.css (see main.tsx) so it wins over the older theme
+   files. Brings the Mahathi Infra Services look to the whole app:
+   navy #10243A, royal blue #1D4E89, orange #F28C28, Manrope headings,
+   Inter body text, sharp corners, uppercase tracked labels and a blueprint
+   grid on dark surfaces.
+   ========================================================================== */
+
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-heading: "Manrope", "Inter", system-ui, sans-serif;
+  --font-display: "Manrope", "Inter", system-ui, sans-serif;
+
+  --navy: #10243A;
+  --navy-950: #0A1726;
+  --navy-800: #163050;
+  --navy-soft: #163050;
+  --royal: #1D4E89;
+  --orange: #F28C28;
+  --orange-soft: #F6A85A;
+  --mist: #F4F6F8;
+  --charcoal: #252B33;
+
+  --ink: #10243A;
+  --ink-soft: #5B6676;
+  --paper: #F4F6F8;
+  --line: #E1E6EC;
+  --line-strong: #C7D0DA;
+  --saffron: #F28C28;
+  --saffron-hover: #D9761A;
+  --saffron-soft: rgba(242, 140, 40, 0.12);
+  --saffron-glow: rgba(242, 140, 40, 0.3);
+  --blue: #1D4E89;
+  --blue-soft: #EAF0F8;
+  --navy-gradient: linear-gradient(135deg, #0A1726 0%, #10243A 60%, #163050 100%);
+
+  --radius: 4px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-sm: 0 1px 2px rgba(16, 36, 58, 0.05);
+  --shadow-md: 0 10px 30px -12px rgba(16, 36, 58, 0.18);
+  --shadow-lg: 0 20px 50px -20px rgba(16, 36, 58, 0.3);
+
+  --blueprint:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
+.dark {
+  --paper: #0A1726;
+  --surface: #10243A;
+  --surface-card: #10243A;
+  --surface-soft: #132B45;
+  --surface-muted: #163050;
+  --surface-input: #0D1E31;
+  --surface-hover: #183556;
+  --line: #1F3A5A;
+  --line-strong: #2B4B70;
+  --ink: #F4F6F8;
+  --ink-soft: #A9B6C6;
+  --ink-muted: #7688A0;
+  --navy: #071220;
+  --navy-soft: #10243A;
+  --saffron: #F28C28;
+  --saffron-hover: #F6A85A;
+  --saffron-soft: rgba(242, 140, 40, 0.16);
+  --blue: #7FA6DA;
+  --blue-soft: rgba(127, 166, 218, 0.14);
+  --glass-bg: rgba(16, 36, 58, 0.92);
+  --glass-border: rgba(31, 58, 90, 0.95);
+}
+
+/* ---------- Type ---------- */
+body {
+  font-family: var(--font-sans) !important;
+  letter-spacing: 0 !important;
+  color: var(--ink);
+}
+h1, h2, h3, h4, .section-heading, .brand-name, .stat-value, .button {
+  font-family: var(--font-heading) !important;
+}
+h1 { font-weight: 800 !important; letter-spacing: -0.03em !important; }
+h2 { font-weight: 700 !important; letter-spacing: -0.02em !important; }
+.stat-value { font-weight: 800 !important; letter-spacing: -0.03em !important; }
+
+::selection { background: #F28C28; color: #10243A; }
+:focus-visible { outline: 2px solid #F28C28; outline-offset: 2px; }
+
+/* Eyebrows: royal text with a short orange rule, like the Mahathi site. */
+.eyebrow, .card-kicker {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-heading) !important;
+  color: var(--royal) !important;
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.2em !important;
+}
+.eyebrow::before {
+  content: "";
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #F28C28;
+  flex: 0 0 auto;
+}
+.dark .eyebrow, .dark .card-kicker { color: #F6A85A !important; }
+.card-kicker svg { color: #F28C28; }
+
+/* ---------- Brand lockup ---------- */
+.brand-lockup { gap: 10px !important; align-items: center; color: #fff; }
+.brand-mark {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 3px;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #FFFFFF !important;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1; }
+.brand-name {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.14em !important;
+  color: #FFFFFF;
+}
+.brand-sub {
+  margin-top: 4px;
+  font-family: var(--font-heading);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.brand-dark .brand-mark, .auth-brand .brand-mark { color: #10243A !important; }
+.brand-dark .brand-name, .auth-brand .brand-name { color: #10243A !important; }
+.brand-dark .brand-sub, .auth-brand .brand-sub { color: rgba(16, 36, 58, 0.6); }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  background-color: #10243A !important;
+  background-image: var(--blueprint) !important;
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+.dark .sidebar { background-color: #071220 !important; }
+.workspace-switcher {
+  border-radius: 2px !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.workspace-avatar {
+  border-radius: 0 !important;
+  background: #F28C28 !important;
+  color: #10243A !important;
+}
+.nav-section-label, .nav-label, .sidebar-section-label {
+  font-family: var(--font-heading) !important;
+  letter-spacing: 0.22em !important;
+}
+.nav-item {
+  border-radius: 0 !important;
+  color: rgba(255, 255, 255, 0.68) !important;
+  font-weight: 500 !important;
+}
+.nav-item:hover { color: #fff !important; background: rgba(255, 255, 255, 0.05) !important; }
+.nav-item.active {
+  color: #FFFFFF !important;
+  background: linear-gradient(90deg, rgba(242, 140, 40, 0.16), rgba(242, 140, 40, 0.02)) !important;
+  border: 1px solid transparent !important;
+  font-weight: 700 !important;
+}
+.nav-active-pill {
+  border-radius: 0 !important;
+  background: linear-gradient(90deg, rgba(242, 140, 40, 0.18), rgba(242, 140, 40, 0.02)) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.nav-active-pill::before {
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 3px !important;
+  border-radius: 0 !important;
+  background: #F28C28 !important;
+  box-shadow: none !important;
+}
+.nav-item.active svg:first-child { color: #F28C28 !important; }
+.sidebar-profile, .role-account {
+  border-radius: 2px !important;
+}
+.role-account {
+  background: rgba(242, 140, 40, 0.1) !important;
+  border: 1px solid rgba(242, 140, 40, 0.25) !important;
+  color: #F6A85A !important;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 9.5px !important;
+}
+
+/* ---------- Top bar ---------- */
+.topbar {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+.dark .topbar { background: rgba(10, 23, 38, 0.9) !important; border-bottom-color: var(--line) !important; }
+.breadcrumb strong { font-family: var(--font-heading) !important; font-weight: 800 !important; }
+.icon-button, .topbar-user, .search-trigger, .command-trigger { border-radius: 2px !important; }
+.avatar {
+  border-radius: 0 !important;
+  background: #10243A !important;
+  color: #F28C28 !important;
+  box-shadow: inset 0 -2px 0 #F28C28 !important;
+}
+.dark .avatar { background: #163050 !important; }
+
+/* ---------- Surfaces ---------- */
+.panel, .stat-card, .upcoming-card, .aside-card, .form-panel, .login-card, .confirm-dialog, .journey-drawer, .settings-card {
+  border-radius: 4px !important;
+  border-color: var(--line) !important;
+}
+.panel:hover, .stat-card:hover, .upcoming-card:hover {
+  border-color: var(--line-strong) !important;
+}
+.stat-card { position: relative; }
+.stat-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 3px;
+  width: 0;
+  background: #F28C28;
+  transition: width 0.6s var(--ease);
+}
+.stat-card:hover::after { width: 100%; }
+.stat-icon { border-radius: 0 !important; color: #F28C28 !important; }
+
+.ops-hero, .admin-hero, .welcome-card {
+  border-radius: 4px !important;
+  background-color: #10243A !important;
+  background-image: var(--blueprint) !important;
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px !important;
+}
+
+/* ---------- Buttons ---------- */
+.button {
+  border-radius: 0 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+}
+.button-primary {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #F28C28 !important;
+  color: #10243A !important;
+  border: 1px solid #F28C28 !important;
+  box-shadow: none !important;
+}
+.button-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #10243A;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.5s var(--ease);
+}
+.button-primary:hover:not(:disabled) {
+  background: #F28C28 !important;
+  color: #FFFFFF !important;
+  border-color: #10243A !important;
+  transform: none !important;
+}
+.button-primary:hover:not(:disabled)::before { transform: scaleY(1); }
+.dark .button-primary::before { background: #FFFFFF; }
+.dark .button-primary:hover:not(:disabled) { color: #10243A !important; border-color: #FFFFFF !important; }
+.button-ghost {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-strong) !important;
+}
+.button-ghost:hover:not(:disabled) {
+  border-color: #10243A !important;
+  transform: none !important;
+}
+.dark .button-ghost:hover:not(:disabled) { border-color: #F28C28 !important; }
+.button-danger { border-radius: 0 !important; }
+
+/* Inputs */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select, textarea, .search-field, .field input, .field select {
+  border-radius: 2px !important;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline-color: #F28C28; }
+
+/* Badges and chips keep their colours; just square them a little. */
+.preview-chip, .data-note { border-radius: 2px !important; }
+.preview-chip svg, .data-note svg { color: #F28C28 !important; }
+
+/* Tables */
+table thead th {
+  font-family: var(--font-heading) !important;
+  letter-spacing: 0.14em !important;
+}
+
+/* Dialogs from the shadcn kit */
+[role="dialog"] { border-radius: 4px; }
+
+/* ==========================================================================
+   SIGN-IN PAGE: navy blueprint story panel on the left, form on the right.
+   ========================================================================== */
+.auth-page {
+  --auth-teal: #D9761A;
+  --auth-teal-2: #F28C28;
+  --auth-route: rgba(255, 255, 255, 0.07);
+  background:
+    linear-gradient(90deg, #10243A 0, #10243A 56%, var(--paper) 56%) !important;
+  position: relative;
+}
+.auth-page::before {
+  content: "";
+  position: absolute;
+  inset: 0 44% 0 0;
+  background-image: var(--blueprint);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+  pointer-events: none;
+}
+.dark .auth-page { background: linear-gradient(90deg, #071220 0, #071220 56%, #0A1726 56%) !important; }
+.auth-glow, .auth-grid { display: none !important; }
+.auth-backdrop { inset: 0 44% 0 0 !important; }
+.auth-route-live { stroke: #F28C28 !important; stroke-opacity: 0.45 !important; }
+.auth-route-dot { fill: #F28C28 !important; filter: none !important; }
+
+.auth-header, .auth-layout, .auth-footer { position: relative; z-index: 1; }
+.auth-brand .brand-mark { color: #FFFFFF !important; }
+.auth-brand .brand-name { color: #FFFFFF !important; }
+.auth-brand .brand-sub { color: rgba(255, 255, 255, 0.6) !important; }
+.auth-brand-org { color: rgba(255, 255, 255, 0.65) !important; border-left-color: rgba(255, 255, 255, 0.2) !important; }
+
+.auth-chip-button, .auth-icon-button { border-radius: 0 !important; }
+
+.auth-kicker {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-family: var(--font-heading);
+  letter-spacing: 0.22em !important;
+  gap: 12px !important;
+}
+.auth-kicker::before { content: ""; width: 32px; height: 2px; background: #F28C28; }
+.auth-page .auth-story h1 {
+  color: #FFFFFF !important;
+  text-transform: uppercase;
+  font-family: var(--font-display) !important;
+  font-size: clamp(40px, 5.6vw, 84px) !important;
+  line-height: 0.95 !important;
+  letter-spacing: -0.035em !important;
+}
+.auth-gradient-text {
+  background: none !important;
+  -webkit-text-fill-color: #F28C28 !important;
+  color: #F28C28 !important;
+  animation: none !important;
+}
+.auth-page .auth-story p { color: rgba(255, 255, 255, 0.72) !important; }
+.auth-trust li {
+  border-radius: 0 !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 10.5px !important;
+}
+.auth-trust li svg { color: #F28C28; }
+.auth-boarding {
+  border-radius: 0 !important;
+  background: rgba(10, 23, 38, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: none !important;
+  color: #FFFFFF !important;
+  backdrop-filter: blur(6px);
+}
+.auth-boarding span, .auth-boarding small { color: rgba(255, 255, 255, 0.6) !important; }
+.auth-boarding strong { color: #FFFFFF !important; font-family: var(--font-display) !important; }
+.auth-boarding-plane { background: transparent !important; color: #F28C28 !important; }
+.auth-boarding-status { color: #F6A85A !important; border-top-color: rgba(255, 255, 255, 0.14) !important; }
+
+.auth-card {
+  border-radius: 0 !important;
+  background: var(--surface, #fff) !important;
+  border: 1px solid var(--line) !important;
+  border-top: 3px solid #F28C28 !important;
+  box-shadow: 0 30px 60px -30px rgba(16, 36, 58, 0.45) !important;
+}
+.auth-card::before { display: none !important; }
+.auth-page .auth-card h2 {
+  font-family: var(--font-display) !important;
+  text-transform: uppercase;
+  letter-spacing: -0.01em !important;
+}
+.auth-input, .auth-tabs, .auth-tab-pill, .auth-error, .auth-success { border-radius: 0 !important; }
+.auth-input:focus-within { border-color: #F28C28 !important; box-shadow: 0 0 0 3px rgba(242, 140, 40, 0.18) !important; }
+.auth-link { color: #1D4E89 !important; }
+.dark .auth-link { color: #F6A85A !important; }
+.auth-submit {
+  border-radius: 0 !important;
+  background: #F28C28 !important;
+  color: #10243A !important;
+  box-shadow: none !important;
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 13px !important;
+  isolation: isolate;
+}
+.auth-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: #10243A;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.5s var(--ease);
+}
+.auth-submit:hover:not(:disabled) { color: #FFFFFF !important; }
+.auth-submit:hover:not(:disabled)::before { transform: scaleY(1); }
+.auth-footer { color: var(--ink-soft); }
+.auth-footer span:first-child { color: rgba(255, 255, 255, 0.6); }
+.auth-check-icon { border-radius: 0 !important; background: #F28C28 !important; color: #10243A !important; }
+
+@media (max-width: 900px) {
+  .auth-page { background: #10243A !important; }
+  .auth-page::before, .auth-backdrop { inset: 0 !important; }
+  .auth-footer, .auth-footer span:first-child { color: rgba(255, 255, 255, 0.6) !important; }
+  .auth-chip-button, .auth-icon-button { color: #fff !important; border-color: rgba(255, 255, 255, 0.25) !important; background: transparent !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button-primary::before, .auth-submit::before, .stat-card::after { transition: none !important; }
+}
+
+/* Landing page motion */
+@keyframes landing-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes landing-scrollcue { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+.landing-marquee { animation: landing-marquee 38s linear infinite; }
+.landing-scrollcue { animation: landing-scrollcue 2.2s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+.landing-mahathi h1, .landing-mahathi h2, .landing-mahathi h3 { font-family: var(--font-display) !important; }
+.landing-mahathi h1 { font-size: clamp(2.75rem, 6.6vw, 6.5rem) !important; line-height: 0.95 !important; letter-spacing: -0.035em !important; }
+.landing-mahathi h2 { font-size: clamp(2.25rem, 5vw, 4.5rem) !important; line-height: 1 !important; letter-spacing: -0.03em !important; font-weight: 800 !important; }
+.landing-mahathi h3 { font-weight: 800 !important; }
+.landing-mahathi article h3 { font-size: 1.5rem !important; line-height: 1.15 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .landing-marquee, .landing-scrollcue { animation: none; }
+}
+/* Let the landing page's Tailwind colour classes win over the app-wide heading colour. */
+.landing-mahathi :is(h1, h2, h3, h4) { color: revert-layer !important; }
+.dark .recharts-rectangle[fill="#1D4E89"] { fill: #7FA6DA; }
+/* Phones: show only the current page in the top bar breadcrumb so it fits. */
+@media (max-width: 640px) {
+  .breadcrumb > span, .breadcrumb > svg { display: none !important; }
+  .breadcrumb strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

@@ -274,7 +274,7 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* 1. Header & Actions */}
       <div className="page-heading flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#14B8A6]">
+          <p className="eyebrow flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase text-[#F28C28]">
             <ShieldCheck size={14} /> Administration
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-1">
@@ -299,7 +299,7 @@ export function UserManagement({ user }: UserManagementProps) {
 
           <button
             type="button"
-            className="button button-primary flex items-center gap-2 text-sm font-semibold shadow-lg shadow-[#14B8A6]/20"
+            className="button button-primary flex items-center gap-2 text-sm font-semibold shadow-lg shadow-[#F28C28]/20"
             onClick={() => {
               setFormError("");
               setCreateModalOpen(true);
@@ -359,7 +359,7 @@ export function UserManagement({ user }: UserManagementProps) {
           {(search || roleFilter !== "ALL" || statusFilter !== "ALL") && (
             <button
               type="button"
-              className="text-xs text-[#14B8A6] hover:underline px-1 py-1"
+              className="text-xs text-[#F28C28] hover:underline px-1 py-1"
               onClick={() => {
                 setSearch("");
                 setRoleFilter("ALL");
@@ -376,7 +376,7 @@ export function UserManagement({ user }: UserManagementProps) {
       <div className="panel table-panel bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <UsersRound size={16} className="text-[#14B8A6]" />
+            <UsersRound size={16} className="text-[#F28C28]" />
             <h2 className="text-base font-bold text-slate-900 dark:text-white">
               Organization Users ({users.length})
             </h2>
@@ -388,7 +388,7 @@ export function UserManagement({ user }: UserManagementProps) {
 
         {loading ? (
           <div className="p-12 text-center text-[#94A3B8] flex flex-col items-center justify-center gap-3">
-            <Loader2 size={28} className="animate-spin text-[#14B8A6]" />
+            <Loader2 size={28} className="animate-spin text-[#F28C28]" />
             <p className="text-sm">Loading user directory from secure backend...</p>
           </div>
         ) : users.length === 0 ? (
@@ -432,7 +432,7 @@ export function UserManagement({ user }: UserManagementProps) {
                       {/* Name & Avatar */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <span className="w-8 h-8 rounded-full bg-[#14B8A6]/20 text-[#2DD4BF] flex items-center justify-center text-xs font-bold border border-[#14B8A6]/30 shrink-0">
+                          <span className="w-8 h-8 rounded-full bg-[#F28C28]/20 text-[#F6A85A] flex items-center justify-center text-xs font-bold border border-[#F28C28]/30 shrink-0">
                             {initials}
                           </span>
                           <div>
@@ -573,7 +573,7 @@ export function UserManagement({ user }: UserManagementProps) {
           <div className="confirm-dialog max-w-lg w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#14B8A6]/20 text-[#2DD4BF] flex items-center justify-center border border-[#14B8A6]/30">
+                <div className="w-9 h-9 rounded-xl bg-[#F28C28]/20 text-[#F6A85A] flex items-center justify-center border border-[#F28C28]/30">
                   <UserPlus size={18} />
                 </div>
                 <div>
@@ -699,7 +699,7 @@ export function UserManagement({ user }: UserManagementProps) {
                       key={r.value}
                       className={`p-2.5 rounded-lg border text-left cursor-pointer flex flex-col gap-0.5 transition-all ${
                         createForm.role === r.value
-                          ? "border-[#14B8A6] bg-[#14B8A6]/10 text-white"
+                          ? "border-[#F28C28] bg-[#F28C28]/10 text-white"
                           : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-[#94A3B8] hover:border-white/20"
                       }`}
                     >
@@ -708,7 +708,7 @@ export function UserManagement({ user }: UserManagementProps) {
                         <input
                           type="radio"
                           name="role"
-                          className="accent-[#14B8A6]"
+                          className="accent-[#F28C28]"
                           checked={createForm.role === r.value}
                           onChange={() => setCreateForm({ ...createForm, role: r.value })}
                         />
@@ -734,7 +734,7 @@ export function UserManagement({ user }: UserManagementProps) {
                     checked={createForm.active}
                     onChange={(e) => setCreateForm({ ...createForm, active: e.target.checked })}
                   />
-                  <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#14B8A6]" />
+                  <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#F28C28]" />
                 </label>
               </div>
 
@@ -778,7 +778,7 @@ export function UserManagement({ user }: UserManagementProps) {
             <div className="mt-4 p-3.5 bg-white/[0.03] border border-slate-200 dark:border-slate-800 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#94A3B8] flex items-center gap-1">
-                  <KeyRound size={13} className="text-[#14B8A6]" /> Single-Use Activation Link:
+                  <KeyRound size={13} className="text-[#F28C28]" /> Single-Use Activation Link:
                 </span>
                 <span className="text-[10px] text-amber-400 font-mono">Expires in 48 hours</span>
               </div>
@@ -787,8 +787,8 @@ export function UserManagement({ user }: UserManagementProps) {
               </div>
             </div>
 
-            <div className="mt-3 p-2.5 rounded-lg bg-[#14B8A6]/10 border border-[#14B8A6]/20 text-[11px] text-[#94A3B8] flex items-start gap-2">
-              <AlertCircle size={14} className="text-[#2DD4BF] shrink-0 mt-0.5" />
+            <div className="mt-3 p-2.5 rounded-lg bg-[#F28C28]/10 border border-[#F28C28]/20 text-[11px] text-[#94A3B8] flex items-start gap-2">
+              <AlertCircle size={14} className="text-[#F6A85A] shrink-0 mt-0.5" />
               <span>
                 Provide this link to the employee. They will visit this page to securely choose their own password and activate login.
               </span>
@@ -824,7 +824,7 @@ export function UserManagement({ user }: UserManagementProps) {
           <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <Edit3 size={17} className="text-[#14B8A6]" />
+                <Edit3 size={17} className="text-[#F28C28]" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Edit User Profile</h3>
               </div>
               <button type="button" className="icon-button dialog-close" onClick={() => setEditUser(null)}>
@@ -924,7 +924,7 @@ export function UserManagement({ user }: UserManagementProps) {
           <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <UsersRound size={17} className="text-[#14B8A6]" />
+                <UsersRound size={17} className="text-[#F28C28]" />
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">User Account Details</h3>
               </div>
               <button type="button" className="icon-button dialog-close" onClick={() => setViewUser(null)}>

@@ -494,7 +494,7 @@ function Sidebar({
 
       {!collapsed && (
         <div className="role-account">
-          <ShieldCheck size={14} className="text-[#14B8A6]" />
+          <ShieldCheck size={14} className="text-[#F28C28]" />
           <span>{roleLabels[role]} access</span>
         </div>
       )}
@@ -552,14 +552,14 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
           <ChevronRight size={13} className="text-[#94A3B8]" />
           <span className="text-[#667085] dark:text-[#94A3B8]">Trapple</span>
           <ChevronRight size={13} className="text-[#94A3B8]" />
-          <strong className="text-[#101828] dark:text-[#F8FAFC]">{meta.title}</strong>
+          <strong className="text-[#10243A] dark:text-[#F8FAFC]">{meta.title}</strong>
         </div>
       </div>
       <div className="topbar-actions">
         <button
           type="button"
           onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] text-xs text-[#667085] dark:text-[#94A3B8] bg-[#F8FAFC] dark:bg-[#111827] hover:border-[#14B8A6] transition-all hover:shadow-sm"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] text-xs text-[#667085] dark:text-[#94A3B8] bg-[#F8FAFC] dark:bg-[#111827] hover:border-[#F28C28] transition-all hover:shadow-sm"
           title="Press Cmd+K to search"
         >
           <Search size={14} />
@@ -696,7 +696,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
 
 function StatCard({ label, value, detail, icon, accent, numericValue }: { label: string; value: string; detail: string; icon: ReactNode; accent?: string; numericValue?: number }) {
   return (
-    <SpotlightCard className={`stat-card p-5 transition-all duration-300 ${accent ? "border-[#14B8A6]/40 shadow-[0_4px_20px_rgba(20,184,166,0.12)]" : ""}`}>
+    <SpotlightCard className={`stat-card p-5 transition-all duration-300 ${accent ? "border-[#F28C28]/40 shadow-[0_4px_20px_rgba(242, 140, 40,0.12)]" : ""}`}>
       <div className="stat-card-top flex items-center justify-between">
         <span className="stat-icon">{icon}</span>
         <span className="stat-detail">{detail}</span>
@@ -771,7 +771,7 @@ function Dashboard({ user }: { user: AuthUser }) {
         <div className="welcome-card">
           <div className="welcome-copy">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30">
                 Mahathi Infra Services Pvt. Ltd.
               </span>
               <span className="text-[11px] text-[#94A3B8]">· Corporate Travel Workspace</span>
@@ -798,7 +798,7 @@ function Dashboard({ user }: { user: AuthUser }) {
           </div>
           <div className="welcome-badge-panel hidden xl:flex flex-col justify-between p-4 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md w-[240px] shrink-0 text-xs">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#2DD4BF]">Corporate Desk</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F6A85A]">Corporate Desk</span>
               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Active
               </span>
@@ -818,7 +818,7 @@ function Dashboard({ user }: { user: AuthUser }) {
               </div>
             </div>
             <div className="pt-2.5 border-t border-white/10 flex items-center gap-2 text-[11px] text-slate-400">
-              <ShieldCheck size={13} className="text-[#2DD4BF] shrink-0" />
+              <ShieldCheck size={13} className="text-[#F6A85A] shrink-0" />
               <span>TLS 1.3 Tenant Isolation</span>
             </div>
           </div>
@@ -957,14 +957,14 @@ function Dashboard({ user }: { user: AuthUser }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           <Link
             href="/employee/plan-trip"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="w-10 h-10 rounded-xl bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Plus size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   Plan a New Trip
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -976,14 +976,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/journeys"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Compass size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   My Journeys
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -995,14 +995,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/calendar"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <CalendarDays size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   Travel Calendar
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1014,14 +1014,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/expenses"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <WalletCards size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   Expense Claims
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1033,14 +1033,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/reports"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <BarChart3 size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   Travel Signals & Reports
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1052,14 +1052,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/support"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#14B8A6] dark:hover:border-[#14B8A6] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <CircleHelp size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#101828] dark:text-white group-hover:text-[#14B8A6] transition-colors">
+                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
                   Travel Desk Support
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1179,8 +1179,8 @@ function PlanTrip() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="card-kicker">REQUEST SUBMITTED</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#14B8A6]/10 text-[#0D9488] dark:text-[#2DD4BF] border border-[#14B8A6]/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6] animate-pulse" /> Pending Approval
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] border border-[#F28C28]/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F28C28] animate-pulse" /> Pending Approval
             </span>
           </div>
           <h2>Your request is with your approver.</h2>
@@ -3765,7 +3765,7 @@ function Approvals({ history = false }: { history?: boolean }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E131F] shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#14B8A6] block mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F28C28] block mb-0.5">
               {history ? "DECISION ARCHIVE" : "NEEDS YOUR REVIEW"}
             </span>
             <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
@@ -6964,7 +6964,7 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
       <section className="admin-hero">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#14B8A6]/20 text-[#2DD4BF] border border-[#14B8A6]/30">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30">
               Mahathi Infra Services Pvt. Ltd.
             </span>
             <span className="text-[11px] text-[#94A3B8]">· Tenant Code: MISPL</span>
@@ -6987,7 +6987,7 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
           </div>
         </div>
         <div className="admin-orbit hidden sm:flex flex-col items-center justify-center p-3 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md">
-          <ShieldCheck size={24} className="text-[#2DD4BF] mb-1" />
+          <ShieldCheck size={24} className="text-[#F6A85A] mb-1" />
           <span className="text-[10.5px] font-bold text-white uppercase tracking-wider">RBAC SECURED</span>
           <small className="text-[9.5px] text-[#94A3B8]">Audit Trail Active</small>
         </div>

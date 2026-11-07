@@ -100,8 +100,8 @@ export default function CeoDashboard({ name, profileId }: { name: string; profil
                     <YAxis fontSize={11} tickFormatter={(v) => compact.format(Number(v))} width={48} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} />
                     <Legend />
-                    <Bar dataKey="expenses" name="Expenses" stackId="s" fill="#14B8A6" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="travel" name="Travel" stackId="s" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expenses" name="Expenses" stackId="s" fill="#F28C28" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="travel" name="Travel" stackId="s" fill="#1D4E89" radius={[0, 0, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -133,7 +133,7 @@ export default function CeoDashboard({ name, profileId }: { name: string; profil
                     <XAxis type="number" fontSize={11} tickFormatter={(v) => compact.format(Number(v))} />
                     <YAxis type="category" dataKey="label" width={110} fontSize={11} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} />
-                    <Bar dataKey="amount" name="Amount" fill="#14B8A6" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="amount" name="Amount" fill="#F28C28" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
