@@ -1,29 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, Bot, FileText, IndianRupee, Plane, Receipt, ScanLine } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock3, FileText, Plane, XCircle } from "lucide-react";
 import { Link } from "wouter";
-import { getDashboardCounts, useLiveRefresh, type DashboardCounts } from "../../lib/data/reports";
-import { CATEGORY_LABELS, listExpenses, summarizeExpenses, type Expense } from "../../lib/data/expenses";
-import { getEmployeeHistory, type TravelRecord } from "../../lib/data/travel";
+import { useLiveRefresh } from "../../lib/data/reports";
+import { getEmployeeHistory, listMyRequests, type TravelRecord, type TravelRequest } from "../../lib/data/travel";
 import { ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, routeLabel } from "./common";
-import { ExpenseStatusPill } from "./ExpenseStatusPill";
+import { RequestDecision, RequestStatusBadge } from "./RequestParts";
 
-/** Employee home: only the signed-in person's own trips, requests and expenses. */
+/**
+ * Employee home. Employees only describe their trips; the CEO and Admin
+ * decide, and the Admin books. This page shows where each request stands.
+ */
 export default function EmployeeHome({ name, profileId }: { name: string; profileId: string }) {
-  const [counts, setCounts] = useState<DashboardCounts | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [trips, setTrips] = useState<TravelRecord[]>([]);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [c, e, t] = await Promise.all([
-        getDashboardCounts(),
-        listExpenses({ employeeId: profileId, limit: 200 }).catch(() => [] as Expense[]),
+      const [r, t] = await Promise.all([
+        listMyRequests(profileId),
         getEmployeeHistory(profileId).catch(() => [] as TravelRecord[]),
       ]);
-      setCounts(c);
-      setExpenses(e);
+      setRequests(r);
       setTrips(t);
       setError("");
     } catch (err) {
@@ -33,40 +32,45 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
     }
   }, [profileId]);
   useEffect(() => { void load(); }, [load]);
-  useLiveRefresh(["travel_records", "travel_requests", "expenses"], load);
+  useLiveRefresh(["travel_records", "travel_requests"], load);
 
-  const totals = useMemo(() => summarizeExpenses(expenses), [expenses]);
-  const year = String(new Date().getFullYear());
-  const tripsThisYear = trips.filter((t) => t.departure_date.startsWith(year) && t.status !== "cancelled");
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = useMemo(() => trips.filter((t) => t.status !== "cancelled" && t.departure_date >= today).sort((a, b) => a.departure_date.localeCompare(b.departure_date)), [trips, today]);
   const recentTrips = [...trips].sort((a, b) => b.departure_date.localeCompare(a.departure_date)).slice(0, 5);
+  const n = (s: string[]) => requests.filter((r) => s.includes(r.status)).length;
 
   const tiles = [
-    { label: "Upcoming trips", value: String(counts?.my_upcoming_trips ?? 0), hint: "From today", href: "/travel/my", icon: <Plane size={16} /> },
-    { label: "Requests pending", value: String(counts?.my_pending_requests ?? 0), hint: "Waiting for approval", href: "/travel/requests", icon: <FileText size={16} /> },
-    { label: "Expenses in review", value: formatMoney(totals.submitted), hint: `${totals.submittedCount} claim(s)`, href: "/travel/expenses", icon: <Receipt size={16} /> },
-    { label: "To be paid to you", value: formatMoney(totals.approved), hint: `${formatMoney(totals.reimbursed)} already reimbursed`, href: "/travel/expenses", icon: <IndianRupee size={16} /> },
+    { label: "Waiting for approval", value: String(n(["pending"])), hint: "Sent to the CEO and Admin", icon: <Clock3 size={16} /> },
+    { label: "Approved", value: String(n(["approved", "booked", "completed"])), hint: `${n(["booked"])} booked`, icon: <CheckCircle2 size={16} /> },
+    { label: "Rejected", value: String(n(["rejected"])), hint: "Reason shown on each request", icon: <XCircle size={16} /> },
+    { label: "Upcoming trips", value: String(upcoming.length), hint: upcoming[0] ? `Next on ${formatDate(upcoming[0].departure_date)}` : "Nothing booked yet", icon: <Plane size={16} /> },
   ];
 
   return (
     <div className="page-stack animate-page">
-      <PageHeader eyebrow="MY DASHBOARD" title={`Hello, ${name.split(" ")[0] || "there"}`} description="Your own trips, travel requests and expense claims. Only you and the CEO can see these." />
+      <PageHeader
+        eyebrow="MY DASHBOARD"
+        title={`Hello, ${name.split(" ")[0] || "there"}`}
+        description="Send your travel details here. The CEO and the Admin get your request at the same time, and you see their decision on this page."
+        actions={<Link href="/travel/requests" className="button button-primary"><FileText size={15} /> New travel request</Link>}
+      />
       {error && <ErrorNotice message={error} onRetry={load} />}
       {!loaded ? <Loading /> : (
         <>
-          {counts?.my_next_trip && (
+          {upcoming[0] && (
             <Link href="/travel/my" className="panel p-4 flex flex-wrap items-center gap-3 hover:shadow-md transition-shadow">
               <Plane size={20} className="text-teal-600" />
               <div className="min-w-0">
                 <span className="card-kicker">Your next trip</span>
-                <div className="font-semibold">{routeLabel(counts.my_next_trip.origin, counts.my_next_trip.destination)}</div>
-                <div className="text-xs opacity-70">{formatDate(counts.my_next_trip.departure_date)} · {labelFor(counts.my_next_trip.booking_type)}</div>
+                <div className="font-semibold">{routeLabel(upcoming[0].origin, upcoming[0].destination)}</div>
+                <div className="text-xs opacity-70">{formatDate(upcoming[0].departure_date)} · {labelFor(upcoming[0].booking_type)}{upcoming[0].booking_reference ? ` · PNR ${upcoming[0].booking_reference}` : ""}</div>
               </div>
               <ArrowRight size={16} className="ml-auto" />
             </Link>
           )}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             {tiles.map((t) => (
-              <Link key={t.label} href={t.href} className="panel p-4 min-w-0 hover:shadow-md transition-shadow block">
+              <Link key={t.label} href={t.label === "Upcoming trips" ? "/travel/my" : "/travel/requests"} className="panel p-4 min-w-0 hover:shadow-md transition-shadow block">
                 <span className="card-kicker flex items-center gap-1">{t.icon} {t.label}</span>
                 <div className="text-2xl font-bold mt-1 truncate">{t.value}</div>
                 <div className="text-xs opacity-70 mt-1 truncate">{t.hint}</div>
@@ -74,34 +78,27 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Link href="/travel/expenses" className="button button-primary"><Receipt size={15} /> Claim an expense</Link>
-            <Link href="/travel/requests" className="button button-ghost"><FileText size={15} /> Request travel</Link>
-            <Link href="/travel/documents" className="button button-ghost"><ScanLine size={15} /> Upload a ticket</Link>
-            <Link href="/travel/assistant" className="button button-ghost"><Bot size={15} /> Ask the assistant</Link>
-          </div>
-
           <div className="grid gap-3 lg:grid-cols-2">
             <section className="panel p-4 min-w-0">
-              <div className="flex items-center justify-between"><span className="card-kicker">Recent expenses</span><Link href="/travel/expenses" className="text-xs underline">All expenses</Link></div>
-              {expenses.length === 0 ? <p className="text-sm opacity-70 mt-3">No expenses yet. Claim cabs, meals, hotels and more with “Claim an expense”.</p> : (
-                <ul className="mt-2 space-y-2">
-                  {expenses.filter((e) => e.status !== "withdrawn").slice(0, 5).map((e) => (
-                    <li key={e.id} className="flex items-center gap-2 text-sm">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold truncate">{e.description}</div>
-                        <div className="text-xs opacity-70">{CATEGORY_LABELS[e.category]} · {formatDate(e.expense_date)}</div>
+              <div className="flex items-center justify-between"><span className="card-kicker">My latest requests</span><Link href="/travel/requests" className="text-xs underline">All requests</Link></div>
+              {requests.length === 0 ? <p className="text-sm opacity-70 mt-3">No requests yet. Use “New travel request” to send your trip details.</p> : (
+                <ul className="mt-2 grid gap-3">
+                  {requests.slice(0, 4).map((r) => (
+                    <li key={r.id} className="border-t pt-2 grid gap-1" style={{ borderColor: "var(--line)" }}>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold truncate">{r.origin} → {r.destination}</span>
+                        <span className="text-xs opacity-70">{formatDate(r.departure_date)}</span>
+                        <span className="ml-auto"><RequestStatusBadge status={r.status} /></span>
                       </div>
-                      <span className="font-semibold">{formatMoney(e.amount, e.currency)}</span>
-                      <ExpenseStatusPill status={e.status} />
+                      <RequestDecision r={r} />
                     </li>
                   ))}
                 </ul>
               )}
             </section>
             <section className="panel p-4 min-w-0">
-              <div className="flex items-center justify-between"><span className="card-kicker">My trips · {tripsThisYear.length} this year</span><Link href="/travel/my" className="text-xs underline">Full history</Link></div>
-              {recentTrips.length === 0 ? <p className="text-sm opacity-70 mt-3">No trips recorded yet.</p> : (
+              <div className="flex items-center justify-between"><span className="card-kicker">My trips</span><Link href="/travel/my" className="text-xs underline">Full history</Link></div>
+              {recentTrips.length === 0 ? <p className="text-sm opacity-70 mt-3">No trips booked yet.</p> : (
                 <ul className="mt-2 space-y-2">
                   {recentTrips.map((t) => (
                     <li key={t.id} className="flex items-center gap-2 text-sm">
