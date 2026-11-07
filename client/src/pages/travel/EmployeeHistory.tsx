@@ -11,6 +11,7 @@ import { useLiveRefresh } from "../../lib/data/reports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import { RequestDecision, RequestStatusBadge } from "./RequestParts";
 import { TravelRecordDialog } from "./TravelRecordDialog";
+import { WorkbookViewer } from "./WorkbookViewer";
 
 const CHARGE_LABEL: Record<string, string> = {
   fare: "Fares", addon: "Add-on charges", reissue: "Reissues", change_fee: "Change fees", cancellation_fee: "Cancellation fees",
@@ -214,7 +215,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
           {tables.length > 0 && (
             <div className="ml-auto flex gap-2">
               <button type="button" className={`button ${view === "trips" ? "button-primary" : "button-ghost"}`} onClick={() => setView("trips")}>Trips</button>
-              <button type="button" className={`button ${view === "file" ? "button-primary" : "button-ghost"}`} onClick={() => setView("file")}>As in the file (all columns)</button>
+              <button type="button" className={`button ${view === "file" ? "button-primary" : "button-ghost"}`} onClick={() => setView("file")}>As in the Excel / PDF</button>
             </div>
           )}
         </div>
@@ -276,18 +277,11 @@ export default function EmployeeHistory({ employeeId, canManage, showBack }: { e
             </table>
           </div>
         ) : (
-          <div className="grid gap-4 p-2">
-            {tables.map((tb) => (
-              <div key={tb.key}>
-                <div className="text-sm font-semibold mb-1">{tb.title} <span className="opacity-60 font-normal">· {tb.rows.length} rows · {tb.headers.length} columns</span></div>
-                <div className="responsive-table">
-                  <table>
-                    <thead><tr>{tb.headers.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                    <tbody>{tb.rows.map((r) => <tr key={r.id}>{tb.headers.map((h) => <td key={h} className="whitespace-nowrap">{r.extra?.[h] ?? ""}</td>)}</tr>)}</tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
+          <div className="p-2">
+            <WorkbookViewer
+              sheets={tables.map((tb) => ({ name: tb.title.slice(0, 60), merges: [], rows: [tb.headers, ...tb.rows.map((r) => tb.headers.map((h) => r.extra?.[h] ?? null))] }))}
+              note="Only this employee's rows, with every column from the uploaded file."
+            />
           </div>
         )}
       </div>

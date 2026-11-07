@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "wouter";
-import { getImportBatch, getUploadReport, type UploadReport as Report } from "../../lib/data/imports";
+import { getImportBatch, getUploadReport, type ImportBatch, type UploadReport as Report } from "../../lib/data/imports";
+import { UploadFileView } from "./UploadFileView";
 import { DownloadOriginal } from "./UploadHistory";
 import { monthLabel } from "../../lib/data/reports";
 import { recordReportGenerated } from "../../lib/data/travel";
@@ -22,8 +23,9 @@ export default function UploadReport({ batchId }: { batchId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [filePath, setFilePath] = useState<string | null>(null);
-  useEffect(() => { void getImportBatch(batchId).then((b) => setFilePath(b.file_path ?? null)).catch(() => setFilePath(null)); }, [batchId]);
+  const [fullBatch, setFullBatch] = useState<ImportBatch | null>(null);
+  useEffect(() => { void getImportBatch(batchId).then(setFullBatch).catch(() => setFullBatch(null)); }, [batchId]);
+  const filePath = fullBatch?.file_path ?? null;
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,6 +75,8 @@ export default function UploadReport({ batchId }: { batchId: string }) {
           <button type="button" className="button button-ghost" onClick={download} disabled={!report.employees.length}><Download size={14} /> Download CSV</button>
         </>}
       />
+
+      {fullBatch && <UploadFileView batch={fullBatch} />}
 
       {totals.trips === 0 ? (
         <Empty title="No trips from this upload" description="Nothing from this file was imported, or the trips were cancelled since." />

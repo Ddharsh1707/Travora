@@ -67,10 +67,11 @@ const ROUTES: TravelRoute[] = [
   // CEO portal: overall spend, every employee, decisions and the assistant
   { group: "CEO", href: "/travel/ceo", label: "CEO dashboard", icon: <Briefcase size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/approvals", label: "Travel requests", icon: <ClipboardCheck size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: CEO },
+  { group: "CEO", href: "/travel/employees", label: "Employees & expenses", icon: <UsersRound size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: CEO },
+  { group: "CEO", href: "/travel/uploads", label: "Uploaded Excel / PDF", icon: <Archive size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/people", label: "People & roles", icon: <UserCog size={16} />, roles: CEO },
   // Admin portal: decisions, bookings, uploads, logins and the assistant
   { group: "ADMIN", href: "/travel/admin", label: "Admin dashboard", icon: <Briefcase size={16} />, roles: ADMIN },
@@ -79,7 +80,7 @@ const ROUTES: TravelRoute[] = [
   { group: "ADMIN", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/people", label: "Employees & logins", icon: <UserCog size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/employees", label: "Employee records", icon: <UsersRound size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/employees", label: "Employees & expenses", icon: <UsersRound size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: ADMIN },
@@ -92,7 +93,7 @@ const ROUTES: TravelRoute[] = [
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/reports", label: "Download reports", icon: <FileDown size={16} />, roles: OVERSIGHT },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
   { group: "TRAVEL DESK", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK", "ADMIN"] },
-  { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["TRAVEL_DESK", "ADMIN"] },
+  { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
   { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
@@ -224,7 +225,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     case "/travel/search":
       return <TravelSearch canManage={canManage} canSeeOthers />;
     case "/travel/employees":
-      return <EmployeeDirectory />;
+      return <EmployeeDirectory withExpenses={isManager} />;
     case "/travel/import":
       return canManage ? <ImportTravel isManager={user.role === "ADMIN" || user.role === "COMPANY_ADMIN"} /> : null;
     case "/travel/bulk":

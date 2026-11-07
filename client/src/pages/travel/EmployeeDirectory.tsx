@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { FileSpreadsheet, Search } from "lucide-react";
 import { exportToXlsx } from "../../utils/exportXlsx";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
+import { getPeopleOverview, type PersonSpend } from "../../lib/data/people";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney } from "./common";
 
 const PAGE = 50;
 
 /** Employees the signed-in user may see, with live travel totals. */
-export default function EmployeeDirectory() {
+export default function EmployeeDirectory({ withExpenses = false }: { withExpenses?: boolean }) {
+  const [spend, setSpend] = useState<Map<string, PersonSpend>>(new Map());
+  useEffect(() => {
+    if (!withExpenses) return;
+    getPeopleOverview().then((o) => setSpend(new Map(o.people.map((p) => [p.employee_id, p])))).catch(() => setSpend(new Map()));
+  }, [withExpenses]);
+  const showMoney = withExpenses && spend.size > 0;
   const [q, setQ] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState<"current" | "past" | "">("");
@@ -49,9 +56,13 @@ export default function EmployeeDirectory() {
         if (r.rows.length < 200) break;
       }
       await exportToXlsx("employees", "Employees",
-        ["Employee ID", "Name", "Department", "Designation", "Status", "Trips", "Travel spend", "Last trip", "Next trip"],
-        all.map((e) => [e.employee_code, e.employee_name, e.department, e.designation, e.active ? "Current" : "Past employee",
-          Number(e.total_trips), Number(e.total_spend), e.last_trip_date, e.next_trip_date]));
+        ["Employee ID", "Name", "Department", "Designation", "Status", "Trips", "Travel spend", "Cancelled bookings", "Expense claims", "Total spent", "Last trip", "Next trip"],
+        all.map((e) => {
+          const m = spend.get(e.employee_id);
+          return [e.employee_code, e.employee_name, e.department, e.designation, e.active ? "Current" : "Past employee",
+            Number(e.total_trips), Number(e.total_spend), m ? Number(m.cancelled_value) : null, m ? Number(m.claimed) : null,
+            m ? Number(m.total) : Number(e.total_spend), e.last_trip_date, e.next_trip_date];
+        }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not export the list.");
     } finally {
@@ -61,7 +72,7 @@ export default function EmployeeDirectory() {
 
   return (
     <div className="page-stack animate-page">
-      <PageHeader eyebrow="PEOPLE" title="Employees" description="Current and past employees, including people added from Excel uploads. Open anyone to see their trips and claims and download their report." />
+      <PageHeader eyebrow="PEOPLE" title={withExpenses ? "Employees & expenses" : "Employees"} description="Current and past employees, including people added from Excel and PDF uploads. Open anyone to see every trip, every column from the uploaded file, their expense claims and requests, and download their report." />
       <form className="panel p-4 flex flex-wrap gap-2" role="search" onSubmit={(e) => { e.preventDefault(); setPage(0); setApplied({ q, department, status }); }}>
         <div className="search-field flex-1 min-w-[200px] max-w-none"><Search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or employee ID" aria-label="Name or employee ID" maxLength={80} /></div>
         <div className="search-field min-w-[160px]"><input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" aria-label="Department" maxLength={80} /></div>
@@ -80,7 +91,7 @@ export default function EmployeeDirectory() {
         {loading ? <Loading /> : rows.length === 0 ? <Empty title="No employees found" description="Try another name, ID or department." /> : (
           <div className="responsive-table">
             <table>
-              <thead><tr><th>Employee</th><th>Department</th><th className="text-right">Trips</th><th className="text-right">Spend</th><th>Last trip</th><th>Next trip</th></tr></thead>
+              <thead><tr><th>Employee</th><th>Department</th><th className="text-right">Trips</th><th className="text-right">Travel spend</th>{showMoney && <><th className="text-right">Cancelled</th><th className="text-right">Expense claims</th><th className="text-right">Total spent</th></>}<th>Last trip</th><th>Next trip</th><th><span className="sr-only">Open</span></th></tr></thead>
               <tbody>
                 {rows.map((e) => (
                   <tr key={e.employee_id}>
@@ -91,8 +102,17 @@ export default function EmployeeDirectory() {
                     <td>{e.department ?? "—"}<div className="table-subline">{e.designation ?? ""}</div></td>
                     <td className="text-right">{e.total_trips}</td>
                     <td className="text-right">{formatMoney(e.total_spend)}</td>
+                    {showMoney && (() => {
+                      const m = spend.get(e.employee_id);
+                      return <>
+                        <td className="text-right">{m && Number(m.cancelled_value) ? formatMoney(m.cancelled_value) : "—"}</td>
+                        <td className="text-right">{m && Number(m.claimed) ? formatMoney(m.claimed) : "—"}</td>
+                        <td className="text-right font-semibold">{formatMoney(m ? m.total : e.total_spend)}</td>
+                      </>;
+                    })()}
                     <td>{formatDate(e.last_trip_date)}</td>
                     <td>{formatDate(e.next_trip_date)}</td>
+                    <td><Link href={`/travel/employees/${e.employee_id}`} className="table-action">View details</Link></td>
                   </tr>
                 ))}
               </tbody>

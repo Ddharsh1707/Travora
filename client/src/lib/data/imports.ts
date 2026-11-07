@@ -276,3 +276,11 @@ export async function markNewPeopleLeft(batchId: string): Promise<number> {
   if (error) throw friendlyError(error, "Could not mark the new people as past employees.");
   return Number(data ?? 0);
 }
+
+/** The stored original file of an upload, opened in the browser. */
+export async function downloadImportFile(path: string, filename: string): Promise<File> {
+  const url = await getImportFileUrl(path, filename);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("The original file could not be opened.");
+  return new File([await res.blob()], filename);
+}

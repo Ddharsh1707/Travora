@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { toast } from "sonner";
 import { MAX_FILE_BYTES, MAX_PDF_BYTES, MAX_ROWS, checkTravelUploadFile, type CellValue } from "../../lib/data/importParser";
 import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type WbField, type WorkbookSummary } from "../../lib/data/workbook";
-import { readMerges } from "../../lib/data/xlsxMerges";
+import { readUploadFile } from "../../lib/data/readUploadFile";
 import {
   cancelImport, commitWorkbook, markNewPeopleLeft, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
   listPeopleOptions, listProjects, setProjectAlias, stageWorkbook, storeImportFile,
@@ -30,27 +30,7 @@ const KIND_LABEL: Record<string, string> = { flight: "Air tickets", train: "Trai
 const ROW_TONE: Record<WorkbookRow["status"], string> = { valid: "approved", warning: "pending-approval", error: "rejected", duplicate: "cancelled", imported: "booked", skipped: "completed" };
 const ROW_LABEL: Record<WorkbookRow["status"], string> = { valid: "Ready", warning: "Check", error: "Error", duplicate: "Already imported", imported: "Imported", skipped: "Skipped" };
 
-async function readFile(file: File, kind: "csv" | "xlsx" | "pdf"): Promise<SheetInput[]> {
-  if (kind === "pdf") {
-    const { readPdfTables } = await import("../../lib/data/pdfTables");
-    return readPdfTables(file);
-  }
-  if (kind === "csv") {
-    const Papa = (await import("papaparse")).default;
-    const result = Papa.parse<string[]>(await file.text(), { skipEmptyLines: false });
-    return [{ name: file.name.replace(/\.csv$/i, ""), rows: result.data as CellValue[][], merges: [] }];
-  }
-  const { default: readXlsxFile, readSheetNames } = await import("read-excel-file");
-  const merges = readMerges(new Uint8Array(await file.arrayBuffer()));
-  const names = await readSheetNames(file);
-  if (names.length > 40) throw new Error("The workbook has more than 40 sheets. Split it into smaller files.");
-  const sheets: SheetInput[] = [];
-  for (const name of names) {
-    const rows = (await readXlsxFile(file, { sheet: name })) as CellValue[][];
-    sheets.push({ name, rows, merges: merges[name] ?? [] });
-  }
-  return sheets;
-}
+const readFile = readUploadFile;
 
 function Badge({ tone, children }: { tone: string; children: ReactNode }) {
   return <span className={`status-badge status-${tone}`}>{children}</span>;
