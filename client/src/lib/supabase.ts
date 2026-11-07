@@ -1,15 +1,4 @@
-export type SupabaseClient = any;
-
-const createClient = (url: string, key: string, options?: any): SupabaseClient => {
-  return {
-    auth: {
-      getUser: async () => ({ data: { user: null }, error: null }),
-      getSession: async () => ({ data: { session: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    },
-    from: () => ({ select: () => ({ data: [], error: null }) }),
-  };
-};
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Browser Supabase client.
