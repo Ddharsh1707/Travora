@@ -20,6 +20,9 @@ export type ImportBatch = {
   sheets?: unknown[];
   created_at: string;
   committed_at: string | null;
+  file_path?: string | null;
+  file_size?: number | null;
+  file_stored_at?: string | null;
 };
 
 export type ImportRow = {
@@ -90,6 +93,54 @@ export async function listImportBatches(): Promise<ImportBatch[]> {
   const { data, error } = await getSupabase().from("import_batches").select("*").order("created_at", { ascending: false }).limit(20);
   if (error) throw friendlyError(error, "Could not load past imports.");
   return (data ?? []) as ImportBatch[];
+}
+
+// ---------------------------------------------------------------------------
+// The original uploaded file, kept in the private "import-files" bucket
+// ---------------------------------------------------------------------------
+export const IMPORT_FILE_BUCKET = "import-files";
+const IMPORT_FILE_MIME = { xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv" } as const;
+
+async function sha256Hex(file: Blob): Promise<string | null> {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Stores the exact file behind an upload, once. The database only accepts it
+ * in that upload's own folder and never lets it be replaced or deleted.
+ */
+export async function storeImportFile(batchId: string, file: File, kind: "csv" | "xlsx"): Promise<void> {
+  const supabase = getSupabase();
+  const path = `${batchId}/${crypto.randomUUID()}.${kind}`;
+  const { error: uploadError } = await supabase.storage.from(IMPORT_FILE_BUCKET).upload(path, file, { contentType: IMPORT_FILE_MIME[kind], upsert: false });
+  if (uploadError) throw new Error("The original file could not be stored. The upload itself is fine.");
+  const { error } = await supabase.rpc("import_attach_file", { p_batch: batchId, p_path: path, p_size: file.size, p_sha256: await sha256Hex(file) });
+  if (error) throw friendlyError(error, "The original file was stored but could not be linked to the upload.");
+}
+
+/** A one-minute download link for an upload's original file. */
+export async function getImportFileUrl(path: string, filename: string): Promise<string> {
+  const { data, error } = await getSupabase().storage.from(IMPORT_FILE_BUCKET).createSignedUrl(path, 60, { download: filename });
+  if (error || !data?.signedUrl) throw new Error("The file could not be opened.");
+  return data.signedUrl;
+}
+
+export type UploadHistoryRow = {
+  id: string; original_filename: string; file_kind: "csv" | "xlsx"; status: ImportBatch["status"]; format_version: number;
+  total_rows: number; valid_rows: number; warning_rows: number; error_rows: number; duplicate_rows: number; imported_rows: number;
+  created_at: string; committed_at: string | null; uploaded_by: string;
+  file_path: string | null; file_size: number | null; file_stored_at: string | null; trips: number; spend: number;
+};
+
+export async function listUploadHistory(limit = 200, offset = 0): Promise<UploadHistoryRow[]> {
+  const { data, error } = await getSupabase().rpc("import_history", { p_limit: limit, p_offset: offset });
+  if (error) throw friendlyError(error, "Could not load the upload history. Has the latest SQL been run in Supabase?");
+  return (data ?? []) as UploadHistoryRow[];
 }
 
 export type UploadReport = {

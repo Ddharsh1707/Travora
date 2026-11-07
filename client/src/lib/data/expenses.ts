@@ -54,12 +54,19 @@ export type Expense = {
   reviewed_at: string | null;
   reimbursed_at: string | null;
   created_at: string;
+  project_id?: string | null;
+  origin?: string | null;
+  destination?: string | null;
+  source?: "manual" | "upload";
+  upload_document_id?: string | null;
+  reviewed_by_role?: "admin" | "company_admin" | null;
   employee?: { full_name: string; employee_id: string; department: string | null } | null;
   receipt?: { storage_path: string; original_filename: string } | null;
+  upload?: { storage_path: string; original_filename: string } | null;
 };
 
 const SELECT =
-  "*, employee:profiles!expenses_employee_id_fkey(full_name, employee_id, department), receipt:documents!expenses_receipt_document_id_fkey(storage_path, original_filename)";
+  "*, employee:profiles!expenses_employee_id_fkey(full_name, employee_id, department), receipt:documents!expenses_receipt_document_id_fkey(storage_path, original_filename), upload:documents!expenses_upload_document_id_fkey(storage_path, original_filename)";
 
 export const expenseInput = z.object({
   expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose the date of the expense"),
@@ -69,6 +76,9 @@ export const expenseInput = z.object({
   payment_method: z.enum(PAYMENT_METHODS).default("personal"),
   receipt_document_id: z.string().uuid().nullable().optional(),
   travel_record_id: z.string().uuid().nullable().optional(),
+  project_id: z.string().uuid().nullable().optional(),
+  origin: z.string().trim().max(120).nullable().optional().transform((v) => (v ? v : null)),
+  destination: z.string().trim().max(120).nullable().optional().transform((v) => (v ? v : null)),
 });
 export type ExpenseInput = z.input<typeof expenseInput>;
 
@@ -108,6 +118,28 @@ export async function createExpense(employeeId: string, input: ExpenseInput): Pr
   const data = check(input);
   const { error } = await getSupabase().from("expenses").insert({ ...data, employee_id: employeeId });
   if (error) throw friendlyError(error, "Could not save the expense.");
+}
+
+/**
+ * Saves many claims from one uploaded sheet in a single insert, so either all
+ * are saved or none are. Each claim is linked to the stored sheet.
+ */
+export async function createExpensesFromUpload(employeeId: string, uploadDocumentId: string, inputs: ExpenseInput[]): Promise<number> {
+  if (!inputs.length) return 0;
+  if (inputs.length > 500) throw new Error("Upload at most 500 expenses at a time.");
+  const rows = inputs.map((i) => ({ ...check(i), employee_id: employeeId, source: "upload", upload_document_id: uploadDocumentId }));
+  const { error } = await getSupabase().from("expenses").insert(rows);
+  if (error) throw friendlyError(error, "Could not save the expenses.");
+  return rows.length;
+}
+
+export type ProjectChoice = { id: string; name: string; code: string | null };
+
+/** Active projects anyone can tag a claim with. */
+export async function listProjectChoices(): Promise<ProjectChoice[]> {
+  const { data, error } = await getSupabase().rpc("project_choices");
+  if (error) return []; // older database without the function: claims just have no project
+  return (data ?? []) as ProjectChoice[];
 }
 
 export async function updateExpense(id: string, input: ExpenseInput): Promise<void> {
@@ -171,11 +203,12 @@ export async function getCeoDashboard(from?: string, to?: string): Promise<CeoDa
 // CEO: employee management
 // ---------------------------------------------------------------------------
 
-export type DbRole = "employee" | "approver" | "travel_desk" | "admin";
+export type DbRole = "employee" | "approver" | "travel_desk" | "company_admin" | "admin";
 export const DB_ROLE_LABELS: Record<DbRole, string> = {
   employee: "Employee",
   approver: "Manager (approver)",
   travel_desk: "Travel desk",
+  company_admin: "Admin",
   admin: "CEO",
 };
 
@@ -192,6 +225,8 @@ export type Person = {
   active: boolean;
   has_login: boolean;
   created_at: string;
+  /** Can the signed-in user create a login, reset a password or (de)activate this person? */
+  can_manage?: boolean;
 };
 
 export async function listPeople(): Promise<Person[]> {

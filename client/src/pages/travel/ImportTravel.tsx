@@ -7,14 +7,15 @@ import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type Wb
 import { readMerges } from "../../lib/data/xlsxMerges";
 import {
   cancelImport, commitWorkbook, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
-  listPeopleOptions, listProjects, setProjectAlias, stageWorkbook,
+  listPeopleOptions, listProjects, setProjectAlias, stageWorkbook, storeImportFile,
   type ImportBatch, type NameReview, type PersonOption, type Project, type UploadProject, type WorkbookRow,
 } from "../../lib/data/imports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
+import { DownloadOriginal } from "./UploadHistory";
 
 type Step = "upload" | "sheets" | "lines" | "people" | "projects" | "done";
 type Mappings = Record<string, Record<number, WbField | "">>;
-type FileInfo = { name: string; kind: "csv" | "xlsx"; sheets: SheetInput[] };
+type FileInfo = { name: string; kind: "csv" | "xlsx"; sheets: SheetInput[]; blob: File };
 
 const STEPS: Array<{ key: Step; label: string }> = [
   { key: "upload", label: "Upload" },
@@ -86,7 +87,7 @@ export default function ImportTravel() {
     setBusy(true);
     try {
       const sheets = await readFile(f, check.kind);
-      setFile({ name: f.name, kind: check.kind, sheets });
+      setFile({ name: f.name, kind: check.kind, sheets, blob: f });
       setMappings({});
       setExcluded({});
       const firstData = analyzeWorkbook(sheets).sheets.find((s) => s.status === "data");
@@ -108,6 +109,9 @@ export default function ImportTravel() {
     try {
       const sheets = sheetSummaryForDb(summary, mappings).map((s) => ({ ...s, included: !excluded[s.name] }));
       const id = await stageWorkbook(file.name, file.kind, sheets, includedLines, createMissing, currency);
+      // Keep the exact file so it can be downloaded from the upload history.
+      await storeImportFile(id, file.blob, file.kind).catch((err) =>
+        toast.error(err instanceof Error ? err.message : "The original file could not be stored."));
       const [b, r] = await Promise.all([getImportBatch(id), getWorkbookRows(id)]);
       setBatch(b);
       setRows(r);
@@ -290,7 +294,7 @@ export default function ImportTravel() {
       )}
 
       <div className="panel table-panel">
-        <div className="table-toolbar"><h2 className="section-heading">Recent uploads</h2></div>
+        <div className="table-toolbar"><h2 className="section-heading">Recent uploads</h2><Link href="/travel/uploads" className="table-action ml-auto">Full upload history</Link></div>
         {history.length === 0 ? <Empty title="No uploads yet" description="Uploaded files and their reports will be listed here." /> : (
           <div className="responsive-table">
             <table>
@@ -303,7 +307,10 @@ export default function ImportTravel() {
                     <td className="text-right">{b.total_rows}</td>
                     <td className="text-right">{b.imported_rows}</td>
                     <td><StatusPill status={b.status} /></td>
-                    <td>{b.status === "committed" && b.imported_rows > 0 ? <Link href={`/travel/uploads/${b.id}`} className="table-action inline-flex items-center gap-1"><BarChart3 size={13} /> Report</Link> : null}</td>
+                    <td className="whitespace-nowrap"><div className="flex flex-wrap items-center gap-3">
+                      {b.status === "committed" && b.imported_rows > 0 ? <Link href={`/travel/uploads/${b.id}`} className="table-action inline-flex items-center gap-1"><BarChart3 size={13} /> Report</Link> : null}
+                      <DownloadOriginal path={b.file_path} filename={b.original_filename} compact />
+                    </div></td>
                   </tr>
                 ))}
               </tbody>

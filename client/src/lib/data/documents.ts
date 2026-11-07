@@ -139,6 +139,33 @@ export async function uploadDocument(employeeId: string, file: File, documentTyp
   return data as unknown as TravelDocument;
 }
 
+const SHEET_MIME = { xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", csv: "text/csv" } as const;
+
+/**
+ * Keeps an employee's uploaded expense sheet in their private folder, so the
+ * Admin and CEO can open the exact file the claims came from.
+ */
+export async function uploadSpreadsheetDocument(employeeId: string, file: File, kind: "xlsx" | "csv"): Promise<TravelDocument> {
+  const supabase = getSupabase();
+  const path = documentPath(employeeId, kind);
+  const { error: uploadError } = await supabase.storage.from(DOCUMENT_BUCKET).upload(path, file, { contentType: SHEET_MIME[kind], upsert: false });
+  if (uploadError) throw new Error("The sheet could not be uploaded. Please try again.");
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      employee_id: employeeId,
+      document_type: "spreadsheet",
+      storage_path: path,
+      original_filename: file.name.slice(0, 255),
+      mime_type: SHEET_MIME[kind],
+      size_bytes: file.size,
+    })
+    .select(SELECT)
+    .single();
+  if (error) throw friendlyError(error, "The sheet was uploaded but could not be saved. Please try again.");
+  return data as unknown as TravelDocument;
+}
+
 /** Short-lived link to view a file. Only works if the storage policy lets the caller see it. */
 export async function getDocumentUrl(doc: Pick<TravelDocument, "storage_path">): Promise<string> {
   const { data, error } = await getSupabase().storage.from(DOCUMENT_BUCKET).createSignedUrl(doc.storage_path, SIGNED_URL_SECONDS);

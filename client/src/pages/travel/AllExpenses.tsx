@@ -8,11 +8,34 @@ import { useLiveRefresh } from "../../lib/data/reports";
 import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney } from "./common";
 import { ExpenseStatusPill } from "./ExpenseStatusPill";
+import AllSpend from "./AllSpend";
 
 type Decision = "approved" | "rejected" | "reimbursed";
 
-/** CEO: every employee's expense claims, with approve / reject / reimburse. */
-export default function AllExpenses({ profileId }: { profileId: string }) {
+/**
+ * CEO and Admin: two views.
+ *  - "Claims to review": employee expense claims with approve / reject / reimburse.
+ *  - "All spend": claims plus every travel desk trip and Excel upload in one list.
+ */
+export default function AllExpenses({ profileId, isCeo = true }: { profileId: string; isCeo?: boolean }) {
+  const [tab, setTab] = useState<"claims" | "all">("claims");
+  return (
+    <div className="page-stack animate-page">
+      <PageHeader
+        eyebrow={isCeo ? "CEO" : "Admin"}
+        title="All expenses"
+        description="Employee claims and travel desk uploads in one place. Review claims, or see every rupee with filters and export."
+      />
+      <div className="panel p-2 flex flex-wrap gap-2" role="tablist" aria-label="Expense views">
+        <button type="button" role="tab" aria-selected={tab === "claims"} className={`button ${tab === "claims" ? "button-primary" : "button-ghost"}`} onClick={() => setTab("claims")}>Claims to review</button>
+        <button type="button" role="tab" aria-selected={tab === "all"} className={`button ${tab === "all" ? "button-primary" : "button-ghost"}`} onClick={() => setTab("all")}>All spend (claims + Excel uploads)</button>
+      </div>
+      {tab === "claims" ? <ClaimsReview profileId={profileId} isCeo={isCeo} /> : <AllSpend />}
+    </div>
+  );
+}
+
+function ClaimsReview({ profileId, isCeo }: { profileId: string; isCeo: boolean }) {
   const [rows, setRows] = useState<Expense[]>([]);
   const [status, setStatus] = useState<ExpenseStatus | "">("submitted");
   const [category, setCategory] = useState("");
@@ -97,13 +120,11 @@ export default function AllExpenses({ profileId }: { profileId: string }) {
   const allSelected = decidable.length > 0 && decidable.every((e) => selected.has(e.id));
 
   return (
-    <div className="page-stack animate-page">
-      <PageHeader
-        eyebrow="CEO"
-        title="All expenses"
-        description="Every employee's expense claims. Approve or reject new claims, then mark approved ones as reimbursed once paid."
-        actions={<button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}><Download size={15} /> Export CSV</button>}
-      />
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm opacity-80 m-0">Approve or reject new claims, then mark approved ones as reimbursed once paid.{isCeo ? " As CEO you can also overrule an earlier approval or rejection until it is paid." : " The CEO decides claims from Admins and has the final say."}</p>
+        <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}><Download size={15} /> Export CSV</button>
+      </div>
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Stat label="Shown" value={formatMoney(shownTotal)} detail={`${shown.length} claim(s)`} />
         <Stat label="Waiting for you" value={formatMoney(totals.submitted)} detail={`${totals.submittedCount} claim(s)`} />
@@ -160,7 +181,10 @@ export default function AllExpenses({ profileId }: { profileId: string }) {
                         <div className="table-subline">{CATEGORY_LABELS[e.category]} · {PAYMENT_LABELS[e.payment_method]}
                           {e.receipt && <> · <button type="button" className="underline" onClick={() => openReceipt(e)}><Paperclip size={11} className="inline" /> receipt</button></>}
                         </div>
+                        {(e.origin || e.destination) && <div className="table-subline">{[e.origin, e.destination].filter(Boolean).join(" to ")}</div>}
+                        {e.source === "upload" && <div className="table-subline">From the employee's Excel upload</div>}
                         {e.review_note && <div className="table-subline" title={e.review_note}>Note: {e.review_note}</div>}
+                        {e.reviewed_by_role && e.status !== "submitted" && <div className="table-subline">Decided by {e.reviewed_by_role === "admin" ? "the CEO" : "an Admin"}</div>}
                       </td>
                       <td className="text-right font-semibold">{formatMoney(e.amount, e.currency)}</td>
                       <td><ExpenseStatusPill status={e.status} /></td>
@@ -171,6 +195,8 @@ export default function AllExpenses({ profileId }: { profileId: string }) {
                             <button type="button" className="table-action table-action-danger" disabled={busy} onClick={() => setRejecting(e)}><X size={13} className="inline" /> Reject</button>
                           </>}
                           {e.status === "approved" && <button type="button" className="table-action" disabled={busy} onClick={() => decide(e, "reimbursed")}><Wallet size={13} className="inline" /> Mark paid</button>}
+                          {isCeo && e.status === "approved" && <button type="button" className="table-action table-action-danger" disabled={busy} onClick={() => setRejecting(e)}>Overrule: reject</button>}
+                          {isCeo && e.status === "rejected" && <button type="button" className="table-action" disabled={busy} onClick={() => decide(e, "approved", "Approved by the CEO")}>Overrule: approve</button>}
                         </>}
                       </div></td>
                     </tr>
@@ -183,7 +209,7 @@ export default function AllExpenses({ profileId }: { profileId: string }) {
       </div>
 
       {rejecting && <RejectDialog expense={rejecting} onClose={() => setRejecting(null)} onReject={async (note) => { await decide(rejecting, "rejected", note); setRejecting(null); }} />}
-    </div>
+    </>
   );
 }
 

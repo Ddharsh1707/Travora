@@ -1,18 +1,18 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_ROWS, TOOLS, TOOL_NAMES, cleanTerm, systemPrompt, trimTrip, validateToolInput } from "../../../supabase/functions/_shared/assistantTools.ts";
+import { MANAGER_TOOLS, MAX_ROWS, TOOLS, cleanTerm, systemPrompt, toolsFor, trimSpend, trimTrip, validateToolInput } from "../../../supabase/functions/_shared/assistantTools.ts";
 import { questionError, toolSummary } from "../lib/data/assistant.ts";
 
 describe("Assistant tool list", () => {
-  test("has exactly the nine read-only tools", () => {
-    assert.deepEqual([...TOOL_NAMES].sort(), [
+  test("has exactly the nine read-only tools for every role", () => {
+    assert.deepEqual(TOOLS.map((t) => t.name).sort(), [
       "get_bulk_booking", "get_department_expenses", "get_employee_travel_history", "get_monthly_expenses",
       "get_my_travel_history", "get_pending_approvals", "get_travel_by_date", "get_travel_by_date_range", "search_authorized_travel",
     ]);
     for (const t of TOOLS) assert.ok(!/book_|approve|delete|update|insert|sql/i.test(t.name), t.name);
   });
   test("every schema is strict-ready: closed objects and every property required", () => {
-    for (const t of TOOLS) {
+    for (const t of [...TOOLS, ...MANAGER_TOOLS]) {
       assert.equal(t.input_schema.additionalProperties, false, t.name);
       assert.deepEqual([...t.input_schema.required].sort(), Object.keys(t.input_schema.properties).sort(), t.name);
     }
@@ -93,5 +93,36 @@ describe("Assistant screen helpers", () => {
     assert.equal(toolSummary(["get_travel_by_date", "get_travel_by_date"]), "Looked up: trips on a date");
     assert.equal(toolSummary([]), "");
     assert.equal(toolSummary(undefined), "");
+  });
+});
+
+describe("Assistant for the Admin and CEO", () => {
+  test("only the Admin and the CEO get the person, spend and upload tools", () => {
+    const names = (role: string) => toolsFor(role).map((t) => t.name);
+    for (const role of ["admin", "company_admin"]) {
+      for (const t of ["get_person_profile", "find_spend", "spend_summary", "list_uploads"]) assert.ok(names(role).includes(t), `${role} ${t}`);
+    }
+    for (const role of ["employee", "approver", "travel_desk", "unknown"]) assert.equal(names(role).length, TOOLS.length, role);
+    for (const t of MANAGER_TOOLS) assert.ok(!/book_|approve|delete|update|insert|sql/i.test(t.name), t.name);
+  });
+  test("spend arguments are checked", () => {
+    const ok = validateToolInput("find_spend", { employee: "Ravi", project: "HRRL", category: "cab", source: "claim", status: null, from: "2026-09-01", to: "2026-09-30" });
+    assert.ok(ok.ok && ok.args.employee === "Ravi" && ok.args.source === "claim" && ok.args.status === null);
+    const any = validateToolInput("find_spend", { employee: null, project: null, category: null, source: null, status: null, from: null, to: null });
+    assert.ok(any.ok && any.args.employee === undefined);
+    assert.ok(!validateToolInput("find_spend", { employee: null, project: null, category: "yacht", source: null, status: null, from: null, to: null }).ok);
+    assert.ok(!validateToolInput("spend_summary", { group_by: "salary", from: null, to: null, employee: null, project: null, source: null }).ok);
+    assert.ok(validateToolInput("spend_summary", { group_by: "week", from: "2026-09-01", to: "2026-09-30", employee: null, project: null, source: "trip" }).ok);
+    assert.ok(!validateToolInput("get_person_profile", { employee: null, from: null, to: null }).ok, "a person lookup needs a name");
+    assert.ok(!validateToolInput("find_spend", { employee: "x'); drop", project: null, category: null, source: null, status: null, from: null, to: null, extra: 1 }).ok);
+  });
+  test("spend rows are trimmed", () => {
+    const r = trimSpend({ employee_name: "Ravi", amount: 100, employee_id: "uuid", email: "a@b.c", counted: 100 });
+    assert.deepEqual(r, { employee_name: "Ravi", amount: 100, counted: 100 });
+  });
+  test("the prompt tells managers to use the tools' totals", () => {
+    const p = systemPrompt({ name: "Asha", role: "company_admin", today: "2026-11-07" });
+    assert.ok(p.includes("Admin") && p.includes("get_person_profile") && p.includes("Every number"));
+    assert.ok(!systemPrompt({ name: "E", role: "employee", today: "2026-11-07" }).includes("get_person_profile"));
   });
 });

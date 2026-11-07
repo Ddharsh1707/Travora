@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "wouter";
-import { getUploadReport, type UploadReport as Report } from "../../lib/data/imports";
+import { getImportBatch, getUploadReport, type UploadReport as Report } from "../../lib/data/imports";
+import { DownloadOriginal } from "./UploadHistory";
 import { monthLabel } from "../../lib/data/reports";
 import { recordReportGenerated } from "../../lib/data/travel";
 import { exportToCsv } from "../../utils/exportCsv";
@@ -21,6 +22,8 @@ export default function UploadReport({ batchId }: { batchId: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [filePath, setFilePath] = useState<string | null>(null);
+  useEffect(() => { void getImportBatch(batchId).then((b) => setFilePath(b.file_path ?? null)).catch(() => setFilePath(null)); }, [batchId]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -60,12 +63,15 @@ export default function UploadReport({ batchId }: { batchId: string }) {
 
   return (
     <div className="page-stack animate-page">
-      <Link href="/travel/import" className="text-xs inline-flex items-center gap-1 hover:underline"><ArrowLeft size={13} /> Travel desk uploads</Link>
+      <Link href="/travel/uploads" className="text-xs inline-flex items-center gap-1 hover:underline"><ArrowLeft size={13} /> Upload history</Link>
       <PageHeader
         eyebrow="UPLOAD REPORT"
         title={batch.original_filename}
         description={`Uploaded ${formatDate(batch.committed_at ?? batch.created_at)} · ${batch.imported_rows} of ${batch.total_rows} rows imported${batch.created_employees ? ` · ${batch.created_employees} new employee${batch.created_employees === 1 ? "" : "s"} added` : ""}${totals.first_date ? ` · trips from ${formatDate(totals.first_date)} to ${formatDate(totals.last_date)}` : ""}`}
-        actions={<button type="button" className="button button-ghost" onClick={download} disabled={!report.employees.length}><Download size={14} /> Download CSV</button>}
+        actions={<>
+          <DownloadOriginal path={filePath} filename={batch.original_filename} />
+          <button type="button" className="button button-ghost" onClick={download} disabled={!report.employees.length}><Download size={14} /> Download CSV</button>
+        </>}
       />
 
       {totals.trips === 0 ? (

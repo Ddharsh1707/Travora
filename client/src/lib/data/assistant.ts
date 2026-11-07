@@ -8,12 +8,21 @@ import { friendlyError } from "./travel";
  */
 
 export type Conversation = { id: string; title: string | null; created_at: string };
-export type ChatMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string; tools_used?: string[] };
-export type AskResult = { conversationId: string; answer: string; tools: string[]; saved: boolean };
+export type RecordSet = { tool: string; rows: Array<Record<string, unknown>> };
+export type ChatMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string; tools_used?: string[]; records?: RecordSet[] };
+export type AskResult = { conversationId: string; answer: string; tools: string[]; records?: RecordSet[]; saved: boolean };
 
 export const MAX_QUESTION = 2000;
 
-export const EXAMPLE_QUESTIONS: Record<"self" | "team", string[]> = {
+export const EXAMPLE_QUESTIONS: Record<"self" | "team" | "manager", string[]> = {
+  manager: [
+    "How much did Ravi spend in September?",
+    "Show all trips for project HRRL",
+    "Who spent the most this month, claims and trips together?",
+    "Weekly spend for the last 4 weeks",
+    "Which Excel sheets were uploaded this month?",
+    "Which expense claims are waiting for review?",
+  ],
   self: [
     "Where am I travelling next?",
     "Show my trips from the last three months",
@@ -38,7 +47,27 @@ export const TOOL_LABELS: Record<string, string> = {
   get_department_expenses: "department spend",
   search_authorized_travel: "travel search",
   get_bulk_booking: "a group booking",
+  get_person_profile: "an employee's profile and spend",
+  find_spend: "claims and trips",
+  spend_summary: "spend totals",
+  list_uploads: "uploaded Excel sheets",
 };
+
+/** Column headings for the records panel; unknown keys are shown as they are. */
+export const RECORD_COLUMN_LABELS: Record<string, string> = {
+  spend_date: "Date", departure_date: "Date", source: "Source", entered_by: "Entered by", employee_name: "Employee", employee_code: "ID",
+  department: "Department", category: "Category", description: "Description", project_name: "Project", origin: "From", destination: "To",
+  booking_reference: "PNR", booking_type: "Mode", airline_or_provider: "Provider", amount: "Amount", currency: "Cur.", counted: "Counted",
+  status: "Status", group: "Group", records: "Records", counted_amount: "Total", claims: "Claims", trips: "Trips", people: "People",
+  file: "File", uploaded_by: "Uploaded by", uploaded_on: "Uploaded", spend: "Spend", rows: "Rows",
+};
+
+/** The columns to show for a set of records: the keys that have a value in any row, in first-seen order. */
+export function recordColumns(rows: Array<Record<string, unknown>>): string[] {
+  const cols: string[] = [];
+  for (const r of rows) for (const k of Object.keys(r)) if (!cols.includes(k) && r[k] !== null && r[k] !== undefined && typeof r[k] !== "object") cols.push(k);
+  return cols.slice(0, 12);
+}
 
 export function toolSummary(tools: string[] | undefined): string {
   const names = Array.from(new Set(tools ?? [])).map((t) => TOOL_LABELS[t] ?? "records");

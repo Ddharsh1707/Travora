@@ -10,8 +10,12 @@ import { useLiveRefresh } from "../../lib/data/reports";
 import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat } from "./common";
 
-/** CEO: add employees, give them a login, change roles, deactivate leavers. */
-export default function PeopleManager({ profileId }: { profileId: string }) {
+/**
+ * CEO and Admin: add employees, give them a login, deactivate leavers.
+ * Only the CEO changes roles, and only the CEO manages the CEO and Admins
+ * (the database enforces this; can_manage says what to offer).
+ */
+export default function PeopleManager({ profileId, isCeo }: { profileId: string; isCeo: boolean }) {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,6 +54,7 @@ export default function PeopleManager({ profileId }: { profileId: string }) {
   async function changeRole(p: Person, role: DbRole) {
     if (role === p.role) return;
     if (role === "admin" && !window.confirm(`Give ${p.full_name} full CEO access to all employees and expenses?`)) return;
+    if (role === "company_admin" && !window.confirm(`Make ${p.full_name} an Admin? They will see every employee, expense and upload, and can approve claims.`)) return;
     try {
       await setRole(p.id, role);
       toast.success(`${p.full_name} is now ${DB_ROLE_LABELS[role]}`);
@@ -78,9 +83,9 @@ export default function PeopleManager({ profileId }: { profileId: string }) {
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow="CEO"
+        eyebrow={isCeo ? "CEO" : "Admin"}
         title="Manage employees"
-        description="Add employees, create their sign-in, set their manager and role, and deactivate people who leave."
+        description={isCeo ? "Add employees, create their sign-in, set their manager and role, and deactivate people who leave." : "Add employees, create their sign-in, set their manager and deactivate people who leave. Only the CEO can change roles."}
         actions={<>
           <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
           <button type="button" className="button button-primary" onClick={() => setEditing("new")}><UserPlus size={16} /> Add employee</button>
@@ -109,6 +114,7 @@ export default function PeopleManager({ profileId }: { profileId: string }) {
               <tbody>
                 {shown.map((p) => {
                   const me = p.id === profileId;
+                  const manageable = p.can_manage ?? isCeo;
                   return (
                     <tr key={p.id} className={p.active ? "" : "opacity-60"}>
                       <td>
@@ -118,15 +124,17 @@ export default function PeopleManager({ profileId }: { profileId: string }) {
                       <td>{p.department ?? "—"}<div className="table-subline">{p.designation ?? ""}</div></td>
                       <td>{p.manager_name ?? "—"}</td>
                       <td>
-                        <select aria-label={`Role for ${p.full_name}`} value={p.role} disabled={!p.active || me} onChange={(e) => changeRole(p, e.target.value as DbRole)} className="text-sm bg-transparent border rounded-lg px-2 py-1">
-                          {(Object.keys(DB_ROLE_LABELS) as DbRole[]).map((r) => <option key={r} value={r}>{DB_ROLE_LABELS[r]}</option>)}
-                        </select>
+                        {isCeo ? (
+                          <select aria-label={`Role for ${p.full_name}`} value={p.role} disabled={!p.active || me} onChange={(e) => changeRole(p, e.target.value as DbRole)} className="text-sm bg-transparent border rounded-lg px-2 py-1">
+                            {(Object.keys(DB_ROLE_LABELS) as DbRole[]).map((r) => <option key={r} value={r}>{DB_ROLE_LABELS[r]}</option>)}
+                          </select>
+                        ) : <span className="text-sm">{DB_ROLE_LABELS[p.role] ?? p.role}</span>}
                       </td>
                       <td>{!p.active ? <span className="status-badge status-cancelled"><span className="status-dot" />Deactivated</span> : p.has_login ? <span className="status-badge status-approved"><span className="status-dot" />Can sign in</span> : <span className="status-badge status-pending-approval"><span className="status-dot" />No login yet</span>}</td>
                       <td className="whitespace-nowrap"><div className="flex flex-wrap items-center gap-3">
-                        <button type="button" className="table-action" onClick={() => setEditing(p)}>Edit</button>
-                        {p.active && !me && <button type="button" className="table-action" onClick={() => setLoginFor(p)}><KeyRound size={12} className="inline" /> {p.has_login ? "Reset password" : "Create login"}</button>}
-                        {!me && <button type="button" className={`table-action ${p.active ? "table-action-danger" : ""}`} onClick={() => toggleActive(p)}>{p.active ? "Deactivate" : "Activate"}</button>}
+                        {(manageable || me) && <button type="button" className="table-action" onClick={() => setEditing(p)}>Edit</button>}
+                        {p.active && !me && manageable && <button type="button" className="table-action" onClick={() => setLoginFor(p)}><KeyRound size={12} className="inline" /> {p.has_login ? "Reset password" : "Create login"}</button>}
+                        {!me && manageable && <button type="button" className={`table-action ${p.active ? "table-action-danger" : ""}`} onClick={() => toggleActive(p)}>{p.active ? "Deactivate" : "Activate"}</button>}
                       </div></td>
                     </tr>
                   );

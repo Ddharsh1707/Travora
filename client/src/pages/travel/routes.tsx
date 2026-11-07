@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3, Bot, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
+import { Archive, BarChart3, Bot, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -25,6 +25,7 @@ import BiProjectDetail from "./BiProjectDetail";
 import BiTravel from "./BiTravel";
 import BiEmployees from "./BiEmployees";
 import BiFinance from "./BiFinance";
+import UploadHistory from "./UploadHistory";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -33,25 +34,31 @@ import BiFinance from "./BiFinance";
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const STAFF: Role[] = ["TRAVEL_DESK", "ADMIN"];
-const OVERSIGHT: Role[] = ["APPROVER", "TRAVEL_DESK", "ADMIN"];
+// COMPANY_ADMIN is the "Admin": every travel desk permission plus all expenses
+// and employee logins, below the CEO (ADMIN).
+const STAFF: Role[] = ["TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
+const OVERSIGHT: Role[] = ["APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
+const MANAGERS: Role[] = ["COMPANY_ADMIN", "ADMIN"];
 
 type TravelRoute = { href: string; label: string; icon: ReactNode; roles: Role[]; group: string };
 
-const ALL: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN"];
+const ALL: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
 const CEO: Role[] = ["ADMIN"];
+const ADMIN: Role[] = ["COMPANY_ADMIN"];
 
 /**
  * Two separate portals:
  *  - Employees get "MY WORKSPACE": only their own trips, requests and expenses.
  *  - The CEO (admin role) gets "CEO" tools for the whole company, plus travel admin.
+ *  - The Admin (company_admin role) gets "ADMIN" tools: the same company-wide
+ *    view, claims and employee logins, without role changes or travel approvals.
  * Managers and the travel desk keep their existing screens.
  */
 const ROUTES: TravelRoute[] = [
   // Employee portal
   { group: "MY WORKSPACE", href: "/travel/home", label: "My dashboard", icon: <LayoutDashboard size={16} />, roles: ["EMPLOYEE"] },
   { group: "MY WORKSPACE", href: "/travel/overview", label: "Overview", icon: <LayoutDashboard size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
-  { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
+  { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN"] },
   { group: "MY WORKSPACE", href: "/travel/requests", label: "My travel requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   // CEO portal
@@ -60,6 +67,13 @@ const ROUTES: TravelRoute[] = [
   { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/approvals", label: "Travel approvals", icon: <ClipboardCheck size={16} />, roles: CEO },
   { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
+  { group: "CEO", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: CEO },
+  // Admin portal
+  { group: "ADMIN", href: "/travel/admin", label: "Admin dashboard", icon: <Briefcase size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/people", label: "Manage employees", icon: <UserCog size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ADMIN },
+  { group: "ADMIN", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: ADMIN },
   // Business Intelligence: built only from recorded bookings; approvers see their team
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi", label: "Management overview", icon: <Gauge size={16} />, roles: OVERSIGHT },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/projects", label: "Project Intelligence", icon: <FolderKanban size={16} />, roles: OVERSIGHT },
@@ -68,6 +82,7 @@ const ROUTES: TravelRoute[] = [
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/finance", label: "Financial Intelligence", icon: <IndianRupee size={16} />, roles: OVERSIGHT },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
   { group: "TRAVEL DESK", href: "/travel/import", label: "Upload travel data", icon: <FileSpreadsheet size={16} />, roles: STAFF },
+  { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: STAFF },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: STAFF },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
   { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
@@ -76,13 +91,14 @@ const ROUTES: TravelRoute[] = [
   { group: "TRAVEL", href: "/travel/employees", label: "Employee travel", icon: <UsersRound size={16} />, roles: ["APPROVER"] },
   { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: OVERSIGHT },
   { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ALL },
-  { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ALL },
+  { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
 ];
 
 /** Where each role lands after signing in. */
 export function travelHomeFor(role: Role): string {
   if (role === "EMPLOYEE") return "/travel/home";
-  if (role === "ADMIN" || role === "COMPANY_ADMIN" || role === "PLATFORM_ADMIN") return "/travel/ceo";
+  if (role === "COMPANY_ADMIN") return "/travel/admin";
+  if (role === "ADMIN" || role === "PLATFORM_ADMIN") return "/travel/ceo";
   return "/travel/overview";
 }
 
@@ -91,8 +107,10 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/home": { eyebrow: "Employee", title: "My dashboard" },
   "/travel/expenses": { eyebrow: "Employee", title: "My expenses" },
   "/travel/ceo": { eyebrow: "CEO", title: "CEO dashboard" },
-  "/travel/people": { eyebrow: "CEO", title: "Manage employees" },
-  "/travel/expenses/all": { eyebrow: "CEO", title: "All expenses" },
+  "/travel/admin": { eyebrow: "Admin", title: "Admin dashboard" },
+  "/travel/people": { eyebrow: "Management", title: "Manage employees" },
+  "/travel/expenses/all": { eyebrow: "Management", title: "All expenses" },
+  "/travel/uploads": { eyebrow: "Travel desk", title: "Upload history" },
   "/travel/reports": { eyebrow: "Travel", title: "Reports" },
   "/travel/assistant": { eyebrow: "Travel", title: "Ask the assistant" },
   "/travel/my": { eyebrow: "Travel", title: "My travel history" },
@@ -145,6 +163,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     return canManage ? <UploadReport key={uploadMatch[1]} batchId={uploadMatch[1]} /> : null;
   }
   const isCeo = user.role === "ADMIN";
+  const isManager = MANAGERS.includes(user.role);
   const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
   if (projectMatch && (projectMatch[1] === "unassigned" || UUID.test(projectMatch[1]))) {
     const id = projectMatch[1] === "unassigned" ? null : projectMatch[1];
@@ -168,17 +187,21 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     case "/travel/expenses":
       return <MyExpenses profileId={profileId} />;
     case "/travel/ceo":
-      return <CeoDashboard name={name} profileId={profileId} />;
+      return <CeoDashboard name={name} profileId={profileId} isCeo />;
+    case "/travel/admin":
+      return <CeoDashboard name={name} profileId={profileId} isCeo={false} />;
     case "/travel/people":
-      return <PeopleManager profileId={profileId} />;
+      return isManager ? <PeopleManager profileId={profileId} isCeo={isCeo} /> : null;
     case "/travel/expenses/all":
-      return <AllExpenses profileId={profileId} />;
+      return isManager ? <AllExpenses profileId={profileId} isCeo={isCeo} /> : null;
+    case "/travel/uploads":
+      return canManage ? <UploadHistory /> : null;
     case "/travel/overview":
       return <Overview role={user.role} name={(user as SupabaseAuthUser).fullName ?? ""} />;
     case "/travel/reports":
       return <Reports scopeLabel={canManage ? "everyone" : user.role === "APPROVER" ? "you and your team" : "your own trips"} />;
     case "/travel/assistant":
-      return <Assistant canSeeOthers={user.role !== "EMPLOYEE"} />;
+      return <Assistant canSeeOthers={user.role !== "EMPLOYEE"} isManager={isManager} />;
     case "/travel/my":
       return <EmployeeHistory employeeId={profileId} canManage={false} showBack={false} />;
     case "/travel/requests":
