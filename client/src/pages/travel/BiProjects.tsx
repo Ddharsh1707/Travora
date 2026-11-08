@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Download, Search } from "lucide-react";
+import { Download, FileSpreadsheet, Search } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer } from "recharts";
 import { Link } from "wouter";
-import { KIND_LABEL, STATUS_LABEL, getProjects, useBiFilters, type ProjectKind, type ProjectRow, type ProjectStatus, type ProjectsReport } from "../../lib/data/bi";
+import { KIND_LABEL, STATUS_LABEL, getProjectDetail, getProjects, useBiFilters, type ProjectKind, type ProjectRow, type ProjectStatus, type ProjectsReport } from "../../lib/data/bi";
 import { recordReportGenerated } from "../../lib/data/travel";
 import { exportToCsv } from "../../utils/exportCsv";
 import BiFilterBar from "./BiFilterBar";
-import { Kpi, Panel, count, dateRange, plural } from "./BiParts";
+import { downloadTeamReport } from "./BiProjectDetail";
+import { Kpi, count, dateRange, plural } from "./BiParts";
 import { Empty, ErrorNotice, Loading, PageHeader, formatMoney } from "./common";
 
 const STATUS_TONE: Record<ProjectStatus, string> = { active: "approved", completed: "completed", on_hold: "pending-approval", unknown: "booked" };
@@ -26,6 +27,20 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
   const [kind, setKind] = useState<ProjectKind | "">("");
   const [withTravel, setWithTravel] = useState(true);
   const [sort, setSort] = useState<Sort>("spend");
+  const [busyId, setBusyId] = useState("");
+  const [reportError, setReportError] = useState("");
+
+  async function teamReport(p: ProjectRow) {
+    setBusyId(p.project_id);
+    setReportError("");
+    try {
+      await downloadTeamReport(await getProjectDetail(p.project_id, filters), p.name, filters, "xlsx");
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : "Could not create the report.");
+    } finally {
+      setBusyId("");
+    }
+  }
 
   const load = useCallback(() => {
     setLoading(true);
@@ -53,14 +68,11 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
     return [...list].sort(by[sort]);
   }, [data, query, kind, withTravel, sort]);
 
-  const totalSpend = (data?.projects ?? []).reduce((s, p) => s + Number(p.spend), 0) + Number(data?.unassigned.spend ?? 0);
-
   function download() {
     if (!data) return;
     exportToCsv("project_intelligence",
       ["Project", "Code", "Type", "Status", "Client", "Bookings", "Travellers", `Spend (${cur})`, `Average per costed booking (${cur})`, "Bookings without a cost", "First travel", "Last travel"],
-      [...rows.map((p) => [p.name, p.code ?? "", KIND_LABEL[p.kind], STATUS_LABEL[p.status], p.client ?? "", p.bookings, p.travellers, p.spend, p.avg_per_booking ?? "", p.without_cost, p.first_date ?? "", p.last_date ?? ""]),
-        ["Unassigned (no project linked)", "", "", "", "", data.unassigned.bookings, data.unassigned.travellers, data.unassigned.spend, data.unassigned.avg_per_booking ?? "", data.unassigned.without_cost, data.unassigned.first_date ?? "", data.unassigned.last_date ?? ""]]);
+      rows.map((p) => [p.name, p.code ?? "", KIND_LABEL[p.kind], STATUS_LABEL[p.status], p.client ?? "", p.bookings, p.travellers, p.spend, p.avg_per_booking ?? "", p.without_cost, p.first_date ?? "", p.last_date ?? ""]));
     void recordReportGenerated("project_intelligence").catch(() => undefined);
   }
 
@@ -69,7 +81,7 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
       <PageHeader
         eyebrow="BUSINESS INTELLIGENCE"
         title="Project Intelligence"
-        description={`Travel booked against each project. A booking counts for a project only when its sheet project name is linked to it${isCeo ? " or you assigned it by hand" : ""}.`}
+        description={`Travel booked against each project. A booking counts for a project when its project name in the sheet is linked to it${isCeo ? " or you assigned it by hand" : ""}. Download a team report to see everyone who worked on a project.`}
         actions={<button type="button" className="button button-ghost" onClick={download} disabled={!data}><Download size={14} /> Download CSV</button>}
       />
       <BiFilterBar filters={filters} onChange={setFilters} hide={["project"]} />
@@ -78,29 +90,14 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
 
       {data && (
         <div className={`page-stack ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
             <Kpi label="Projects" value={count(data.status_counts.total)}
               detail={`${data.status_counts.active} active · ${data.status_counts.completed} completed · ${data.status_counts.unknown} status not set`} />
             <Kpi label="With travel in this period" value={count(data.projects.filter((p) => p.bookings > 0 && p.kind === "project").length)}
               detail={`plus ${plural(data.projects.filter((p) => p.bookings > 0 && p.kind !== "project").length, "cost centre or event", "cost centres or events")}`} />
             <Kpi label="Travellers on projects" value={count(data.travellers_on_projects)} />
-            <Kpi label="Not linked to a project" value={plural(data.unassigned.bookings, "booking")}
-              detail={[totalSpend > 0 ? `${formatMoney(data.unassigned.spend, cur)} · ${Math.round((Number(data.unassigned.spend) / totalSpend) * 100)}% of spend` : "", data.unassigned.without_cost ? `${data.unassigned.without_cost} without a cost in the sheet` : ""].filter(Boolean).join(" · ") || undefined}
-              tone={data.unassigned.bookings ? "warn" : undefined} />
           </div>
-
-          {data.unassigned.bookings > 0 && (
-            <Panel title="Travel not linked to a project"
-              note="These project names from the sheets are not linked to a project yet. Link a spelling once on the upload screen and every booking with it moves to that project."
-              actions={<Link href="/travel/bi/projects/unassigned" className="text-link">Open bookings <ArrowRight size={12} /></Link>}>
-              <div className="flex flex-wrap gap-2">
-                {data.unassigned.names.slice(0, 18).map((n) => (
-                  <span key={n.project_raw} className="bi-tag"><AlertTriangle size={11} aria-hidden /> {n.project_raw} <span className="opacity-60">· {n.bookings}</span></span>
-                ))}
-                {data.unassigned.names.length > 18 && <span className="bi-tag">+{data.unassigned.names.length - 18} more</span>}
-              </div>
-            </Panel>
-          )}
+          {reportError && <ErrorNotice message={reportError} />}
 
           <div className="panel table-panel">
             <div className="table-toolbar flex-wrap gap-2">
@@ -127,7 +124,7 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
                 <table>
                   <thead><tr>
                     <th>Project</th><th>Status</th><th className="text-right">Travellers</th><th className="text-right">Bookings</th>
-                    <th className="text-right">Spend</th><th className="text-right">Avg per booking</th><th>Travel</th><th>Trend</th>
+                    <th className="text-right">Spend</th><th className="text-right">Avg per booking</th><th>Travel</th><th>Trend</th><th>Team report</th>
                   </tr></thead>
                   <tbody>
                     {rows.map((p) => (
@@ -143,6 +140,12 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
                         <td className="text-right">{p.avg_per_booking == null ? "—" : formatMoney(p.avg_per_booking, cur)}</td>
                         <td className="whitespace-nowrap text-xs">{p.bookings ? dateRange(p.first_date, p.last_date) : "—"}</td>
                         <td style={{ width: 96 }}><Spark data={p.monthly} months={data.months} /></td>
+                        <td>
+                          <button type="button" className="button button-ghost whitespace-nowrap" onClick={() => void teamReport(p)} disabled={!p.bookings || !!busyId}
+                            aria-label={`Download the team report for ${p.name}`} title="Everyone who worked on this project, with their bookings (Excel)">
+                            <FileSpreadsheet size={14} /> {busyId === p.project_id ? "Creating…" : "Download"}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
