@@ -20,10 +20,13 @@ done
 "${PSQL[@]}" -f "$HERE/intelligence_test.sql"
 "${PSQL[@]}" -f "$HERE/admin_portal_test.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
+"${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 # The new files must be safe to run again
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000500_company_admin_role.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000510_admin_portal_uploads_assistant.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000520_past_employees.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000600_requests_admin_pdf.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261108000200_delete_people_reset_data.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
+"${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 echo "re-ran 000500, 000510, 000520 and 000600"

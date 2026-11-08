@@ -469,7 +469,7 @@ function Sidebar({
             {!collapsed && <div className="nav-category-header">{cat.category}</div>}
             <nav className="primary-nav" aria-label={cat.category}>
               {cat.items.map((item) => {
-                const active = path === item.href || (path === "/" && item.href === "/employee");
+                const active = path === item.href || (path === "/" && item.href === "/employee") || Boolean((item as { match?: string[] }).match?.includes(path));
                 return (
                   <Link
                     href={item.href}

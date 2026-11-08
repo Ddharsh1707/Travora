@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "wouter";
 import { AlertTriangle, Inbox, Loader2, ShieldCheck } from "lucide-react";
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow: string; title: string; description?: string; actions?: ReactNode }) {
@@ -14,6 +15,19 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow: 
         <span className="preview-chip"><ShieldCheck size={13} /> Secure workspace</span>
       </div>
     </div>
+  );
+}
+
+/** CEO / Admin: one "Employees" menu item with two views. */
+export function PeopleTabs({ current }: { current: "manage" | "spend" }) {
+  const tab = (key: "manage" | "spend", href: string, label: string) => (
+    <Link href={href} className={`button ${current === key ? "button-primary" : "button-ghost"}`} aria-current={current === key ? "page" : undefined}>{label}</Link>
+  );
+  return (
+    <nav className="flex flex-wrap gap-2" aria-label="Employee views">
+      {tab("manage", "/travel/people", "Manage & logins")}
+      {tab("spend", "/travel/employees", "Spend & history")}
+    </nav>
   );
 }
 

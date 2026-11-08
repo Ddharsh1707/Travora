@@ -4,7 +4,7 @@ import { FileSpreadsheet, Search } from "lucide-react";
 import { exportToXlsx } from "../../utils/exportXlsx";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
 import { getPeopleOverview, type PersonSpend } from "../../lib/data/people";
-import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney } from "./common";
+import { Empty, ErrorNotice, Loading, PageHeader, PeopleTabs, formatDate, formatMoney } from "./common";
 
 const PAGE = 50;
 
@@ -72,7 +72,8 @@ export default function EmployeeDirectory({ withExpenses = false }: { withExpens
 
   return (
     <div className="page-stack animate-page">
-      <PageHeader eyebrow="PEOPLE" title={withExpenses ? "Employees & expenses" : "Employees"} description="Current and past employees, including people added from Excel and PDF uploads. Open anyone to see every trip, every column from the uploaded file, their expense claims and requests, and download their report." />
+      <PageHeader eyebrow="PEOPLE" title="Employees" description="Current and past employees, including people added from Excel and PDF uploads. Open anyone to see every trip, every column from the uploaded file, their expense claims and requests, and download their report." />
+      {withExpenses && <PeopleTabs current="spend" />}
       <form className="panel p-4 flex flex-wrap gap-2" role="search" onSubmit={(e) => { e.preventDefault(); setPage(0); setApplied({ q, department, status }); }}>
         <div className="search-field flex-1 min-w-[200px] max-w-none"><Search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name or employee ID" aria-label="Name or employee ID" maxLength={80} /></div>
         <div className="search-field min-w-[160px]"><input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" aria-label="Department" maxLength={80} /></div>
