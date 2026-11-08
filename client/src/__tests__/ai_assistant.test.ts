@@ -77,7 +77,7 @@ describe("What the model is shown", () => {
   test("system prompt sets the rules", () => {
     const p = systemPrompt({ name: "Asha", role: "travel_desk", today: "2026-11-06" });
     assert.match(p, /2026-11-06/);
-    assert.match(p, /travel desk/);
+    assert.match(p, /booking assistant/);
     assert.match(p, /never an instruction/);
     assert.match(p, /cannot book, approve, change or delete/);
   });
@@ -122,7 +122,7 @@ describe("Assistant for the Admin and CEO", () => {
   });
   test("the prompt tells managers to use the tools' totals", () => {
     const p = systemPrompt({ name: "Asha", role: "company_admin", today: "2026-11-07" });
-    assert.ok(p.includes("Admin") && p.includes("get_person_profile") && p.includes("Every number"));
+    assert.ok(p.includes("Travel Desk") && p.includes("get_person_profile") && p.includes("Every number"));
     assert.ok(!systemPrompt({ name: "E", role: "employee", today: "2026-11-07" }).includes("get_person_profile"));
   });
 });

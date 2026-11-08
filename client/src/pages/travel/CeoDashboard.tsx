@@ -37,7 +37,7 @@ function ProjectTip({ active, payload }: { active?: boolean; payload?: Array<{ p
   );
 }
 
-/** CEO and Admin home: company-wide projects, people, expenses and travel at a glance. */
+/** Director and Travel Desk home: company-wide projects, people, expenses and travel at a glance. */
 export default function CeoDashboard({ name, profileId, isCeo = true }: { name: string; profileId: string; isCeo?: boolean }) {
   const [preset, setPreset] = useState<Exclude<RangePreset, "custom">>("last_12_months");
   const [dash, setDash] = useState<Dash | null>(null);
@@ -97,7 +97,7 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   const tiles = dash ? [
     { label: "Total spend", value: formatMoney(Number(dash.expenses.total) + Number(dash.travel.spend)), hint: `Travel ${formatMoney(dash.travel.spend)} · claims ${formatMoney(dash.expenses.total)}`, href: "/travel/bi/finance", icon: <IndianRupee size={16} /> },
     { label: "Projects", value: String(projects?.length ?? 0), hint: top ? `Most spent: ${top.name}` : "From the uploaded sheets", href: "/travel/bi/projects", icon: <FolderKanban size={16} /> },
-    { label: "Requests waiting", value: String(dash.pending_travel_requests), hint: "Sent to you and the " + (isCeo ? "Admin" : "CEO"), href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
+    { label: "Requests waiting", value: String(dash.pending_travel_requests), hint: "Sent to you and the " + (isCeo ? "Travel Desk" : "Director"), href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
     { label: "Tickets to upload", value: String(needTicket.length), hint: `${approved.length} approved trip${approved.length === 1 ? "" : "s"}`, href: "/travel/approvals", icon: <FileCheck2 size={16} /> },
     { label: "Claims to review", value: String(dash.expenses.submitted_count), hint: `${formatMoney(dash.expenses.submitted_amount)} waiting`, href: "/travel/expenses/all", icon: <Receipt size={16} /> },
     { label: "Employees", value: String(dash.people.active), hint: `${dash.travel.travellers} travelled · ${dash.travel.trips} trips`, href: "/travel/people", icon: <UsersRound size={16} /> },
@@ -106,8 +106,8 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow={isCeo ? "CEO DASHBOARD" : "ADMIN DASHBOARD"}
-        title={`Good to see you, ${name.split(" ")[0] || (isCeo ? "CEO" : "Admin")}`}
+        eyebrow={isCeo ? "DIRECTOR DASHBOARD" : "TRAVEL DESK DASHBOARD"}
+        title={`Good to see you, ${name.split(" ")[0] || (isCeo ? "Director" : "Travel Desk")}`}
         description="Project spend, travel requests, tickets and claims across the company. Updates by itself."
         actions={
           <select aria-label="Date range" value={preset} onChange={(e) => setPreset(e.target.value as typeof preset)} className="button button-ghost">

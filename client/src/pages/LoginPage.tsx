@@ -427,7 +427,7 @@ export function LoginPage({
             <span className="auth-gradient-text">flowing.</span>
           </motion.h1>
           <motion.p {...rise(0.26)}>
-            Request a trip to any terminal, port or pipeline site, get one clear decision from the CEO and Admin, and keep
+            Request a trip to any terminal, port or pipeline site, get one clear decision from the Director and Travel Desk, and keep
             every booking and claim in one place.
           </motion.p>
           <motion.ul className="auth-trust" {...rise(0.34)}>

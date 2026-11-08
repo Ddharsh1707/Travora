@@ -205,7 +205,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow={isManager ? "ADMIN" : "TRAVEL DESK"}
+        eyebrow={isManager ? "DIRECTOR & TRAVEL DESK" : "BOOKINGS"}
         title="Upload bookings or past employee records"
         description="Upload an Excel workbook, a CSV or a PDF exactly as you have it: bulk bookings from the travel agent, the monthly travel desk sheet, or the records of employees who have left. Every sheet or PDF page is read (air, hotel, bus and train, cab, visa, forex) and every column is kept. You check what was found, confirm who each traveller is, map project names once, then import. Nothing is saved until the last step."
       />

@@ -17,6 +17,15 @@ begin
   begin execute stmt; exception when others then raise notice 'ok - % (blocked: %)', label, sqlerrm; return; end;
   raise exception 'FAIL: % (statement succeeded)', label;
 end $$;
+create function rq.allows(stmt text, label text) returns void language plpgsql as $$
+begin
+  -- Runs the statement, then undoes it so later checks see the same data.
+  begin execute stmt; raise exception 'allows-rollback';
+  exception when others then
+    if sqlerrm = 'allows-rollback' then raise notice 'ok - % (allowed)', label; return; end if;
+    raise exception 'FAIL: % (blocked: %)', label, sqlerrm;
+  end;
+end $$;
 create function rq.login(uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
@@ -100,8 +109,8 @@ select rq.login('90000000-0000-0000-0000-0000000000c2');
 insert into public.travel_requests (employee_id, origin, destination, departure_date, purpose, travel_type)
 values ('80000000-0000-0000-0000-0000000000c2', 'Pune', 'Goa', current_date + 3, 'Vendor meet', 'flight');
 select rq.login('90000000-0000-0000-0000-0000000000c1');
-select rq.throws($$select public.decide_travel_request((select id from public.travel_requests where purpose = 'Vendor meet'), 'approved')$$,
-  'Admin: cannot decide another Admin''s request');
+select rq.allows($$select public.decide_travel_request((select id from public.travel_requests where purpose = 'Vendor meet'), 'approved')$$,
+  'Travel Desk: can decide another Travel Desk request');
 select rq.login('90000000-0000-0000-0000-0000000000a1');
 select public.decide_travel_request((select id from public.travel_requests where purpose = 'Vendor meet'), 'approved');
 select rq.ok((select status = 'approved' from public.travel_requests where purpose = 'Vendor meet'), 'CEO: can decide an Admin''s request');

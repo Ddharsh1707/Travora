@@ -7,8 +7,8 @@ import { ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, ro
 import { RequestDecision, RequestStatusBadge } from "./RequestParts";
 
 /**
- * Employee home. Employees only describe their trips; the CEO and Admin
- * decide, and the Admin books. This page shows where each request stands.
+ * Employee home. Employees only describe their trips; the Director and Travel Desk
+ * decide, and the Travel Desk books. This page shows where each request stands.
  */
 export default function EmployeeHome({ name, profileId }: { name: string; profileId: string }) {
   const [requests, setRequests] = useState<TravelRequest[]>([]);
@@ -40,7 +40,7 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
   const n = (s: string[]) => requests.filter((r) => s.includes(r.status)).length;
 
   const tiles = [
-    { label: "Waiting for approval", value: String(n(["pending"])), hint: "Sent to the CEO and Admin", icon: <Clock3 size={16} /> },
+    { label: "Waiting for approval", value: String(n(["pending"])), hint: "Sent to the Director and Travel Desk", icon: <Clock3 size={16} /> },
     { label: "Approved", value: String(n(["approved", "booked", "completed"])), hint: `${n(["booked"])} booked`, icon: <CheckCircle2 size={16} /> },
     { label: "Rejected", value: String(n(["rejected"])), hint: "Reason shown on each request", icon: <XCircle size={16} /> },
     { label: "Upcoming trips", value: String(upcoming.length), hint: upcoming[0] ? `Next on ${formatDate(upcoming[0].departure_date)}` : "Nothing booked yet", icon: <Plane size={16} /> },
@@ -51,7 +51,7 @@ export default function EmployeeHome({ name, profileId }: { name: string; profil
       <PageHeader
         eyebrow="MY DASHBOARD"
         title={`Hello, ${name.split(" ")[0] || "there"}`}
-        description="Send your travel details here. The CEO and the Admin get your request at the same time, and you see their decision on this page."
+        description="Send your travel details here. The Director and the Travel Desk get your request at the same time, and you see their decision on this page."
         actions={<Link href="/travel/requests" className="button button-primary"><FileText size={15} /> New travel request</Link>}
       />
       {error && <ErrorNotice message={error} onRetry={load} />}

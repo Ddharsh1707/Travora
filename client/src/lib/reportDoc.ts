@@ -159,7 +159,7 @@ export function buildReport(kind: ReportKind, data: BiReport, ctx: ReportContext
       sections = [periodsSection("Periods"), byPeriodSection("project", "Projects in each period"), byPeriodSection("department", "Departments in each period"), byPeriodSection("category", "Travel types in each period"), periodRoutesSection()];
       break;
     case "project":
-      sections = [dimensionSection("project", "Projects", undefined, "Only the project written on each booking or assigned by the CEO. Bookings with no project are shown as \"Not linked to a project\"."), byPeriodSection("project", "Projects in each period")];
+      sections = [dimensionSection("project", "Projects", undefined, "Only the project written on each booking or assigned by the Director. Bookings with no project are shown as \"Not linked to a project\"."), byPeriodSection("project", "Projects in each period")];
       break;
     case "employee":
       sections = [dimensionSection("employee", "Travellers"), dimensionSection("department", "Departments"), byPeriodSection("employee", "Travellers in each period")];
@@ -189,7 +189,7 @@ export function buildReport(kind: ReportKind, data: BiReport, ctx: ReportContext
     `Spend is the cost of bookings that were not cancelled, in ${cur}. Cancelled bookings are counted, and their cost is shown on its own; refunds are not in the sheets.`,
     "Bookings with a blank cost, or whose cost is recorded on another line, are counted as bookings but add nothing to spend. They are never treated as a cost of zero.",
     `Periods follow the travel date${g === "week" ? "; weeks start on Monday" : ""}. The financial year runs 1 April to 31 March, and Q1 is April to June.`,
-    "Projects come only from the project written on each booking, or one the CEO assigned. No project is guessed.",
+    "Projects come only from the project written on each booking, or one the Director assigned. No project is guessed.",
     "Each traveller is counted once per row: once in a period, once in a project, and once in the whole report.",
     data.other_currencies.length
       ? `Amounts in ${data.other_currencies.map((o) => o.currency).join(", ")} are listed apart and never added to the ${cur} totals, because the sheets carry no exchange rate.`

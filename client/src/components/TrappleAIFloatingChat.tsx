@@ -32,10 +32,20 @@ interface TrappleAIFloatingChatProps {
   currentPath: string;
 }
 
+const HIDE_KEY = "trapple-ai-launcher-hidden";
+
 export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloatingChatProps) {
   const [, setLocation] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  // The small X on the launcher hides it; "Ask AI" in the top bar brings it back.
+  const [isHidden, setIsHidden] = useState(() => {
+    try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; }
+  });
+  const setHidden = (hide: boolean) => {
+    setIsHidden(hide);
+    try { if (hide) localStorage.setItem(HIDE_KEY, "1"); else localStorage.removeItem(HIDE_KEY); } catch { /* storage blocked */ }
+  };
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [messages, setMessages] = useState<AIMessageItem[]>([]);
   const [inputPrompt, setInputPrompt] = useState("");
@@ -92,6 +102,8 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
   // Listen for global custom event to open chat (e.g. from CommandPalette)
   useEffect(() => {
     const handleOpen = () => {
+      setIsHidden(false);
+      try { localStorage.removeItem(HIDE_KEY); } catch { /* storage blocked */ }
       setIsOpen(true);
       setIsMinimized(false);
     };
@@ -511,11 +523,13 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
     );
   }
 
-  // 3. FLOATING LAUNCHER BUTTON (Bottom-Right Trigger)
+  // 3. FLOATING LAUNCHER BUTTON (Bottom-Right Trigger), with a small X to hide it
+  if (isHidden) return null;
   return (
+    <div className="fixed bottom-6 right-6 z-40 ai-launcher-wrap">
     <button
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 right-6 z-40 group flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/10 border border-slate-700/80 hover:border-emerald-500/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-950"
+      className="group flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white shadow-xl hover:shadow-2xl hover:shadow-emerald-500/10 border border-slate-700/80 hover:border-emerald-500/50 backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-950"
       aria-label="Ask Trapple AI Assistant"
       title="Ask Trapple AI (Corporate Travel & Spend Assistant)"
     >
@@ -528,6 +542,16 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
         Ask Trapple AI
       </span>
     </button>
+    <button
+      type="button"
+      onClick={() => setHidden(true)}
+      className="ai-launcher-close absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 hover:bg-red-500 text-white border border-slate-900 shadow-md transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+      aria-label="Hide Trapple AI button"
+      title="Hide (open it again from Ask AI in the top bar)"
+    >
+      <X size={11} strokeWidth={3} />
+    </button>
+    </div>
   );
 }
 

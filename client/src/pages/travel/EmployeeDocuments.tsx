@@ -25,7 +25,7 @@ function sizeLabel(bytes: number | null): string {
 /**
  * Every document filed under one employee: tickets for their approved trips
  * first, then everything else. Employees see this read-only in their portal;
- * the CEO and Admin can also add files from the employee's record.
+ * the Director and Travel Desk can also add files from the employee's record.
  */
 export function EmployeeDocumentsPanel({ employeeId, canUpload, employeeName }: { employeeId: string; canUpload: boolean; employeeName?: string }) {
   const [docs, setDocs] = useState<TravelDocument[] | null>(null);
@@ -101,7 +101,7 @@ export function EmployeeDocumentsPanel({ employeeId, canUpload, employeeName }: 
       {docs === null ? <Loading /> : docs.length === 0 ? (
         <Empty
           title="No documents yet"
-          description={canUpload ? "Tickets you upload for this person's approved trips, and files you add here, show up in their portal." : "Tickets for your approved trips and any document the Admin or CEO files for you will show here."}
+          description={canUpload ? "Tickets you upload for this person's approved trips, and files you add here, show up in their portal." : "Tickets for your approved trips and any document the Travel Desk or Director files for you will show here."}
         />
       ) : (
         <div className="grid gap-4">
@@ -130,7 +130,7 @@ export default function EmployeeDocuments({ profileId }: { profileId: string }) 
       <PageHeader
         eyebrow="Employee"
         title="Tickets & documents"
-        description="Your tickets and travel papers. When the CEO or Admin uploads a ticket for one of your approved trips, it appears here and on that request."
+        description="Your tickets and travel papers. When the Director or Travel Desk uploads a ticket for one of your approved trips, it appears here and on that request."
       />
       <EmployeeDocumentsPanel employeeId={profileId} canUpload={false} />
     </div>

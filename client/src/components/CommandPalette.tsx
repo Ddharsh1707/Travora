@@ -39,7 +39,7 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
   const [term, setTerm] = useState("");
   const [people, setPeople] = useState<EmployeeSummary[]>([]);
 
-  // Find employees by name or ID as the CEO / Admin types.
+  // Find employees by name or ID as the Director / Travel Desk types.
   useEffect(() => {
     if (!open || !canFindPeople || term.trim().length < 2) { setPeople([]); return; }
     let alive = true;

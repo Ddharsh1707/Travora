@@ -17,6 +17,15 @@ begin
   begin execute stmt; exception when others then raise notice 'ok - % (blocked: %)', label, sqlerrm; return; end;
   raise exception 'FAIL: % (statement succeeded)', label;
 end $$;
+create function ap.allows(stmt text, label text) returns void language plpgsql as $$
+begin
+  -- Runs the statement, then undoes it so later checks see the same data.
+  begin execute stmt; raise exception 'allows-rollback';
+  exception when others then
+    if sqlerrm = 'allows-rollback' then raise notice 'ok - % (allowed)', label; return; end if;
+    raise exception 'FAIL: % (blocked: %)', label, sqlerrm;
+  end;
+end $$;
 create function ap.login(uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
@@ -53,9 +62,9 @@ set local role authenticated;
 select ap.login('60000000-0000-0000-0000-0000000000c1');
 select ap.ok(private.is_staff(), 'admin: counts as staff (travel desk permissions)');
 select ap.ok(private.is_manager(), 'admin: is a manager (CEO or Admin)');
-select ap.ok(not private.has_role('admin'), 'admin: is NOT the CEO');
+select ap.ok(private.has_role('admin'), 'Travel Desk (admin): has every Director (CEO) permission');
 select ap.ok(private.has_role('travel_desk', 'admin', 'approver'), 'admin: passes travel desk / approver / CEO checks');
-select ap.ok(not private.has_role('approver', 'admin'), 'admin: does not pass approver-or-CEO-only checks');
+select ap.ok(private.has_role('approver', 'admin'), 'Travel Desk (admin): passes approver-or-Director checks');
 select private.bi_require_viewer();
 select ap.ok((select count(*) from public.projects) = 1, 'admin: can read projects like the travel desk');
 select ap.login('60000000-0000-0000-0000-0000000000d1');
@@ -104,15 +113,15 @@ select ap.ok((select status = 'approved' and reviewed_by_role = 'company_admin'
   'admin: can approve an employee claim');
 select ap.ok((select status from public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'rejected', 'No bill')) = 'rejected',
   'admin: can reject an employee claim');
-select ap.throws($$select public.decide_expense((select id from public.expenses where description = 'CEO hotel'), 'approved')$$, 'admin: cannot decide the CEO''s claim');
-select ap.throws($$select public.decide_expense((select id from public.expenses where description = 'Admin2 cab'), 'approved')$$, 'admin: cannot decide another Admin''s claim');
-select ap.throws($$select public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'approved')$$, 'admin: cannot reverse a decision');
-select ap.throws($$update public.expenses set description = 'changed' where description = 'CEO hotel'$$, 'admin: cannot edit the CEO''s claim');
+select ap.allows($$select public.decide_expense((select id from public.expenses where description = 'CEO hotel'), 'approved')$$, 'Travel Desk: can decide the Director''s claim');
+select ap.allows($$select public.decide_expense((select id from public.expenses where description = 'Admin2 cab'), 'approved')$$, 'Travel Desk: can decide another Travel Desk claim');
+select ap.allows($$select public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'approved')$$, 'Travel Desk: can overrule an earlier decision like the Director');
+select ap.allows($$update public.expenses set description = 'changed' where description = 'CEO hotel'$$, 'Travel Desk: can edit the Director''s claim');
 insert into public.expenses (employee_id, expense_date, category, description, amount) values
   ('50000000-0000-0000-0000-0000000000e2', '2026-09-14', 'other', 'Filed by admin', 50);
 select ap.ok((select employee_id from public.expenses where description = 'Filed by admin') = '50000000-0000-0000-0000-0000000000e2', 'admin: can file a claim for an employee');
-select ap.throws($$insert into public.expenses (employee_id, expense_date, category, description, amount)
-  values ('50000000-0000-0000-0000-0000000000a1', '2026-09-14', 'other', 'For the CEO', 50)$$, 'admin: cannot file a claim for the CEO');
+select ap.allows($$insert into public.expenses (employee_id, expense_date, category, description, amount)
+  values ('50000000-0000-0000-0000-0000000000a1', '2026-09-14', 'other', 'For the CEO', 50)$$, 'Travel Desk: can file a claim for the Director');
 
 -- CEO final say
 select ap.login('60000000-0000-0000-0000-0000000000a1');
@@ -123,7 +132,7 @@ select ap.ok((select status from public.decide_expense((select id from public.ex
   'CEO: can decide an Admin''s claim');
 select ap.throws($$select public.decide_expense((select id from public.expenses where description = 'CEO hotel'), 'approved')$$, 'CEO: cannot decide their own claim');
 select ap.login('60000000-0000-0000-0000-0000000000c1');
-select ap.throws($$select public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'rejected')$$, 'admin: cannot overrule the CEO');
+select ap.allows($$select public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'rejected')$$, 'Travel Desk: can overrule the Director');
 select ap.ok((select status from public.decide_expense((select id from public.expenses where description = 'Dinner at site'), 'reimbursed')) = 'reimbursed',
   'admin: can mark an approved claim reimbursed');
 select ap.login('60000000-0000-0000-0000-0000000000a1');
@@ -139,25 +148,25 @@ select ap.throws($$select public.ceo_dashboard()$$, 'travel desk: cannot open th
 -- ---------------------------------------------------------------------------
 select ap.login('60000000-0000-0000-0000-0000000000c1');
 select ap.ok((select (d -> 'people' ->> 'total')::int >= 7 from public.ceo_dashboard('2026-01-01', '2026-12-31') d), 'admin: can open the dashboard');
-select ap.ok((select not can_manage from public.admin_list_people() where employee_id = 'XCEO'), 'admin: people list marks the CEO as not manageable');
-select ap.ok((select not can_manage from public.admin_list_people() where employee_id = 'XAD2'), 'admin: people list marks other Admins as not manageable');
+select ap.ok((select can_manage from public.admin_list_people() where employee_id = 'XCEO'), 'Travel Desk: people list marks the Director as manageable');
+select ap.ok((select can_manage from public.admin_list_people() where employee_id = 'XAD2'), 'Travel Desk: people list marks other Travel Desk people as manageable');
 select ap.ok((select can_manage from public.admin_list_people() where employee_id = 'XE03'), 'admin: people list marks employees as manageable');
 select public.admin_create_login('50000000-0000-0000-0000-0000000000e3', 'TempPassword123');
 reset role;
 select ap.ok((select user_id is not null from public.profiles where employee_id = 'XE03'), 'admin: created a login for an employee');
 set local role authenticated;
 select ap.login('60000000-0000-0000-0000-0000000000c1');
-select ap.throws($$select public.admin_reset_password('50000000-0000-0000-0000-0000000000a1', 'TempPassword123')$$, 'admin: cannot reset the CEO''s password');
-select ap.throws($$select public.admin_reset_password('50000000-0000-0000-0000-0000000000c2', 'TempPassword123')$$, 'admin: cannot reset another Admin''s password');
+select ap.allows($$select public.admin_reset_password('50000000-0000-0000-0000-0000000000a1', 'TempPassword123')$$, 'Travel Desk: can reset the Director''s password');
+select ap.allows($$select public.admin_reset_password('50000000-0000-0000-0000-0000000000c2', 'TempPassword123')$$, 'Travel Desk: can reset another Travel Desk password');
 select public.admin_reset_password('50000000-0000-0000-0000-0000000000e1', 'TempPassword456');
-select ap.throws($$select public.admin_set_role('50000000-0000-0000-0000-0000000000e1', 'travel_desk')$$, 'admin: cannot change roles');
-select ap.throws($$update public.profiles set role = 'admin' where employee_id = 'XE01'$$, 'admin: cannot promote through a plain update');
-select ap.throws($$update public.profiles set department = 'X' where employee_id = 'XCEO'$$, 'admin: cannot edit the CEO''s details');
+select ap.allows($$select public.admin_set_role('50000000-0000-0000-0000-0000000000e1', 'travel_desk')$$, 'Travel Desk: can change roles');
+select ap.allows($$update public.profiles set role = 'admin' where employee_id = 'XE01'$$, 'Travel Desk: can promote like the Director');
+select ap.allows($$update public.profiles set department = 'X' where employee_id = 'XCEO'$$, 'Travel Desk: can edit the Director''s details');
 update public.profiles set department = 'Site Ops' where employee_id = 'XE01';
 select ap.ok((select department from public.profiles where employee_id = 'XE01') = 'Site Ops', 'admin: can edit an employee''s details');
 select public.admin_set_active('50000000-0000-0000-0000-0000000000e2', false);
 select public.admin_set_active('50000000-0000-0000-0000-0000000000e2', true);
-select ap.throws($$select public.admin_set_active('50000000-0000-0000-0000-0000000000a1', false)$$, 'admin: cannot deactivate the CEO');
+select ap.throws($$select public.admin_set_active('50000000-0000-0000-0000-0000000000a1', false)$$, 'Travel Desk: still cannot deactivate the only Director');
 insert into public.profiles (employee_id, full_name, email, department) values ('XE04', 'New Joiner', 'new@x.example', 'Projects');
 select ap.ok((select role = 'employee' from public.profiles where employee_id = 'XE04'), 'admin: can add an employee');
 
@@ -195,8 +204,7 @@ select ap.throws($$select public.import_attach_file('80000000-0000-0000-0000-000
 select ap.throws($$insert into storage.objects (bucket_id, name) values ('import-files', '80000000-0000-0000-0000-000000000001/90000000-0000-0000-0000-000000000002.xlsx')$$,
   'admin: no second file for the same upload');
 select ap.ok((select count(*) from storage.objects where bucket_id = 'import-files') = 1, 'admin: can read the stored file');
-delete from storage.objects where bucket_id = 'import-files';
-select ap.ok((select count(*) from storage.objects where bucket_id = 'import-files') = 1, 'admin: cannot delete a stored file');
+select ap.allows($$with d as (delete from storage.objects where bucket_id = 'import-files' returning 1) select 1 / (select count(*)::int from d)$$, 'Travel Desk: can delete a stored file like the Director (used by reset)');
 
 select ap.login('60000000-0000-0000-0000-0000000000e1');
 select ap.ok((select count(*) from storage.objects where bucket_id = 'import-files') = 0, 'employee: cannot read stored upload files');

@@ -17,7 +17,7 @@ import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, label
 
 /**
  * One project (or the bookings linked to no project): who travelled, where,
- * when, and every booking behind the totals. The CEO can fill in project
+ * when, and every booking behind the totals. The Director can fill in project
  * details that are not in the sheets and link bookings by hand.
  */
 export default function BiProjectDetail({ projectId, isCeo }: { projectId: string | null; isCeo: boolean }) {

@@ -270,7 +270,7 @@ export async function commitWorkbook(id: string, includeWarnings: boolean): Prom
   return data as ImportBatch;
 }
 
-/** Admin or CEO: marks the people this finished upload added as past employees (no login, kept in all reports). */
+/** Travel Desk or Director: marks the people this finished upload added as past employees (no login, kept in all reports). */
 export async function markNewPeopleLeft(batchId: string): Promise<number> {
   const { data, error } = await getSupabase().rpc("import_mark_new_people_left", { p_batch: batchId });
   if (error) throw friendlyError(error, "Could not mark the new people as past employees.");

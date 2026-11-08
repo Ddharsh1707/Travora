@@ -29,6 +29,7 @@ done
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000600_requests_admin_pdf.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261108000200_delete_people_reset_data.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261108000300_request_tickets.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261108000400_travel_desk_full_access.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"

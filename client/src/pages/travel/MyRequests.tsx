@@ -23,7 +23,7 @@ const FILTERS = [
 
 /**
  * The employee's side of travel: describe the trip, send it, and see what the
- * CEO or Admin decided. The request goes to both of them at the same time.
+ * Director or Travel Desk decided. The request goes to both of them at the same time.
  */
 export default function MyRequests({ profileId }: { profileId: string }) {
   const [rows, setRows] = useState<TravelRequest[]>([]);
@@ -47,7 +47,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
   }, [profileId]);
 
   useEffect(() => { void load(); }, [load]);
-  // A decision by the CEO or Admin shows up without reloading the page.
+  // A decision by the Director or Travel Desk shows up without reloading the page.
   useLiveRefresh(["travel_requests"], load);
 
   const counts = useMemo(() => ({
@@ -56,7 +56,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
     rejected: rows.filter((r) => r.status === "rejected").length,
   }), [rows]);
   const shown = filter === "all" ? rows : rows.filter((r) => r.status === filter);
-  // Tickets the CEO or Admin uploaded for approved trips.
+  // Tickets the Director or Travel Desk uploaded for approved trips.
   const { byRequest } = useRequestTickets(rows);
 
   const set = (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -70,7 +70,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
     setFormError("");
     try {
       await createMyRequest(profileId, { ...form, estimated_cost: form.estimated_cost === "" ? undefined : form.estimated_cost } as never);
-      toast.success("Request sent to the CEO and Admin");
+      toast.success("Request sent to the Director and Travel Desk");
       setForm(BLANK);
       setOpen(false);
       void load();
@@ -97,7 +97,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
       <PageHeader
         eyebrow="MY TRAVEL"
         title="My travel requests"
-        description="Tell us about the trip. Your request goes to the CEO and the Admin at the same time, and their decision shows here."
+        description="Tell us about the trip. Your request goes to the Director and the Travel Desk at the same time, and their decision shows here."
         actions={<button type="button" className="button button-primary" onClick={() => setOpen(true)}><Plus size={16} /> New travel request</button>}
       />
       {error && <ErrorNotice message={error} onRetry={load} />}
@@ -142,7 +142,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
             <button type="button" className="icon-button dialog-close" onClick={() => setOpen(false)} aria-label="Close"><X size={18} /></button>
             <span className="card-kicker">TRAVEL REQUEST</span>
             <h2 id="new-request-title">Tell us about your trip</h2>
-            <p className="text-xs opacity-70 mt-1">The CEO and the Admin both get this request. The Admin books the tickets once it is approved.</p>
+            <p className="text-xs opacity-70 mt-1">The Director and the Travel Desk both get this request. The Travel Desk books the tickets once it is approved.</p>
 
             <h3 className="card-kicker mt-4">Journey</h3>
             <div className="grid gap-3 sm:grid-cols-2 mt-2">
