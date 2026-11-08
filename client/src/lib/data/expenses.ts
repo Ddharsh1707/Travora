@@ -4,7 +4,7 @@ import { friendlyError } from "./travel";
 import { sanitizeTerm } from "./travelQuery";
 
 /**
- * Expense claims, the CEO dashboard and CEO employee management.
+ * Expense claims, the Director Dashboard and CEO employee management.
  * Every call runs as the signed-in user. The database decides what each
  * person may see or change (employees: only their own; CEO: everything).
  */
@@ -175,7 +175,7 @@ export function summarizeExpenses(rows: Pick<Expense, "status" | "amount">[]) {
 }
 
 // ---------------------------------------------------------------------------
-// CEO dashboard
+// Director Dashboard
 // ---------------------------------------------------------------------------
 
 export type CeoDashboard = {
@@ -207,9 +207,9 @@ export type DbRole = "employee" | "approver" | "travel_desk" | "company_admin" |
 export const DB_ROLE_LABELS: Record<DbRole, string> = {
   employee: "Employee",
   approver: "Manager (approver)",
-  travel_desk: "Travel desk",
-  company_admin: "Admin",
-  admin: "CEO",
+  travel_desk: "Booking assistant",
+  company_admin: "Travel Desk",
+  admin: "Director",
 };
 
 export type Person = {
@@ -328,7 +328,7 @@ async function removeFiles(bucket: string, paths: unknown): Promise<void> {
   }
 }
 
-/** CEO or Admin: delete employees for good, with their trips, claims, requests, documents and login. */
+/** Director or Travel Desk: delete employees for good, with their trips, claims, requests, documents and login. */
 export async function deletePeople(ids: string[]): Promise<number> {
   const { data, error } = await getSupabase().rpc("admin_delete_people", { p_ids: ids });
   if (error) throw friendlyError(error, "Could not delete. Has the latest SQL been run in Supabase?");
@@ -339,7 +339,7 @@ export async function deletePeople(ids: string[]): Promise<number> {
 
 export type ResetScope = "data" | "everything";
 
-/** CEO only: wipe company data. "everything" also removes every employee except the CEO and Admins. */
+/** CEO only: wipe company data. "everything" also removes every employee except the Director and Travel Desk. */
 export async function resetAllData(scope: ResetScope, confirm: string): Promise<{ trips: number; people: number }> {
   const { data, error } = await getSupabase().rpc("admin_reset_data", { p_scope: scope, p_confirm: confirm });
   if (error) throw friendlyError(error, "Could not reset. Has the latest SQL been run in Supabase?");

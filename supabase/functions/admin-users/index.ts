@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   try {
     const caller = await getCaller(req);
     if (!caller) return fail(req, 401, "Please sign in again");
-    if (caller.role !== "admin") return fail(req, 403, "Not allowed");
+    if (caller.role !== "admin" && caller.role !== "company_admin") return fail(req, 403, "Not allowed");
 
     let body: { action?: unknown; profileId?: unknown };
     try {

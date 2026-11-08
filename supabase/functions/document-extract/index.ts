@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   try {
     caller = await getCaller(req);
     if (!caller) return fail(req, 401, "Please sign in again");
-    if (caller.role !== "travel_desk" && caller.role !== "admin") return fail(req, 403, "Not allowed");
+    if (caller.role !== "travel_desk" && caller.role !== "company_admin" && caller.role !== "admin") return fail(req, 403, "Not allowed");
 
     let body: { documentId?: unknown };
     try {

@@ -33,7 +33,7 @@ export function DownloadOriginal({ path, filename, compact = false }: { path: st
   );
 }
 
-/** Travel desk, Admin and CEO: every uploaded sheet, who uploaded it, what it added, and the original file. */
+/** Booking assistant, Travel Desk and Director: every uploaded sheet, who uploaded it, what it added, and the original file. */
 export default function UploadHistory() {
   const [rows, setRows] = useState<UploadHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);

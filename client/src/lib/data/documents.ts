@@ -164,7 +164,7 @@ export async function uploadDocument(employeeId: string, file: File, documentTyp
     // Do not leave an orphan file behind when the row is refused.
     await supabase.storage.from(DOCUMENT_BUCKET).remove([path]).catch(() => undefined);
     if (travelRequestId && /travel_request_id/i.test(error.message ?? "")) {
-      throw new Error("Ticket uploads need the latest database update. Ask the CEO to run the SQL file in Supabase.");
+      throw new Error("Ticket uploads need the latest database update. Ask the Director to run the SQL file in Supabase.");
     }
     throw friendlyError(error, "The file was uploaded but could not be saved. Please try again.");
   }
@@ -175,7 +175,7 @@ const SHEET_MIME = { xlsx: "application/vnd.openxmlformats-officedocument.spread
 
 /**
  * Keeps an employee's uploaded expense sheet in their private folder, so the
- * Admin and CEO can open the exact file the claims came from.
+ * Travel Desk and Director can open the exact file the claims came from.
  */
 export async function uploadSpreadsheetDocument(employeeId: string, file: File, kind: "xlsx" | "csv"): Promise<TravelDocument> {
   const supabase = getSupabase();

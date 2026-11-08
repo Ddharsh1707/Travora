@@ -13,8 +13,8 @@ import { Empty, ErrorNotice, Loading, PageHeader, PeopleTabs, Stat } from "./com
 const DANGER = { background: "#dc2626", borderColor: "#dc2626", color: "#fff" };
 
 /**
- * CEO and Admin: add employees, give them a login, deactivate leavers.
- * Only the CEO changes roles, and only the CEO manages the CEO and Admins
+ * Director and Travel Desk: add employees, give them a login, deactivate leavers.
+ * The Director and the Travel Desk have the same rights here (roles too)
  * (the database enforces this; can_manage says what to offer).
  */
 export default function PeopleManager({ profileId, isCeo }: { profileId: string; isCeo: boolean }) {
@@ -49,7 +49,7 @@ export default function PeopleManager({ profileId, isCeo }: { profileId: string;
       (!term || [p.full_name, p.employee_id, p.email, p.department, p.designation].some((v) => (v ?? "").toLowerCase().includes(term))));
   }, [people, q, show]);
 
-  // Nobody deletes themselves or the CEO; an Admin only deletes people they manage.
+  // Nobody deletes themselves or the Director; a Travel Desk member only deletes people they manage.
   const canDelete = useCallback((p: Person) => p.id !== profileId && p.role !== "admin" && (p.can_manage ?? isCeo), [profileId, isCeo]);
   const deletable = useMemo(() => shown.filter(canDelete), [shown, canDelete]);
   const picked = useMemo(() => people.filter((p) => selected.has(p.id) && canDelete(p)), [people, selected, canDelete]);
@@ -75,8 +75,8 @@ export default function PeopleManager({ profileId, isCeo }: { profileId: string;
 
   async function changeRole(p: Person, role: DbRole) {
     if (role === p.role) return;
-    if (role === "admin" && !window.confirm(`Give ${p.full_name} full CEO access to all employees and expenses?`)) return;
-    if (role === "company_admin" && !window.confirm(`Make ${p.full_name} an Admin? They will see every employee, expense and upload, and can approve claims.`)) return;
+    if (role === "admin" && !window.confirm(`Give ${p.full_name} full Director access to all employees and expenses?`)) return;
+    if (role === "company_admin" && !window.confirm(`Make ${p.full_name} a Travel Desk member? They get the same full access as the Director: every employee, expense, upload, role and reset.`)) return;
     try {
       await setRole(p.id, role);
       toast.success(`${p.full_name} is now ${DB_ROLE_LABELS[role]}`);
@@ -105,9 +105,9 @@ export default function PeopleManager({ profileId, isCeo }: { profileId: string;
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow={isCeo ? "CEO" : "Admin"}
+        eyebrow="Director & Travel Desk"
         title="Employees"
-        description={isCeo ? "Add employees, create their sign-in, set their manager and role, and deactivate people who leave." : "Add employees, create their sign-in, set their manager and deactivate people who leave. Only the CEO can change roles."}
+        description={isCeo ? "Add employees, create their sign-in, set their manager and role, and deactivate people who leave." : "Add employees, create their sign-in, set their manager and deactivate people who leave. Only the Director can change roles."}
         actions={<>
           {isCeo && <button type="button" className="button button-ghost table-action-danger" onClick={() => setResetOpen(true)}><RotateCcw size={15} /> Reset data</button>}
           <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
@@ -430,7 +430,7 @@ function ResetDialog({ onClose, onDone }: { onClose: () => void; onDone: () => v
           <label className="flex items-start gap-2"><input type="radio" name="reset-scope" checked={scope === "data"} onChange={() => setScope("data")} className="mt-1" />
             <span><strong>Data only.</strong> Keep every employee and their sign-in.</span></label>
           <label className="flex items-start gap-2"><input type="radio" name="reset-scope" checked={scope === "everything"} onChange={() => setScope("everything")} className="mt-1" />
-            <span><strong>Data and employees.</strong> Also delete every employee and sign-in, except the CEO and Admins.</span></label>
+            <span><strong>Data and employees.</strong> Also delete every employee and sign-in, except the Director and Travel Desk.</span></label>
         </fieldset>
         <label className="field mt-3"><span>Type RESET to confirm</span>
           <input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />

@@ -276,7 +276,7 @@ export async function listPendingApprovals(myProfileId: string): Promise<TravelR
   return (data ?? []) as TravelRequest[];
 }
 
-/** Every request the CEO or an Admin can see, newest first. RLS limits the rows. */
+/** Every request the Director or the Travel Desk can see, newest first. RLS limits the rows. */
 export async function listAllRequests(opts: { status?: RequestStatus | "all"; employeeId?: string; limit?: number } = {}): Promise<TravelRequest[]> {
   let q = getSupabase().from("travel_requests").select(REQUEST_SELECT).order("created_at", { ascending: false }).limit(Math.min(opts.limit ?? 300, 500));
   if (opts.status && opts.status !== "all") q = q.eq("status", opts.status);
@@ -294,4 +294,11 @@ export async function decideRequest(id: string, decision: "approved" | "rejected
 
 export async function recordReportGenerated(report: "employee_travel_history" | "travel_search" | "travel_report" | "upload_report" | "project_intelligence" | "project_detail" | "employee_intelligence" | "financial_intelligence" | "management_summary" | "period_report" | "project_report" | "employee_report" | "travel_report_bi" | "financial_report" | "data_completeness", employeeId?: string): Promise<void> {
   await getSupabase().rpc("record_report_generated", { p_report: report, p_employee: employeeId ?? null });
+}
+
+/** The database stores who decided as "CEO" / "Admin"; the screens call them Director / Travel Desk. */
+export function decidedByLabel(role: string | null | undefined): string {
+  if (role === "CEO") return "Director";
+  if (role === "Admin") return "Travel Desk";
+  return role ?? "";
 }

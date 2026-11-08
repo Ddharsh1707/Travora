@@ -1,5 +1,5 @@
 import { CheckCircle2, Clock3, Plane, XCircle } from "lucide-react";
-import { TIME_LABEL, type TravelRequest } from "../../lib/data/travel";
+import { TIME_LABEL, decidedByLabel, type TravelRequest } from "../../lib/data/travel";
 import { formatDate, formatMoney, labelFor } from "./common";
 
 const TONE: Record<string, string> = {
@@ -30,19 +30,19 @@ function when(iso: string | null | undefined): string {
   return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-/** What the CEO or Admin decided, in words the employee can read. */
+/** What the Director or Travel Desk decided, in words the employee can read. */
 export function RequestDecision({ r, forEmployee = true }: { r: TravelRequest; forEmployee?: boolean }) {
   if (r.status === "pending") {
     return (
       <div className="flex items-start gap-2 text-sm">
         <Clock3 size={16} className="mt-0.5 shrink-0 text-amber-600" />
-        <span>Sent to the CEO and Admin on {when(r.created_at)}. {forEmployee ? "You will see their decision here." : "Waiting for one of them to decide."}</span>
+        <span>Sent to the Director and Travel Desk on {when(r.created_at)}. {forEmployee ? "You will see their decision here." : "Waiting for one of them to decide."}</span>
       </div>
     );
   }
   if (r.status === "cancelled") return <div className="text-sm opacity-70">{forEmployee ? "You cancelled this request." : "The employee cancelled this request."}</div>;
   const ok = r.status !== "rejected";
-  const who = r.decided_by_name ? `${r.decided_by_name}${r.decided_by_role ? ` (${r.decided_by_role})` : ""}` : r.approver?.full_name ?? "the approver";
+  const who = r.decided_by_name ? `${r.decided_by_name}${r.decided_by_role ? ` (${decidedByLabel(r.decided_by_role)})` : ""}` : r.approver?.full_name ?? "the approver";
   return (
     <div className="grid gap-1 text-sm">
       <div className="flex items-start gap-2">
@@ -51,7 +51,7 @@ export function RequestDecision({ r, forEmployee = true }: { r: TravelRequest; f
       </div>
       {r.decision_comment && <div className="text-sm pl-6 whitespace-pre-wrap break-words">“{r.decision_comment}”</div>}
       {r.status === "booked" && <div className="flex items-center gap-2 pl-6 text-sm"><Plane size={14} /> {forEmployee ? "Your trip is booked. The ticket is in your travel history." : "Booked. The trip is in the employee's travel history."}</div>}
-      {forEmployee && r.status === "approved" && <div className="pl-6 text-xs opacity-70">The Admin will book it and the ticket will appear in your travel history.</div>}
+      {forEmployee && r.status === "approved" && <div className="pl-6 text-xs opacity-70">The Travel Desk will book it and the ticket will appear in your travel history.</div>}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { exportWorkbook } from "../../utils/exportXlsx";
 import { CATEGORY_LABELS } from "../../lib/data/expenses";
 import { listSpendItems, summarizeSpend, type SpendItem } from "../../lib/data/spend";
 import { exportToCsv } from "../../utils/exportCsv";
-import { getEmployeeSummary, listAllRequests, recordReportGenerated, type EmployeeSummary, type TravelRecord, type TravelRequest } from "../../lib/data/travel";
+import { decidedByLabel, getEmployeeSummary, listAllRequests, recordReportGenerated, type EmployeeSummary, type TravelRecord, type TravelRequest } from "../../lib/data/travel";
 import { fileTables, getEmployeeTrips, getUploadColumns, placesVisited, summarizeEmployeeSpend, type DetailedTrip, type UploadColumns } from "../../lib/data/employeeSpend";
 import { useLiveRefresh } from "../../lib/data/reports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor, routeLabel } from "./common";
@@ -136,7 +136,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
         name: "Travel requests",
         headers: ["Sent", "From", "To", "Travel date", "Return", "Mode", "Project", "Purpose", "Estimate", "Status", "Decided by", "Decided on", "Comment"],
         rows: requests.map((r) => [r.created_at.slice(0, 10), r.origin, r.destination, r.departure_date, r.return_date, r.travel_type, r.project_name,
-          r.purpose, r.estimated_cost, r.status, r.decided_by_name ? `${r.decided_by_name} (${r.decided_by_role ?? ""})` : null, r.decided_at?.slice(0, 10) ?? null, r.decision_comment]),
+          r.purpose, r.estimated_cost, r.status, r.decided_by_name ? `${r.decided_by_name} (${decidedByLabel(r.decided_by_role)})` : null, r.decided_at?.slice(0, 10) ?? null, r.decision_comment]),
       },
     ]);
     void recordReportGenerated("employee_travel_history", employeeId).catch(() => undefined);

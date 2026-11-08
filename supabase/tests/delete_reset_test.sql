@@ -16,6 +16,15 @@ begin
   begin execute stmt; exception when others then raise notice 'ok - % (blocked: %)', label, sqlerrm; return; end;
   raise exception 'FAIL: % (statement succeeded)', label;
 end $$;
+create function dr.allows(stmt text, label text) returns void language plpgsql as $$
+begin
+  -- Runs the statement, then undoes it so later checks see the same data.
+  begin execute stmt; raise exception 'allows-rollback';
+  exception when others then
+    if sqlerrm = 'allows-rollback' then raise notice 'ok - % (allowed)', label; return; end if;
+    raise exception 'FAIL: % (blocked: %)', label, sqlerrm;
+  end;
+end $$;
 create function dr.login(uid uuid) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
@@ -67,10 +76,10 @@ select dr.throws($$select public.admin_reset_data('data', 'RESET')$$, 'employee:
 
 select dr.login('91000000-0000-0000-0000-0000000000c1');
 select dr.throws($$select public.admin_delete_people(array['81000000-0000-0000-0000-0000000000c1'::uuid])$$, 'Admin: cannot delete themselves');
-select dr.throws($$select public.admin_delete_people(array['81000000-0000-0000-0000-0000000000c2'::uuid])$$, 'Admin: cannot delete another Admin');
+select dr.allows($$select public.admin_delete_people(array['81000000-0000-0000-0000-0000000000c2'::uuid])$$, 'Travel Desk: can delete another Travel Desk person');
 select dr.throws($$select public.admin_delete_people(array['81000000-0000-0000-0000-0000000000a1'::uuid])$$, 'Admin: cannot delete the CEO');
 select dr.throws($$select public.admin_delete_people('{}'::uuid[])$$, 'Admin: must choose someone');
-select dr.throws($$select public.admin_reset_data('data', 'RESET')$$, 'Admin: cannot reset data');
+select dr.allows($$select public.admin_reset_data('data', 'RESET')$$, 'Travel Desk: can reset data like the Director');
 
 -- Admin deletes two employees in one go; everything of theirs goes
 select dr.ok((public.admin_delete_people(array['81000000-0000-0000-0000-0000000000e1'::uuid, '81000000-0000-0000-0000-0000000000e2'::uuid]) ->> 'deleted')::int = 2,

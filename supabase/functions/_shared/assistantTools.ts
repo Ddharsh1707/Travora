@@ -295,7 +295,7 @@ export function trimSpend(r: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-const ROLE_NAMES: Record<string, string> = { admin: "CEO", company_admin: "Admin", travel_desk: "travel desk", approver: "approver", employee: "employee" };
+const ROLE_NAMES: Record<string, string> = { admin: "Director", company_admin: "Travel Desk", travel_desk: "booking assistant", approver: "approver", employee: "employee" };
 
 export function systemPrompt(opts: { name: string; role: string; today: string }): string {
   const manager = opts.role === "admin" || opts.role === "company_admin";

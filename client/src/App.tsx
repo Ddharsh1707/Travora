@@ -377,10 +377,12 @@ const navByRole: Record<Role, { label: string; href: string; icon: ReactNode }[]
 const roleLabels: Record<Role, string> = {
   EMPLOYEE: "Employee",
   APPROVER: "Approver",
-  TRAVEL_DESK: "Travel desk",
-  // In Supabase mode the admin role is the company's CEO.
-  ADMIN: isSupabaseEnabled ? "CEO" : "Administrator",
-  COMPANY_ADMIN: isSupabaseEnabled ? "Admin" : "Company Administrator",
+  // In Supabase mode the admin role is the company's Director and
+  // company_admin is the Travel Desk (same permissions). The older
+  // travel_desk role is shown as "Booking assistant" so the names do not clash.
+  TRAVEL_DESK: isSupabaseEnabled ? "Booking assistant" : "Travel desk",
+  ADMIN: isSupabaseEnabled ? "Director" : "Administrator",
+  COMPANY_ADMIN: isSupabaseEnabled ? "Travel Desk" : "Company Administrator",
   PLATFORM_ADMIN: "Platform Administrator",
 };
 
@@ -602,11 +604,12 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         <button
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent("open-trapple-ai"))}
-          className="topbar-ai hidden md:flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-all"
+          className="topbar-ai flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-all"
           title="Open Trapple AI Assistant"
+          aria-label="Ask AI"
         >
           <Sparkles size={13} />
-          <span>Ask AI</span>
+          <span className="hidden md:inline">Ask AI</span>
         </button>
         <button
           type="button"

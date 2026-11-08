@@ -57,7 +57,7 @@ const CAPABILITIES = [
 ];
 
 const FEATURES = [
-  { icon: Plane, title: "Travel requests", text: "Engineers describe the trip once: route, dates, project and hotel. The CEO and the Admin get it at the same moment." },
+  { icon: Plane, title: "Travel requests", text: "Engineers describe the trip once: route, dates, project and hotel. The Director and the Travel Desk get it at the same moment." },
   { icon: ClipboardCheck, title: "One decision, seen by all", text: "Approve or reject with a note. The employee sees who decided and why, right on their dashboard." },
   { icon: FileSpreadsheet, title: "Excel & PDF uploads", text: "Drop in the travel desk workbook or booking PDFs. Every row is checked and previewed before it is saved." },
   { icon: Receipt, title: "Expense claims", text: "Cabs, site lodges and meals with receipts attached, reviewed and marked as paid in one queue." },
@@ -67,8 +67,8 @@ const FEATURES = [
 
 const STEPS = [
   { code: "01", title: "Request", text: "An employee raises the trip with route, dates, purpose and project." },
-  { code: "02", title: "Decide", text: "The CEO and Admin see it together. One decision, with a reason." },
-  { code: "03", title: "Book", text: "The Admin books, uploads tickets and keeps bulk site moves on one sheet." },
+  { code: "02", title: "Decide", text: "The Director and Travel Desk see it together. One decision, with a reason." },
+  { code: "03", title: "Book", text: "The Travel Desk books, uploads tickets and keeps bulk site moves on one sheet." },
   { code: "04", title: "Report", text: "Spend lands in project, travel and finance reports, ready to download." },
 ];
 
@@ -79,14 +79,14 @@ const PORTALS = [
     points: ["Send a travel request in a minute", "See the decision and the reason", "Your upcoming trips and history", "Claim expenses with receipts"],
   },
   {
-    tag: "Admin",
-    title: "Admin portal",
+    tag: "Travel Desk",
+    title: "Travel Desk portal",
     points: ["Decide travel requests", "Upload Excel and PDF bookings", "Bulk bookings for site teams", "Employees, logins and claims"],
     featured: true,
   },
   {
-    tag: "CEO",
-    title: "CEO portal",
+    tag: "Director",
+    title: "Director Dashboard",
     points: ["Company spend on one screen", "Approve requests and claims", "Project, travel and finance reports", "Ask the AI assistant"],
   },
 ];
@@ -95,7 +95,7 @@ const SECURITY = [
   { icon: ShieldCheck, title: "Role-based access", text: "Every read and write is checked again by the database, not only by the screen." },
   { icon: Lock, title: "Private file storage", text: "Tickets, invoices and uploads stay in private storage, opened through short-lived links." },
   { icon: ScrollText, title: "Full audit trail", text: "Approvals, uploads, downloads and changes are logged with who did them and when." },
-  { icon: KeyRound, title: "Company sign-in", text: "Work email logins created by the CEO or Admin. No public sign-ups." },
+  { icon: KeyRound, title: "Company sign-in", text: "Work email logins created by the Director or Travel Desk. No public sign-ups." },
 ];
 
 /* ------------------------------------------------------------------------- */
@@ -463,7 +463,7 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             transition={{ duration: 0.9, ease, delay: 0.9 }}
           >
             Trapple is the travel desk for the engineers, site crews and managers who build Mahathi's terminals, tank farms and
-            pipelines. Request a trip, get one clear decision from the CEO and Admin, book it, and see every rupee by project.
+            pipelines. Request a trip, get one clear decision from the Director and Travel Desk, book it, and see every rupee by project.
           </motion.p>
           <motion.div className="mt-9 flex flex-wrap gap-3" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease, delay: 1.05 }}>
             <PrimaryButton onClick={onSignIn}>Sign in to Trapple</PrimaryButton>
@@ -597,7 +597,7 @@ function Portals({ onSignIn }: { onSignIn: () => void }) {
   return (
     <section id="portals" className="bg-[#F3F4F1] py-24 md:py-32">
       <div className={container}>
-        <SectionHeader kicker="Three portals" title={["Everyone sees", "just their part."]} intro="Employees, the Admin and the CEO each get a short menu built for their job. Nothing repeated, nothing in the way." />
+        <SectionHeader kicker="Three portals" title={["Everyone sees", "just their part."]} intro="Employees, the Travel Desk and the Director each get a short menu built for their job. Nothing repeated, nothing in the way." />
         <div className="mt-16 grid gap-4 lg:grid-cols-3">
           {PORTALS.map((p, i) => (
             <Reveal key={p.tag} delay={i * 0.1}>
@@ -670,7 +670,7 @@ function Stats() {
   const inView = useInView(ref, { once: true, amount: 0.5 });
   const reduce = useReducedMotion();
   const items = [
-    { icon: UsersRound, k: "Portals", v: "3", note: "Employee, Admin, CEO" },
+    { icon: UsersRound, k: "Portals", v: "3", note: "Employee, Travel Desk, Director" },
     { icon: BarChart3, k: "Intelligence views", v: "4", note: "Project, travel, employee, finance" },
     { icon: FileSpreadsheet, k: "Upload formats", v: "XLSX · CSV · PDF", note: "Checked before saving" },
   ];

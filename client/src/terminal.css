@@ -842,3 +842,9 @@ table thead th {
 @media (max-width: 820px) {
   .sidebar-drawer:not(.open) { transform: translateX(-110%) !important; }
 }
+
+/* Phones: the top bar now also has the "Ask AI" icon (it brings back the
+   hidden AI button), so drop the sync pill to keep everything on one line. */
+@media (max-width: 480px) {
+  button.sync-live-button { display: none !important; }
+}

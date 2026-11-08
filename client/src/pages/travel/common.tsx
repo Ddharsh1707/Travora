@@ -18,7 +18,7 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow: 
   );
 }
 
-/** CEO / Admin: one "Employees" menu item with two views. */
+/** Director / Travel Desk: one "Employees" menu item with two views. */
 export function PeopleTabs({ current }: { current: "manage" | "spend" }) {
   const tab = (key: "manage" | "spend", href: string, label: string) => (
     <Link href={href} className={`button ${current === key ? "button-primary" : "button-ghost"}`} aria-current={current === key ? "page" : undefined}>{label}</Link>

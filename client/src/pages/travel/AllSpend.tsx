@@ -33,7 +33,7 @@ const STATUSES = [
   ["completed", "Trip completed"], ["cancelled", "Trip cancelled"],
 ] as const;
 
-/** Admin and CEO: every claim and every travel desk trip (Excel uploads included) in one filterable list. */
+/** Travel Desk and Director: every claim and every travel desk trip (Excel uploads included) in one filterable list. */
 export default function AllSpend() {
   const [f, setF] = useState<SpendFilters>(() => periodRange("this_month"));
   const [q, setQ] = useState("");

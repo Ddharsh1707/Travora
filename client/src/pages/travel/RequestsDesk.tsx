@@ -18,10 +18,9 @@ const TABS: Array<{ key: RequestStatus | "all"; label: string }> = [
 ];
 
 /**
- * Travel requests for the CEO and the Admin. Both see the same list at the
+ * Travel requests for the Director and the Travel Desk. Both see the same list at the
  * same time; whoever decides first wins and the other sees the result live.
- * The database re-checks every decision (an Admin cannot decide for the CEO
- * or another Admin).
+ * The database re-checks every decision (nobody decides their own request).
  */
 export default function RequestsDesk({ profileId, isCeo }: { profileId: string; isCeo: boolean }) {
   const [rows, setRows] = useState<TravelRequest[]>([]);
@@ -80,16 +79,16 @@ export default function RequestsDesk({ profileId, isCeo }: { profileId: string; 
     }
   }
 
-  // The Admin cannot decide for the CEO or another Admin; the database says so too.
+  // Nobody decides their own request; the database checks every decision too.
   const canDecide = (r: TravelRequest) =>
     r.employee_id !== profileId && (isCeo || !["admin", "company_admin"].includes(r.employee?.role ?? ""));
 
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow={isCeo ? "CEO" : "ADMIN"}
+        eyebrow="DIRECTOR & TRAVEL DESK"
         title="Travel requests"
-        description="Every employee request reaches the CEO and the Admin at the same time. Whoever decides first, the employee sees the decision and your comment straight away."
+        description="Every employee request reaches the Director and the Travel Desk at the same time. Whoever decides first, the employee sees the decision and your comment straight away."
       />
       {error && <ErrorNotice message={error} onRetry={load} />}
 
@@ -138,7 +137,7 @@ export default function RequestsDesk({ profileId, isCeo }: { profileId: string; 
                       <button type="button" className="button button-ghost" disabled={busy === r.id} onClick={() => decide(r, "rejected")}><XCircle size={15} /> Reject</button>
                     </div>
                   </div>
-                ) : <p className="text-xs opacity-70 border-t pt-3" style={{ borderColor: "var(--line)" }}>{r.employee_id === profileId ? "This is your own request." : "Only the CEO can decide this request."}</p>
+                ) : <p className="text-xs opacity-70 border-t pt-3" style={{ borderColor: "var(--line)" }}>{r.employee_id === profileId ? "This is your own request." : "Only the Director can decide this request."}</p>
               ) : (
                 <div className="border-t pt-3 flex flex-wrap items-start gap-3" style={{ borderColor: "var(--line)" }}>
                   <div className="flex-1 min-w-0"><RequestDecision r={r} forEmployee={false} /></div>

@@ -1,7 +1,7 @@
 import { getSupabase } from "../supabase";
 import { friendlyError } from "./travel";
 
-/** One employee in the CEO / Admin overview, built from uploads, bookings and claims. */
+/** One employee in the Director / Travel Desk overview, built from uploads, bookings and claims. */
 export type PersonSpend = {
   employee_id: string; employee_code: string; full_name: string; department: string | null; designation: string | null;
   active: boolean; has_login: boolean;

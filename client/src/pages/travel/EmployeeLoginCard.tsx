@@ -3,9 +3,9 @@ import { Copy, KeyRound, UserRoundCheck } from "lucide-react";
 import { createLogin, generateTempPassword, listPeople, updatePerson, type Person } from "../../lib/data/expenses";
 
 /**
- * Employee details and sign-in for the Admin / CEO, on the employee's record.
+ * Employee details and sign-in for the Travel Desk / Director, on the employee's record.
  * People added from an uploaded Excel or PDF start with only a name and a
- * NEW-… ID; here the Admin fills in the rest and gives them a login, after
+ * NEW-… ID; here the Travel Desk fills in the rest and gives them a login, after
  * which the employee sees these same trips when they sign in.
  */
 export function EmployeeLoginCard({ profileId, onSaved }: { profileId: string; onSaved?: () => void }) {

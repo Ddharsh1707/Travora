@@ -400,7 +400,7 @@ Deno.serve(async (req) => {
           continue;
         }
         if (MANAGER_TOOL_NAMES.has(call.name) && !isManager) {
-          results.push({ type: "tool_result", tool_use_id: call.id, is_error: true, content: "This tool is only for the Admin and the CEO." });
+          results.push({ type: "tool_result", tool_use_id: call.id, is_error: true, content: "This tool is only for the Travel Desk and the Director." });
           continue;
         }
         if (used.length < 20) used.push(call.name);

@@ -13,7 +13,7 @@ import AllSpend from "./AllSpend";
 type Decision = "approved" | "rejected" | "reimbursed";
 
 /**
- * CEO and Admin: two views.
+ * Director and Travel Desk: two views.
  *  - "Claims to review": employee expense claims with approve / reject / reimburse.
  *  - "All spend": claims plus every travel desk trip and Excel upload in one list.
  */
@@ -22,7 +22,7 @@ export default function AllExpenses({ profileId, isCeo = true }: { profileId: st
   return (
     <div className="page-stack animate-page">
       <PageHeader
-        eyebrow={isCeo ? "CEO" : "Admin"}
+        eyebrow="Director & Travel Desk"
         title="All expenses"
         description="Employee claims and travel desk uploads in one place. Review claims, or see every rupee with filters and export."
       />
@@ -122,7 +122,7 @@ function ClaimsReview({ profileId, isCeo }: { profileId: string; isCeo: boolean 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm opacity-80 m-0">Approve or reject new claims, then mark approved ones as reimbursed once paid.{isCeo ? " As CEO you can also overrule an earlier approval or rejection until it is paid." : " The CEO decides claims from Admins and has the final say."}</p>
+        <p className="text-sm opacity-80 m-0">Approve or reject new claims, then mark approved ones as reimbursed once paid.{isCeo ? " You can also overrule an earlier approval or rejection until it is paid." : ""}</p>
         <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}><Download size={15} /> Export CSV</button>
       </div>
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -184,7 +184,7 @@ function ClaimsReview({ profileId, isCeo }: { profileId: string; isCeo: boolean 
                         {(e.origin || e.destination) && <div className="table-subline">{[e.origin, e.destination].filter(Boolean).join(" to ")}</div>}
                         {e.source === "upload" && <div className="table-subline">From the employee's Excel upload</div>}
                         {e.review_note && <div className="table-subline" title={e.review_note}>Note: {e.review_note}</div>}
-                        {e.reviewed_by_role && e.status !== "submitted" && <div className="table-subline">Decided by {e.reviewed_by_role === "admin" ? "the CEO" : "an Admin"}</div>}
+                        {e.reviewed_by_role && e.status !== "submitted" && <div className="table-subline">Decided by {e.reviewed_by_role === "admin" ? "the Director" : "the Travel Desk"}</div>}
                       </td>
                       <td className="text-right font-semibold">{formatMoney(e.amount, e.currency)}</td>
                       <td><ExpenseStatusPill status={e.status} /></td>
@@ -196,7 +196,7 @@ function ClaimsReview({ profileId, isCeo }: { profileId: string; isCeo: boolean 
                           </>}
                           {e.status === "approved" && <button type="button" className="table-action" disabled={busy} onClick={() => decide(e, "reimbursed")}><Wallet size={13} className="inline" /> Mark paid</button>}
                           {isCeo && e.status === "approved" && <button type="button" className="table-action table-action-danger" disabled={busy} onClick={() => setRejecting(e)}>Overrule: reject</button>}
-                          {isCeo && e.status === "rejected" && <button type="button" className="table-action" disabled={busy} onClick={() => decide(e, "approved", "Approved by the CEO")}>Overrule: approve</button>}
+                          {isCeo && e.status === "rejected" && <button type="button" className="table-action" disabled={busy} onClick={() => decide(e, "approved", "Approved on review")}>Overrule: approve</button>}
                         </>}
                       </div></td>
                     </tr>

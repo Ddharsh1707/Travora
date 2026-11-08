@@ -53,7 +53,7 @@ export function useRequestTickets(requests: TravelRequest[]) {
   return { byRequest, reload: load };
 }
 
-/** Ticket list for one request, with an upload button for the CEO / Admin. */
+/** Ticket list for one request, with an upload button for the Director / Travel Desk. */
 export function RequestTickets({ request, docs, canUpload, onUploaded }: {
   request: TravelRequest;
   docs: TravelDocument[];

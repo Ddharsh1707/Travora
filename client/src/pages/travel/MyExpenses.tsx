@@ -75,7 +75,7 @@ export default function MyExpenses({ profileId }: { profileId: string }) {
       <PageHeader
         eyebrow="EXPENSES"
         title="My expenses"
-        description="Claim money you spent for work, one at a time or from an Excel sheet. The Admin or CEO reviews each claim; you can edit or withdraw it until then."
+        description="Claim money you spent for work, one at a time or from an Excel sheet. The Travel Desk or Director reviews each claim; you can edit or withdraw it until then."
         actions={<>
           <button type="button" className="button button-ghost" onClick={exportCsv} disabled={!shown.length}><Download size={15} /> Export</button>
           <button type="button" className="button button-ghost" onClick={() => setUploading(true)}><FileSpreadsheet size={15} /> Upload from Excel</button>
