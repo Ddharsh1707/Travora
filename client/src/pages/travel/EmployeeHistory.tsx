@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { EmployeeDocumentsPanel } from "./EmployeeDocuments";
 import { Link } from "wouter";
 import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet, MapPin, Plus } from "lucide-react";
 import { exportWorkbook } from "../../utils/exportXlsx";
@@ -206,6 +207,8 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
         {breakdown("Spend by month", money.byMonth, monthLabel)}
         {breakdown("Spend by project", money.byProject)}
       </div>
+
+      {canManage && <EmployeeDocumentsPanel employeeId={employeeId} canUpload employeeName={summary.employee_name} />}
 
       {money.byCharge.length > 0 && (
         <div className="panel p-4 flex flex-wrap gap-2 items-center text-sm">

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Archive, BarChart3, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
+import { Archive, BarChart3, CircleHelp, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import TravelSearch from "./TravelSearch";
@@ -28,6 +28,7 @@ import BiEmployees from "./BiEmployees";
 import BiFinance from "./BiFinance";
 import UploadHistory from "./UploadHistory";
 import BiReports from "./BiReports";
+import EmployeeDocuments from "./EmployeeDocuments";
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -63,6 +64,7 @@ const ROUTES: TravelRoute[] = [
   { group: "MY WORKSPACE", href: "/travel/overview", label: "Overview", icon: <LayoutDashboard size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/requests", label: "My travel requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
+  { group: "MY WORKSPACE", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["EMPLOYEE"] },
   { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   // CEO and Admin: daily work
   { group: "CEO", href: "/travel/ceo", label: "Dashboard", icon: <LayoutDashboard size={16} />, roles: CEO },
@@ -155,6 +157,99 @@ export function travelNavCategories(role: Role): { category: string; items: NavI
   return groups;
 }
 
+// ---------------------------------------------------------------------------
+// Icon rail (the slim sidebar). Each section is one icon with its name under
+// it; a section with several pages opens a fly-out menu, and an entry with
+// children opens a second fly-out (marked with an arrow).
+// ---------------------------------------------------------------------------
+export type RailLink = { label: string; href: string; match?: string[] };
+export type RailEntry = RailLink | { label: string; children: RailLink[] };
+export type RailSection = { key: string; label: string; icon: ReactNode; entries: RailEntry[] };
+
+const SUPPORT: RailLink = { label: "Support", href: "/employee/support" };
+const HELP: RailSection = { key: "help", label: "Help", icon: <CircleHelp size={19} />, entries: [SUPPORT] };
+
+export function railLinks(e: RailEntry): RailLink[] {
+  return "children" in e ? e.children : [e];
+}
+
+export function isRailLinkActive(l: RailLink, path: string): boolean {
+  if (path === l.href || l.match?.includes(path)) return true;
+  // Detail pages (one employee, one upload, one project) light up their list.
+  const rest = path.startsWith(`${l.href}/`) ? path.slice(l.href.length + 1) : "";
+  return rest !== "" && (UUID.test(rest) || rest === "unassigned");
+}
+
+const CATEGORY_RAIL: Record<string, { label: string; icon: ReactNode }> = {
+  "MY WORKSPACE": { label: "My work", icon: <HomeIcon size={19} /> },
+  "TRAVEL DESK": { label: "Desk", icon: <FileSpreadsheet size={19} /> },
+  "BUSINESS INTELLIGENCE": { label: "Insights", icon: <LineChart size={19} /> },
+  TRAVEL: { label: "Travel", icon: <Plane size={19} /> },
+};
+
+export function travelRail(role: Role): RailSection[] {
+  const keep = (sections: RailSection[]) => sections
+    .map((s) => ({
+      ...s,
+      entries: s.entries
+        .map((e): RailEntry | null => {
+          if ("children" in e) {
+            const children = e.children.filter((c) => isTravelPathAllowed(role, c.href));
+            return children.length ? { label: e.label, children } : null;
+          }
+          return e.href === SUPPORT.href || isTravelPathAllowed(role, e.href) ? e : null;
+        })
+        .filter((e): e is RailEntry => e !== null),
+    }))
+    .filter((s) => s.entries.length > 0);
+
+  if (MANAGERS.includes(role)) {
+    return keep([
+      { key: "home", label: "Home", icon: <HomeIcon size={19} />, entries: [{ label: "Dashboard", href: travelHomeFor(role) }] },
+      { key: "requests", label: "Requests", icon: <ClipboardCheck size={19} />, entries: [{ label: "Travel requests", href: "/travel/approvals" }] },
+      { key: "expenses", label: "Expenses", icon: <Receipt size={19} />, entries: [{ label: "Expenses", href: "/travel/expenses/all" }] },
+      { key: "people", label: "People", icon: <UsersRound size={19} />, entries: [
+        { label: "Manage & logins", href: "/travel/people" },
+        { label: "Spend & history", href: "/travel/employees" },
+      ] },
+      { key: "uploads", label: "Uploads", icon: <Upload size={19} />, entries: [
+        { label: "Upload Excel / PDF", href: "/travel/import" },
+        { label: "Upload history", href: "/travel/uploads" },
+        { label: "Bulk bookings", href: "/travel/bulk" },
+        { label: "Tickets & documents", href: "/travel/documents" },
+      ] },
+      { key: "insights", label: "Insights", icon: <LineChart size={19} />, entries: [
+        { label: "Intelligence", children: [
+          { label: "Projects", href: "/travel/bi/projects" },
+          { label: "Travel", href: "/travel/bi/travel" },
+          { label: "Finance", href: "/travel/bi/finance" },
+        ] },
+        { label: "Search all trips", href: "/travel/search" },
+        { label: "Download reports", href: "/travel/bi/reports" },
+      ] },
+      { key: "assistant", label: "AI", icon: <Bot size={19} />, entries: [{ label: "AI assistant", href: "/travel/assistant" }] },
+      HELP,
+    ]);
+  }
+  if (role === "EMPLOYEE") {
+    return keep([
+      { key: "home", label: "Home", icon: <HomeIcon size={19} />, entries: [{ label: "My dashboard", href: "/travel/home" }] },
+      { key: "requests", label: "Requests", icon: <FileText size={19} />, entries: [{ label: "My travel requests", href: "/travel/requests" }] },
+      { key: "history", label: "History", icon: <History size={19} />, entries: [{ label: "My travel history", href: "/travel/my" }] },
+      { key: "documents", label: "Tickets", icon: <ScanLine size={19} />, entries: [{ label: "Tickets & documents", href: "/travel/documents" }] },
+      HELP,
+    ]);
+  }
+  // Approvers and the travel desk: one rail section per menu group.
+  const sections: RailSection[] = travelNavCategories(role).map((g) => ({
+    key: g.category,
+    label: CATEGORY_RAIL[g.category]?.label ?? g.category.charAt(0) + g.category.slice(1).toLowerCase(),
+    icon: CATEGORY_RAIL[g.category]?.icon ?? <LayoutDashboard size={19} />,
+    entries: g.items.map((i) => ({ label: i.label, href: i.href, match: i.match })),
+  }));
+  return [...sections, HELP];
+}
+
 export function isTravelPathAllowed(role: Role, path: string): boolean {
   const employeeMatch = path.match(/^\/travel\/employees\/([^/]+)$/);
   if (employeeMatch) return OVERSIGHT.includes(role) && UUID.test(employeeMatch[1]);
@@ -235,7 +330,7 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
     case "/travel/bulk":
       return <BulkBookings canManage={canManage} canReview={user.role === "APPROVER" || user.role === "ADMIN"} />;
     case "/travel/documents":
-      return <Documents profileId={profileId} canManage={canManage} />;
+      return user.role === "EMPLOYEE" ? <EmployeeDocuments profileId={profileId} /> : <Documents profileId={profileId} canManage={canManage} />;
     default:
       return null;
   }

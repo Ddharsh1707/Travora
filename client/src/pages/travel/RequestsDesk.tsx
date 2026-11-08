@@ -7,10 +7,11 @@ import { decideRequest, listAllRequests, type RequestStatus, type TravelRequest 
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate } from "./common";
 import { RequestDecision, RequestDetails, RequestStatusBadge } from "./RequestParts";
 import { TravelRecordDialog } from "./TravelRecordDialog";
+import { RequestTickets, useRequestTickets } from "./RequestTickets";
 
 const TABS: Array<{ key: RequestStatus | "all"; label: string }> = [
   { key: "pending", label: "Waiting for a decision" },
-  { key: "approved", label: "Approved, to book" },
+  { key: "approved", label: "Approved, add ticket" },
   { key: "booked", label: "Booked" },
   { key: "rejected", label: "Rejected" },
   { key: "all", label: "All" },
@@ -44,6 +45,8 @@ export default function RequestsDesk({ profileId, isCeo }: { profileId: string; 
   }, []);
   useEffect(() => { void load(); }, [load]);
   useLiveRefresh(["travel_requests"], load);
+
+  const { byRequest, reload: reloadTickets } = useRequestTickets(rows);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -92,7 +95,7 @@ export default function RequestsDesk({ profileId, isCeo }: { profileId: string; 
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Stat label="Waiting" value={String(counts.pending ?? 0)} detail="Need a decision" />
-        <Stat label="Approved, to book" value={String(counts.approved ?? 0)} detail={isCeo ? "The Admin books these" : "Book these next"} />
+        <Stat label="Approved" value={String(counts.approved ?? 0)} detail="Upload the ticket for each" />
         <Stat label="Booked" value={String(counts.booked ?? 0)} />
         <Stat label="Rejected" value={String(counts.rejected ?? 0)} />
       </div>
@@ -139,9 +142,10 @@ export default function RequestsDesk({ profileId, isCeo }: { profileId: string; 
               ) : (
                 <div className="border-t pt-3 flex flex-wrap items-start gap-3" style={{ borderColor: "var(--line)" }}>
                   <div className="flex-1 min-w-0"><RequestDecision r={r} forEmployee={false} /></div>
-                  {r.status === "approved" && <button type="button" className="button button-primary" onClick={() => setBooking(r)}><Plane size={15} /> Book trip</button>}
+                  {r.status === "approved" && <button type="button" className="button button-ghost" onClick={() => setBooking(r)}><Plane size={15} /> Record booking</button>}
                 </div>
               )}
+              <RequestTickets request={r} docs={byRequest[r.id] ?? []} canUpload onUploaded={() => void reloadTickets()} />
             </article>
           ))}
         </div>
