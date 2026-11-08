@@ -609,17 +609,28 @@ table thead th {
 .dark .recharts-rectangle[fill="#2C4250"] { fill: #7A8E9B; }
 
 /* ==========================================================================
-   SIGN-IN PAGE: graphite schematic on the left, form on the right.
+   SIGN-IN PAGE: a live 3D terminal fills the page, the form floats on top.
    ========================================================================== */
 .auth-page {
   --auth-teal: var(--amber-hover);
   --auth-teal-2: var(--amber);
-  background: linear-gradient(90deg, var(--g-900) 0, var(--g-900) 56%, var(--paper) 56%) !important;
+  background: #070C10 !important;
   position: relative;
+  overflow: hidden;
 }
-.dark .auth-page { background: linear-gradient(90deg, var(--g-950) 0, var(--g-950) 56%, var(--paper) 56%) !important; }
+.dark .auth-page { background: #070C10 !important; }
 .auth-glow, .auth-grid { display: none !important; }
-.auth-backdrop { inset: 0 44% 0 0 !important; overflow: hidden; }
+.auth-scene { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.auth-scene-canvas { position: absolute; inset: 0; }
+.auth-scene-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 12, 16, 0.92) 0%, rgba(7, 12, 16, 0.55) 34%, rgba(7, 12, 16, 0.05) 60%, rgba(7, 12, 16, 0.35) 100%),
+    linear-gradient(0deg, rgba(7, 12, 16, 0.85) 0%, transparent 22%),
+    linear-gradient(180deg, rgba(7, 12, 16, 0.7) 0%, transparent 16%);
+}
+.auth-backdrop { inset: 0 !important; overflow: hidden; }
 .auth-backdrop::before {
   content: "";
   position: absolute;
@@ -685,20 +696,6 @@ table thead th {
   font-size: 10.5px !important;
 }
 .auth-trust li svg { color: var(--amber); }
-.auth-boarding {
-  border-radius: 14px !important;
-  background: rgba(255, 255, 255, 0.035) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.8) !important;
-  color: #FFFFFF !important;
-  backdrop-filter: blur(8px);
-}
-.auth-boarding span, .auth-boarding small { color: rgba(255, 255, 255, 0.55) !important; font-family: var(--font-mono); }
-.auth-boarding strong { color: #FFFFFF !important; font-family: var(--font-display) !important; font-stretch: 112%; }
-.auth-boarding-plane { background: transparent !important; color: var(--amber) !important; }
-.auth-boarding-line { border-color: rgba(242, 169, 59, 0.4) !important; }
-.auth-boarding-status { color: #5CCFC6 !important; border-top-color: rgba(255, 255, 255, 0.1) !important; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; }
-.auth-boarding-status svg { color: #5CCFC6; }
 
 .auth-card {
   position: relative;
@@ -747,16 +744,14 @@ table thead th {
 }
 .auth-submit:hover:not(:disabled) { color: var(--g-900) !important; background: #F4B248 !important; }
 .auth-submit:hover:not(:disabled)::before { transform: translateX(120%); }
-.auth-footer { color: var(--ink-soft); font-family: var(--font-mono); font-size: 11px; }
-.auth-footer span:first-child { color: rgba(255, 255, 255, 0.5); }
+.auth-footer, .auth-footer span:first-child { color: rgba(255, 255, 255, 0.55) !important; font-family: var(--font-mono); font-size: 11px; }
+.auth-chip-button, .auth-icon-button { color: #fff !important; border-color: rgba(255, 255, 255, 0.22) !important; background: rgba(7, 12, 16, 0.45) !important; backdrop-filter: blur(8px); }
+.auth-card { box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(242, 169, 59, 0.08) !important; }
+@media (max-width: 900px) {
+  .auth-scene-shade { background: rgba(7, 12, 16, 0.62); }
+}
 .auth-check-icon { border-radius: 12px !important; background: var(--amber) !important; color: var(--g-900) !important; }
 
-@media (max-width: 900px) {
-  .auth-page { background: var(--g-900) !important; }
-  .auth-backdrop { inset: 0 !important; }
-  .auth-footer, .auth-footer span:first-child { color: rgba(255, 255, 255, 0.55) !important; }
-  .auth-chip-button, .auth-icon-button { color: #fff !important; border-color: rgba(255, 255, 255, 0.22) !important; background: transparent !important; }
-}
 
 /* ==========================================================================
    LANDING PAGE helpers (layout lives in LandingPage.tsx)
