@@ -88,12 +88,12 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
               value={term}
               onValueChange={setTerm}
               placeholder={canFindPeople ? "Search an employee by name or ID, or a page… (Esc to close)" : "Type a command or search actions… (Esc to close)"}
-              className="w-full py-4 bg-transparent outline-none text-[15px] text-[#10243A] dark:text-[#F8FAFC] placeholder:text-[#94A3B8]"
+              className="w-full py-4 bg-transparent outline-none text-[15px] text-[#0F1A22] dark:text-[#F8FAFC] placeholder:text-[#94A3B8]"
             />
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="p-1 rounded-lg text-[#94A3B8] hover:text-[#10243A] dark:hover:text-white transition-colors"
+              className="p-1 rounded-lg text-[#94A3B8] hover:text-[#0F1A22] dark:hover:text-white transition-colors"
             >
               <X size={18} />
             </button>
@@ -107,16 +107,16 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
             {people.length > 0 && (
               <Command.Group
                 heading="Employees"
-                className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F28C28]"
+                className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F2A93B]"
               >
                 {people.map((p) => (
                   <Command.Item
                     key={p.employee_id}
                     value={`${p.employee_name} ${p.employee_code} ${p.department ?? ""} ${p.employee_id}`}
                     onSelect={() => navigate(`/travel/employees/${p.employee_id}`)}
-                    className="normal-case tracking-normal font-normal flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="normal-case tracking-normal font-normal flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <UserRound size={16} className="text-[#F28C28]" />
+                    <UserRound size={16} className="text-[#F2A93B]" />
                     <span className="font-semibold">{p.employee_name}</span>
                     <span className="text-xs text-[#94A3B8]">{p.employee_code}{p.department ? ` · ${p.department}` : ""}{p.active ? "" : " · past"}</span>
                     <span className="ml-auto text-xs text-[#94A3B8]">{p.total_trips} trips · ₹{Number(p.total_spend).toLocaleString("en-IN")}</span>
@@ -128,7 +128,7 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
             {/* Quick Actions */}
             <Command.Group
               heading="Quick Actions"
-              className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F28C28]"
+              className="px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[#F2A93B]"
             >
               <Command.Item
                 onSelect={() => {
@@ -147,9 +147,9 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                   toggleTheme();
                   onOpenChange(false);
                 }}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
               >
-                {theme === "light" ? <Moon size={16} className="text-[#F28C28]" /> : <Sun size={16} className="text-[#F28C28]" />}
+                {theme === "light" ? <Moon size={16} className="text-[#F2A93B]" /> : <Sun size={16} className="text-[#F2A93B]" />}
                 <span>Toggle theme ({theme === "light" ? "Dark mode" : "Light mode"})</span>
                 <span className="ml-auto text-xs text-[#94A3B8]">Cmd+Shift+T</span>
               </Command.Item>
@@ -158,17 +158,17 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                 <>
                   <Command.Item
                     onSelect={() => navigate("/employee/plan-trip")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <Plus size={16} className="text-[#F28C28]" />
+                    <Plus size={16} className="text-[#F2A93B]" />
                     <span>Plan a new travel request</span>
                     <span className="ml-auto text-xs text-[#94A3B8]">New request</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/expenses")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <WalletCards size={16} className="text-[#F28C28]" />
+                    <WalletCards size={16} className="text-[#F2A93B]" />
                     <span>Log travel expense / claim</span>
                     <span className="ml-auto text-xs text-[#94A3B8]">Receipts</span>
                   </Command.Item>
@@ -185,44 +185,44 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                 <>
                   <Command.Item
                     onSelect={() => navigate("/employee")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <Sparkles size={16} className="text-[#F28C28]" />
+                    <Sparkles size={16} className="text-[#F2A93B]" />
                     <span>Employee Dashboard Overview</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/journeys")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <Compass size={16} className="text-[#F28C28]" />
+                    <Compass size={16} className="text-[#F2A93B]" />
                     <span>My Journeys</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/calendar")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <CalendarDays size={16} className="text-[#F28C28]" />
+                    <CalendarDays size={16} className="text-[#F2A93B]" />
                     <span>Travel Calendar Schedule</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/expenses")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <WalletCards size={16} className="text-[#F28C28]" />
+                    <WalletCards size={16} className="text-[#F2A93B]" />
                     <span>Expense Tracker & Receipts</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/profile")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <UserRound size={16} className="text-[#F28C28]" />
+                    <UserRound size={16} className="text-[#F2A93B]" />
                     <span>Travel Profile & Preferences</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/employee/reports")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <BarChart3 size={16} className="text-[#F28C28]" />
+                    <BarChart3 size={16} className="text-[#F2A93B]" />
                     <span>Travel Reports & Destination Insights</span>
                   </Command.Item>
                 </>
@@ -232,23 +232,23 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                 <>
                   <Command.Item
                     onSelect={() => navigate("/approver")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <FileCheck2 size={16} className="text-[#F28C28]" />
+                    <FileCheck2 size={16} className="text-[#F2A93B]" />
                     <span>Approval Queue</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/approver/history")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <FileText size={16} className="text-[#F28C28]" />
+                    <FileText size={16} className="text-[#F2A93B]" />
                     <span>Approval Decision History</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/approver/reports")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <BarChart3 size={16} className="text-[#F28C28]" />
+                    <BarChart3 size={16} className="text-[#F2A93B]" />
                     <span>Team Travel Reports & Extraction</span>
                   </Command.Item>
                 </>
@@ -258,23 +258,23 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                 <>
                   <Command.Item
                     onSelect={() => navigate("/travel-desk")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <TicketCheck size={16} className="text-[#F28C28]" />
+                    <TicketCheck size={16} className="text-[#F2A93B]" />
                     <span>Operations Overview</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/travel-desk/bookings")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <TicketCheck size={16} className="text-[#F28C28]" />
+                    <TicketCheck size={16} className="text-[#F2A93B]" />
                     <span>Booking Queue</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/travel-desk/reports")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <BarChart3 size={16} className="text-[#F28C28]" />
+                    <BarChart3 size={16} className="text-[#F2A93B]" />
                     <span>Desk Bookings & Vendor Report</span>
                   </Command.Item>
                 </>
@@ -284,30 +284,30 @@ export function CommandPalette({ open, onOpenChange, user, onLogout }: CommandPa
                 <>
                   <Command.Item
                     onSelect={() => navigate("/admin")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <Settings2 size={16} className="text-[#F28C28]" />
+                    <Settings2 size={16} className="text-[#F2A93B]" />
                     <span>Admin Control Center</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/admin/requests")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <FileText size={16} className="text-[#F28C28]" />
+                    <FileText size={16} className="text-[#F2A93B]" />
                     <span>All Travel Requests</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/admin/bookings")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <TicketCheck size={16} className="text-[#F28C28]" />
+                    <TicketCheck size={16} className="text-[#F2A93B]" />
                     <span>All Bookings & Spend</span>
                   </Command.Item>
                   <Command.Item
                     onSelect={() => navigate("/admin/reports")}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] transition-colors"
                   >
-                    <BarChart3 size={16} className="text-[#F28C28]" />
+                    <BarChart3 size={16} className="text-[#F2A93B]" />
                     <span>Organization Analytics</span>
                   </Command.Item>
                 </>

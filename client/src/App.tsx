@@ -432,6 +432,7 @@ function Sidebar({
 
   return (
     <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+      <SidebarPipes />
       <div className="sidebar-top flex items-center justify-between">
         <Logo compact={collapsed} />
         <div className="flex items-center gap-1">
@@ -500,7 +501,7 @@ function Sidebar({
 
       {!collapsed && (
         <div className="role-account">
-          <ShieldCheck size={14} className="text-[#F28C28]" />
+          <ShieldCheck size={14} />
           <span>{roleLabels[role]} access</span>
         </div>
       )}
@@ -527,6 +528,23 @@ function Sidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+/** Decorative tank farm and pipeline drawn faintly behind the menu. */
+function SidebarPipes() {
+  return (
+    <svg className="sidebar-pipes" viewBox="0 0 256 320" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <rect className="tank-level" x="22" y="236" width="56" height="60" />
+      <rect className="tank" x="22" y="206" width="56" height="90" rx="3" />
+      <path className="tank" d="M22 206 Q50 192 78 206" />
+      <circle className="tank" cx="186" cy="212" r="34" />
+      <path className="tank" d="M164 238 L156 296 M208 238 L216 296" />
+      <path className="pipe" d="M0 300 H256 M78 262 H120 V300 M120 262 H152 M50 206 V150 H186 V178" />
+      <path className="pipe-flow" d="M0 300 H256" />
+      <path className="pipe-flow" d="M50 206 V150 H186 V178" />
+      <path className="pipe-flow" d="M78 262 H120 V300" />
+    </svg>
   );
 }
 
@@ -558,19 +576,19 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
           <ChevronRight size={13} className="text-[#94A3B8]" />
           <span className="text-[#667085] dark:text-[#94A3B8]">Trapple</span>
           <ChevronRight size={13} className="text-[#94A3B8]" />
-          <strong className="text-[#10243A] dark:text-[#F8FAFC]">{meta.title}</strong>
+          <strong className="text-[#0F1A22] dark:text-[#F8FAFC]">{meta.title}</strong>
         </div>
       </div>
       <div className="topbar-actions">
         <button
           type="button"
           onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] text-xs text-[#667085] dark:text-[#94A3B8] bg-[#F8FAFC] dark:bg-[#111827] hover:border-[#F28C28] transition-all hover:shadow-sm"
+          className="topbar-search hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs transition-all"
           title="Press Cmd+K to search"
         >
           <Search size={14} />
           <span>Search or Cmd+K</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[#E4E7EC] dark:bg-[#1E293B] text-[10px] font-mono text-[#475467] dark:text-[#CBD5E1]">⌘K</kbd>
+          <kbd className="px-1.5 py-0.5 rounded text-[10px]">⌘K</kbd>
         </button>
         <button
           type="button"
@@ -583,10 +601,10 @@ function Topbar({ onMenu, onOpenSearch, meta, user }: { onMenu: () => void; onOp
         <button
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent("open-trapple-ai"))}
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all font-medium"
+          className="topbar-ai hidden md:flex items-center gap-1.5 px-2.5 py-1.5 text-xs transition-all"
           title="Open Trapple AI Assistant"
         >
-          <Sparkles size={13} className="text-emerald-500" />
+          <Sparkles size={13} />
           <span>Ask AI</span>
         </button>
         <button
@@ -690,15 +708,24 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
         </LayoutGroup>
       </div>
       <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
-        <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
+        <div className="relative">
+          <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
+          <motion.div
+            key={`progress-${location}`}
+            className="route-progress"
+            initial={{ scaleX: 0, opacity: 1 }}
+            animate={{ scaleX: 1, opacity: [1, 1, 0] }}
+            transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1], opacity: { duration: 1.2, times: [0, 0.7, 1] } }}
+          />
+        </div>
         <main className="content-wrap">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8, transition: { duration: 0.14 } }}
-              transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -8, filter: "blur(2px)", transition: { duration: 0.16 } }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
               {children}
             </motion.div>
@@ -712,7 +739,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
 
 function StatCard({ label, value, detail, icon, accent, numericValue }: { label: string; value: string; detail: string; icon: ReactNode; accent?: string; numericValue?: number }) {
   return (
-    <SpotlightCard className={`stat-card p-5 transition-all duration-300 ${accent ? "border-[#F28C28]/40 shadow-[0_4px_20px_rgba(242, 140, 40,0.12)]" : ""}`}>
+    <SpotlightCard className={`stat-card p-5 transition-all duration-300 ${accent ? "border-[#F2A93B]/40 shadow-[0_4px_20px_rgba(242, 169, 59,0.12)]" : ""}`}>
       <div className="stat-card-top flex items-center justify-between">
         <span className="stat-icon">{icon}</span>
         <span className="stat-detail">{detail}</span>
@@ -787,7 +814,7 @@ function Dashboard({ user }: { user: AuthUser }) {
         <div className="welcome-card">
           <div className="welcome-copy">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-[#F2A93B]/20 text-[#F6BC55] border border-[#F2A93B]/30">
                 Mahathi Infra Services Pvt. Ltd.
               </span>
               <span className="text-[11px] text-[#94A3B8]">· Corporate Travel Workspace</span>
@@ -814,7 +841,7 @@ function Dashboard({ user }: { user: AuthUser }) {
           </div>
           <div className="welcome-badge-panel hidden xl:flex flex-col justify-between p-4 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md w-[240px] shrink-0 text-xs">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F6A85A]">Corporate Desk</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#F6BC55]">Corporate Desk</span>
               <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Active
               </span>
@@ -834,7 +861,7 @@ function Dashboard({ user }: { user: AuthUser }) {
               </div>
             </div>
             <div className="pt-2.5 border-t border-white/10 flex items-center gap-2 text-[11px] text-slate-400">
-              <ShieldCheck size={13} className="text-[#F6A85A] shrink-0" />
+              <ShieldCheck size={13} className="text-[#F6BC55] shrink-0" />
               <span>TLS 1.3 Tenant Isolation</span>
             </div>
           </div>
@@ -973,14 +1000,14 @@ function Dashboard({ user }: { user: AuthUser }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           <Link
             href="/employee/plan-trip"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] flex items-center justify-center group-hover:scale-105 transition-transform">
+              <span className="w-10 h-10 rounded-xl bg-[#F2A93B]/10 text-[#E8961C] dark:text-[#F6BC55] flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Plus size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   Plan a New Trip
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -992,14 +1019,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/journeys"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <Compass size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   My Journeys
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1011,14 +1038,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/calendar"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <CalendarDays size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   Travel Calendar
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1030,14 +1057,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/expenses"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <WalletCards size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   Expense Claims
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1049,14 +1076,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/reports"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <BarChart3 size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   Travel Signals & Reports
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1068,14 +1095,14 @@ function Dashboard({ user }: { user: AuthUser }) {
 
           <Link
             href="/employee/support"
-            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F28C28] dark:hover:border-[#F28C28] hover:shadow-md transition-all group"
+            className="p-4 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-white dark:bg-[#111827] hover:border-[#F2A93B] dark:hover:border-[#F2A93B] hover:shadow-md transition-all group"
           >
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:scale-105 transition-transform">
                 <CircleHelp size={20} />
               </span>
               <div>
-                <strong className="block text-sm font-bold text-[#10243A] dark:text-white group-hover:text-[#F28C28] transition-colors">
+                <strong className="block text-sm font-bold text-[#0F1A22] dark:text-white group-hover:text-[#F2A93B] transition-colors">
                   Travel Desk Support
                 </strong>
                 <span className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -1195,8 +1222,8 @@ function PlanTrip() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <span className="card-kicker">REQUEST SUBMITTED</span>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] border border-[#F28C28]/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F28C28] animate-pulse" /> Pending Approval
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[#F2A93B]/10 text-[#E8961C] dark:text-[#F6BC55] border border-[#F2A93B]/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#F2A93B] animate-pulse" /> Pending Approval
             </span>
           </div>
           <h2>Your request is with your approver.</h2>
@@ -3781,7 +3808,7 @@ function Approvals({ history = false }: { history?: boolean }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E131F] shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F28C28] block mb-0.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#F2A93B] block mb-0.5">
               {history ? "DECISION ARCHIVE" : "NEEDS YOUR REVIEW"}
             </span>
             <div className="text-2xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
@@ -6980,7 +7007,7 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
       <section className="admin-hero">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#F28C28]/20 text-[#F6A85A] border border-[#F28C28]/30">
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase bg-[#F2A93B]/20 text-[#F6BC55] border border-[#F2A93B]/30">
               Mahathi Infra Services Pvt. Ltd.
             </span>
             <span className="text-[11px] text-[#94A3B8]">· Tenant Code: MISPL</span>
@@ -7003,7 +7030,7 @@ function AdminOverview({ section = "overview", user }: { section?: string; user?
           </div>
         </div>
         <div className="admin-orbit hidden sm:flex flex-col items-center justify-center p-3 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md">
-          <ShieldCheck size={24} className="text-[#F6A85A] mb-1" />
+          <ShieldCheck size={24} className="text-[#F6BC55] mb-1" />
           <span className="text-[10.5px] font-bold text-white uppercase tracking-wider">RBAC SECURED</span>
           <small className="text-[9.5px] text-[#94A3B8]">Audit Trail Active</small>
         </div>

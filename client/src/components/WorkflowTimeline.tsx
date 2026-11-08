@@ -86,7 +86,7 @@ export function WorkflowTimeline({
                   state === "completed"
                     ? "bg-[#16A34A] text-white shadow-[0_0_12px_rgba(22,163,74,0.35)]"
                     : state === "current"
-                    ? "bg-[#F28C28] text-white ring-4 ring-[#F28C28]/20 shadow-[0_0_14px_rgba(242, 140, 40,0.4)] animate-pulse"
+                    ? "bg-[#F2A93B] text-white ring-4 ring-[#F2A93B]/20 shadow-[0_0_14px_rgba(242, 169, 59,0.4)] animate-pulse"
                     : state === "failed"
                     ? "bg-[#DC2626] text-white shadow-[0_0_12px_rgba(220,38,38,0.35)]"
                     : "bg-white dark:bg-[#111827] border-2 border-[#E4E7EC] dark:border-[#334155] text-[#667085] dark:text-[#94A3B8]"
@@ -103,7 +103,7 @@ export function WorkflowTimeline({
               <span
                 className={`mt-2 text-xs font-bold truncate max-w-[120px] ${
                   state === "completed" || state === "current"
-                    ? "text-[#10243A] dark:text-[#F8FAFC]"
+                    ? "text-[#0F1A22] dark:text-[#F8FAFC]"
                     : state === "failed"
                     ? "text-[#DC2626]"
                     : "text-[#667085] dark:text-[#94A3B8]"

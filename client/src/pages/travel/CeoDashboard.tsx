@@ -99,8 +99,8 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
                     <YAxis fontSize={11} tickFormatter={(v) => compact.format(Number(v))} width={48} />
                     <Tooltip formatter={(v) => formatMoney(Number(v))} />
                     <Legend />
-                    <Bar dataKey="expenses" name="Expenses" stackId="s" fill="#F28C28" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="travel" name="Travel" stackId="s" fill="#1D4E89" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="expenses" name="Expenses" stackId="s" fill="#F2A93B" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="travel" name="Travel" stackId="s" fill="#2C4250" radius={[3, 3, 0, 0]} className="tx-bar-steel" />
                   </BarChart>
                 </ResponsiveContainer>
               )}

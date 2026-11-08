@@ -28,7 +28,7 @@ export function RouteVisualizer({
       {/* Route Header */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] border border-[#F28C28]/20">
+          <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-[#F2A93B]/10 text-[#E8961C] dark:text-[#F6BC55] border border-[#F2A93B]/20">
             {isTrain ? <Train size={14} /> : <Plane size={14} />}
           </span>
           <span className="text-xs font-semibold uppercase tracking-wider text-[#667085] dark:text-[#94A3B8]">
@@ -36,7 +36,7 @@ export function RouteVisualizer({
           </span>
         </div>
         {status && (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] border border-[#F28C28]/25">
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#F2A93B]/10 text-[#E8961C] dark:text-[#F6BC55] border border-[#F2A93B]/25">
             {status}
           </span>
         )}
@@ -46,10 +46,10 @@ export function RouteVisualizer({
       <div className="flex items-center justify-between gap-4 py-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 text-xs text-[#667085] dark:text-[#94A3B8]">
-            <MapPin size={12} className="shrink-0 text-[#F28C28]" />
+            <MapPin size={12} className="shrink-0 text-[#F2A93B]" />
             <span className="truncate">Departure</span>
           </div>
-          <strong className="block text-base font-bold text-[#10243A] dark:text-[#F8FAFC] truncate mt-0.5">
+          <strong className="block text-base font-bold text-[#0F1A22] dark:text-[#F8FAFC] truncate mt-0.5">
             {from}
           </strong>
         </div>
@@ -58,10 +58,10 @@ export function RouteVisualizer({
         <div className="flex-[1.5] flex flex-col items-center justify-center px-2">
           <div className="relative w-full flex items-center justify-center">
             {/* Dashed baseline track */}
-            <div className="w-full h-[2px] border-b-2 border-dashed border-[#F28C28]/40 dark:border-[#F28C28]/50 relative" />
+            <div className="w-full h-[2px] border-b-2 border-dashed border-[#F2A93B]/40 dark:border-[#F2A93B]/50 relative" />
             
             {/* Center Vehicle Icon with glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white dark:bg-[#1E293B] border border-[#F28C28] flex items-center justify-center text-[#D9761A] dark:text-[#F6A85A] shadow-[0_0_12px_rgba(242, 140, 40,0.3)]">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white dark:bg-[#1E293B] border border-[#F2A93B] flex items-center justify-center text-[#E8961C] dark:text-[#F6BC55] shadow-[0_0_12px_rgba(242, 169, 59,0.3)]">
               {isTrain ? <Train size={12} /> : <Plane size={12} className="rotate-45" />}
             </div>
           </div>
@@ -73,9 +73,9 @@ export function RouteVisualizer({
         <div className="flex-1 min-w-0 text-right">
           <div className="flex items-center justify-end gap-1.5 text-xs text-[#667085] dark:text-[#94A3B8]">
             <span className="truncate">Destination</span>
-            <MapPin size={12} className="shrink-0 text-[#D9761A]" />
+            <MapPin size={12} className="shrink-0 text-[#E8961C]" />
           </div>
-          <strong className="block text-base font-bold text-[#10243A] dark:text-[#F8FAFC] truncate mt-0.5">
+          <strong className="block text-base font-bold text-[#0F1A22] dark:text-[#F8FAFC] truncate mt-0.5">
             {to}
           </strong>
         </div>
@@ -86,7 +86,7 @@ export function RouteVisualizer({
         <div className="mt-3 pt-3 border-t border-[#E4E7EC]/70 dark:border-[#1E293B] flex flex-wrap items-center justify-between gap-2 text-xs text-[#667085] dark:text-[#94A3B8]">
           {dates && (
             <span className="flex items-center gap-1.5 font-medium">
-              <Calendar size={13} className="text-[#F28C28]" />
+              <Calendar size={13} className="text-[#F2A93B]" />
               {dates}
             </span>
           )}

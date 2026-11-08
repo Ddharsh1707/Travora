@@ -161,7 +161,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
             return (
               <li key={r.key} className="grid gap-0.5">
                 <div className="flex gap-2"><span className="truncate flex-1" title={label(r.key)}>{label(r.key)}</span><span className="opacity-60 text-xs">{r.trips} trip{r.trips === 1 ? "" : "s"}</span><span className="font-semibold w-24 text-right">{formatMoney(r.spend)}</span></div>
-                <div className="h-1 rounded" style={{ background: "var(--line)" }}><div className="h-1 rounded" style={{ width: `${pct}%`, background: "#1D4E89" }} /></div>
+                <div className="h-1 rounded" style={{ background: "var(--line)" }}><div className="h-1 rounded" style={{ width: `${pct}%`, background: "#1BA39C" }} /></div>
               </li>
             );
           })}
