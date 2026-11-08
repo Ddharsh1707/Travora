@@ -213,8 +213,7 @@ function GhostButton({ children, onClick, dark = true }: { children: ReactNode; 
 }
 
 /* ------------------------------------------------------------------------- */
-/* Hero schematic: a small terminal with tanks, a sphere and flowing pipes,   */
-/* plus a travel route from Hyderabad to a site.                              */
+/* Hero schematic (fallback when WebGL is off): tanks, a sphere and pipes.   */
 /* ------------------------------------------------------------------------- */
 
 function Tank({ x, y, w, h, level, delay, label }: { x: number; y: number; w: number; h: number; level: number; delay: number; label: string }) {
@@ -253,22 +252,8 @@ function HeroSchematic() {
   const reduce = useReducedMotion();
   const draw = (d: number) => ({ initial: { pathLength: 0, opacity: 0 }, animate: { pathLength: 1, opacity: 1 }, transition: { duration: reduce ? 0 : 1.8, delay: reduce ? 0 : d, ease: "easeInOut" as const } });
   const pipes = ["M40 400 H600", "M130 330 V300 H250 V330", "M310 330 V300 H420", "M470 300 V250", "M560 400 V330"];
-  const route = "M70 120 C 200 40, 380 40, 520 110";
   return (
-    <svg viewBox="0 0 640 460" className="h-auto w-full" role="img" aria-label="Drawing of a fuel terminal with storage tanks, a sphere and pipelines, and a travel route from Hyderabad to a project site">
-      {/* travel route */}
-      <path d={route} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="5" strokeLinecap="round" />
-      <motion.path d={route} fill="none" stroke="#F2A93B" strokeWidth="1.5" strokeDasharray="4 10" className="lp-flow" {...draw(0.6)} />
-      <circle cx="70" cy="120" r="6" fill="#0F1A22" stroke="#F2A93B" strokeWidth="2" />
-      <circle cx="520" cy="110" r="6" fill="#0F1A22" stroke="#5CCFC6" strokeWidth="2" />
-      <text x="70" y="148" textAnchor="middle" className="lp-mono" fontSize="11" fill="rgba(255,255,255,0.75)" letterSpacing="2">HYD</text>
-      <text x="520" y="138" textAnchor="middle" className="lp-mono" fontSize="11" fill="rgba(255,255,255,0.75)" letterSpacing="2">SITE</text>
-      {!reduce && (
-        <circle r="4" fill="#F2A93B" style={{ filter: "drop-shadow(0 0 6px rgba(242,169,59,0.9))" }}>
-          <animateMotion dur="5.5s" repeatCount="indefinite" path={route} />
-        </circle>
-      )}
-
+    <svg viewBox="0 0 640 460" className="h-auto w-full" role="img" aria-label="Drawing of a fuel terminal with storage tanks, a sphere and pipelines">
       {/* ground and pipes */}
       <line x1="20" x2="620" y1="430" y2="430" stroke="rgba(255,255,255,0.12)" strokeDasharray="2 6" />
       {pipes.map((d, i) => (
@@ -311,67 +296,6 @@ function HeroSchematic() {
 }
 
 /** Small card on the hero that walks through a request's states. */
-function LiveRequestCard() {
-  const reduce = useReducedMotion();
-  const states = [
-    { label: "Waiting for decision", icon: Clock3, color: "#F2A93B" },
-    { label: "Approved by the CEO", icon: CheckCircle2, color: "#5CCFC6" },
-    { label: "Booked by the Admin", icon: Plane, color: "#5CCFC6" },
-  ];
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (reduce) return;
-    const t = setInterval(() => setI((n) => (n + 1) % states.length), 2600);
-    return () => clearInterval(t);
-  }, [reduce, states.length]);
-  const s = states[i];
-  return (
-    <div className="w-[min(320px,80vw)] rounded-[14px] border border-white/10 bg-[#0F1A22]/80 p-4 text-white shadow-[0_30px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-md">
-      <div className="lp-mono flex items-center justify-between text-[10px] uppercase tracking-[0.16em] text-white/50">
-        <span>Travel request</span>
-        <span>REQ-2611</span>
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div>
-          <div className="lp-display text-2xl font-extrabold">HYD</div>
-          <div className="text-[11px] text-white/50">Hyderabad</div>
-        </div>
-        <div className="mb-3 h-px flex-1 border-t border-dashed border-[#F2A93B]/50" />
-        <div className="text-right">
-          <div className="lp-display text-2xl font-extrabold">PPD</div>
-          <div className="text-[11px] text-white/50">Paradip site</div>
-        </div>
-      </div>
-      <div className="mt-3 border-t border-white/10 pt-3">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.35, ease }}
-            className="lp-mono flex items-center gap-2 text-[11px] uppercase tracking-[0.1em]"
-            style={{ color: s.color }}
-          >
-            <s.icon className="h-3.5 w-3.5" /> {s.label}
-          </motion.div>
-        </AnimatePresence>
-        <div className="mt-2 flex gap-1">
-          {states.map((_, n) => (
-            <span key={n} className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-              <motion.span className="block h-full bg-[#F2A93B]" animate={{ width: n <= i ? "100%" : "0%" }} transition={{ duration: 0.6, ease }} />
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------------- */
-/* Navigation                                                                 */
-/* ------------------------------------------------------------------------- */
-
 function Navbar({ onSignIn }: { onSignIn: () => void }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -498,39 +422,33 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
   const textY = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : -60]);
 
   return (
-    <section id="top" ref={ref} className="lp-grid-dark relative flex flex-col overflow-hidden bg-[#0B1319] pt-28 text-white lg:min-h-[100svh] lg:flex-row lg:items-center lg:pt-24">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_600px_at_72%_45%,rgba(242,169,59,0.14),transparent_60%),radial-gradient(700px_400px_at_10%_95%,rgba(27,163,156,0.12),transparent_60%)]" />
-
-      {/* 3D plant: behind the text on wide screens, under it on phones */}
+    <section id="top" ref={ref} className="relative flex min-h-[100svh] items-center overflow-hidden bg-[#070C10] pb-16 pt-28 text-white lg:pb-0 lg:pt-24">
+      {/* live 3D wallpaper fills the whole hero behind the headline */}
       <motion.div
-        className="relative order-2 -mt-4 h-[360px] sm:h-[460px] lg:absolute lg:mt-0 lg:inset-0 lg:h-auto"
+        className="absolute inset-0"
         style={{ opacity: sceneOpacity }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.4, ease }}
       >
         {flat ? (
-          <div className="mx-auto flex h-full max-w-[760px] items-center px-5 lg:ml-[46%] lg:max-w-[52%]">
-            <HeroSchematic />
+          <div className="lp-grid-dark flex h-full items-center justify-end px-5 opacity-60 lg:pr-[6%]">
+            <div className="w-full max-w-[760px] lg:max-w-[52%]">
+              <HeroSchematic />
+            </div>
           </div>
         ) : (
           <Suspense fallback={null}>
             <TerminalScene3D className="absolute inset-0" onFail={onFail} reduceMotion={!!reduce} />
           </Suspense>
         )}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B1319] to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[55%] bg-gradient-to-r from-[#0B1319] via-[#0B1319]/70 to-transparent lg:block" />
-        <motion.div
-          className="absolute bottom-10 right-8 z-10 hidden sm:block lg:bottom-14 lg:right-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease, delay: 2.4 }}
-        >
-          <LiveRequestCard />
-        </motion.div>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_600px_at_72%_45%,rgba(242,169,59,0.10),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#0B1319] to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[#070C10]/55 lg:hidden" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[58%] bg-gradient-to-r from-[#070C10]/95 via-[#070C10]/60 to-transparent lg:block" />
       </motion.div>
 
-      <motion.div className={`${container} relative z-10 order-1 lg:pb-24`} style={{ y: textY }}>
+      <motion.div className={`${container} relative z-10 lg:pb-24`} style={{ y: textY }}>
         <div className="max-w-[40rem] lg:pointer-events-none [&_button]:pointer-events-auto">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.2 }}>
             <Kicker dark>Mahathi Infra Services · Travel desk</Kicker>

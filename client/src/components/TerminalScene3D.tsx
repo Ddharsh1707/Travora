@@ -2,12 +2,13 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /**
- * 3D intro scene for the landing page: a small fuel terminal of the kind
- * Mahathi Infra Services builds. Storage tanks and an LPG sphere rise out of
- * a drawing-grid ground, product flows through the pipes, the tanks fill, and
- * a travel route arcs overhead from Hyderabad to the site. The camera flies
- * in on load, drifts slowly, follows the mouse a little and tilts as the page
- * scrolls. Rendering stops while the scene is off screen.
+ * Live 3D wallpaper for the landing page intro: an oil and gas terminal at
+ * night, of the kind Mahathi Infra Services builds. Storage tanks, an LPG
+ * sphere, a pumpjack and a flare rise out of a drawing-grid ground, the tanks
+ * fill, product flows through the pipes and roof lights blink across the
+ * plant. The camera flies in on load, then circles slowly like a looping
+ * film, follows the mouse a little and tilts as the page scrolls. Rendering
+ * stops while the scene is off screen.
  *
  * `onFail` is called when WebGL is not available so the page can fall back
  * to the flat drawing.
@@ -48,7 +49,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     renderer.domElement.setAttribute("aria-hidden", "true");
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(GRAPHITE, 26, 60);
+    scene.fog = new THREE.Fog(GRAPHITE, 24, 64);
     const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 200);
 
     // Lights: cool sky, warm key from the left, teal rim from behind.
@@ -241,29 +242,67 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       rising.push({ obj: v, delay: 1.4 });
     }
 
-    // Travel route arcing overhead: Hyderabad to the site.
-    const from = new THREE.Vector3(-9, 0.2, -6);
-    const to = new THREE.Vector3(5.2, 5.4, -0.6);
-    const route = new THREE.QuadraticBezierCurve3(from, new THREE.Vector3(-2, 11, -7), to);
-    const routeLine = new THREE.Line(
-      keep(new THREE.BufferGeometry().setFromPoints(route.getPoints(80))),
-      keep(new THREE.LineDashedMaterial({ color: AMBER, dashSize: 0.35, gapSize: 0.25, transparent: true, opacity: 0.85 })),
-    );
-    routeLine.computeLineDistances();
-    routeLine.geometry.setDrawRange(0, 0);
-    scene.add(routeLine);
-    const hq = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.35, 0.35, 0.08, 24)), tealMat);
-    hq.position.copy(from);
-    scene.add(hq);
-    const hqRing = new THREE.Mesh(keep(new THREE.RingGeometry(0.5, 0.58, 32)), keep(new THREE.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.7, side: THREE.DoubleSide })));
-    hqRing.rotation.x = -Math.PI / 2;
-    hqRing.position.copy(from).setY(0.22);
-    scene.add(hqRing);
-    const traveller = new THREE.Mesh(keep(new THREE.SphereGeometry(0.16, 16, 12)), amberGlow);
-    traveller.visible = false;
-    scene.add(traveller);
-    const travellerHalo = new THREE.PointLight(AMBER, 6, 5, 2);
-    traveller.add(travellerHalo);
+    // Far side of the terminal: more tanks and spheres fading into the night, with blinking roof lights.
+    const blinkers: THREE.Mesh[] = [];
+    const blinkGeo = keep(new THREE.SphereGeometry(0.11, 8, 6));
+    const farMat = keep(new THREE.MeshStandardMaterial({ color: 0x5c6b77, metalness: 0.6, roughness: 0.5 }));
+    const far: Array<[number, number, number, number, string]> = [
+      [-14, -12, 2.4, 3.4, "tank"], [-8, -15, 2.0, 3.0, "tank"], [9, -13, 2.2, 3.2, "tank"], [15, -9, 1.8, 2.6, "tank"],
+      [-17, -4, 1.6, 2.4, "tank"], [14, -18, 2.6, 3.6, "tank"], [-2, -18, 1.7, 0, "sphere"], [19, -2, 1.5, 0, "sphere"],
+    ];
+    far.forEach(([x, z, r, h, kind], i) => {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      if (kind === "tank") {
+        const body = new THREE.Mesh(keep(new THREE.CylinderGeometry(r, r, h, 32)), farMat);
+        body.position.y = h / 2;
+        g.add(body);
+        const roof = new THREE.Mesh(keep(new THREE.ConeGeometry(r * 1.02, r * 0.3, 32)), farMat);
+        roof.position.y = h + r * 0.15;
+        g.add(roof);
+        const light = new THREE.Mesh(blinkGeo, amberGlow);
+        light.position.y = h + r * 0.32;
+        g.add(light);
+        blinkers.push(light);
+      } else {
+        const ballFar = new THREE.Mesh(keep(new THREE.SphereGeometry(r, 32, 20)), farMat);
+        ballFar.position.y = r + 1.6;
+        g.add(ballFar);
+        for (let k = 0; k < 4; k++) {
+          const a2 = (k / 4) * Math.PI * 2;
+          const legFar = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.07, 0.07, 1.8, 6)), darkSteel);
+          legFar.position.set(Math.cos(a2) * r * 0.75, 0.9, Math.sin(a2) * r * 0.75);
+          g.add(legFar);
+        }
+        const light = new THREE.Mesh(blinkGeo, amberGlow);
+        light.position.y = r * 2 + 1.7;
+        g.add(light);
+        blinkers.push(light);
+      }
+      scene.add(g);
+      rising.push({ obj: g, delay: 0.1 + i * 0.08 });
+    });
+
+    // Night sky.
+    const starCount = 400;
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.random() * Math.PI * 0.42;
+      const rr = 70;
+      starPos[i * 3] = Math.cos(th) * Math.sin(ph) * rr;
+      starPos[i * 3 + 1] = Math.cos(ph) * rr * 0.6 + 6;
+      starPos[i * 3 + 2] = Math.sin(th) * Math.sin(ph) * rr;
+    }
+    const starGeo = keep(new THREE.BufferGeometry());
+    starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    const stars = new THREE.Points(starGeo, keep(new THREE.PointsMaterial({ color: 0xdfe8ec, size: 0.12, transparent: true, opacity: 0.55, fog: false, depthWrite: false })));
+    scene.add(stars);
+
+    // Warm glow from the flare on the clouds.
+    const flareLight = new THREE.PointLight(AMBER, 40, 30, 1.6);
+    flareLight.position.set(9.2, 6.5, -4.6);
+    scene.add(flareLight);
 
     // Floating dust for depth.
     const dustCount = 160;
@@ -285,7 +324,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     const target = new THREE.Vector3();
     let frameShift = 0;
     // Pull the camera back on narrow screens so the whole plant fits.
-    const w0Radius = () => (camera.aspect < 0.8 ? 38 : camera.aspect < 1.3 ? 33 : 30);
+    const w0Radius = () => (camera.aspect < 0.8 ? 34 : camera.aspect < 1.3 ? 30 : 27);
     function resize() {
       const w = el!.clientWidth || 1;
       const h = el!.clientHeight || 1;
@@ -293,7 +332,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       renderer.domElement.style.width = "100%";
       renderer.domElement.style.height = "100%";
       camera.aspect = w / h;
-      frameShift = w > 1024 ? -0.24 : 0;
+      frameShift = w > 1024 ? -0.21 : 0;
       camera.clearViewOffset();
       if (frameShift) camera.setViewOffset(w, h, frameShift * w, 0, w, h);
       camera.updateProjectionMatrix();
@@ -345,16 +384,10 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
           fl.curve.getPointAt(u, d.position);
         });
       }
-      // Route draws on, then a traveller rides it.
-      const draw = easeOut((t - 1.6) / 1.6);
-      routeLine.geometry.setDrawRange(0, Math.floor(81 * draw));
-      if (draw >= 1) {
-        traveller.visible = true;
-        const u = ((elapsed - 3.2) * 0.16) % 1;
-        route.getPointAt(Math.max(0, u), traveller.position);
-      }
-      hqRing.scale.setScalar(1 + ((elapsed * 0.8) % 1) * 1.4);
-      (hqRing.material as THREE.MeshBasicMaterial).opacity = 0.7 * (1 - ((elapsed * 0.8) % 1));
+      // Roof lights blink out of step, the flare flickers.
+      blinkers.forEach((l, i) => { l.visible = Math.sin(elapsed * 2.2 + i * 1.7) > 0.2; });
+      flareLight.intensity = 34 + Math.sin(elapsed * 11) * 6 + Math.sin(elapsed * 4.3) * 5;
+      stars.rotation.y = elapsed * 0.004;
       beam.rotation.z = Math.sin(elapsed * 1.6) * 0.22;
       flame.scale.set(1 + Math.sin(elapsed * 9) * 0.08, 1 + Math.sin(elapsed * 7) * 0.18, 1);
       dust.rotation.y = elapsed * 0.01;
@@ -363,7 +396,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       const fly = easeOut(t / 2.6);
       mouse.x += (mouse.tx - mouse.x) * 0.05;
       mouse.y += (mouse.ty - mouse.y) * 0.05;
-      const angle = THREE.MathUtils.lerp(-1.25, 0.62, fly) + Math.sin(elapsed * 0.08) * 0.12 + mouse.x * 0.12;
+      const angle = THREE.MathUtils.lerp(-1.25, 0.62, fly) + (reduceMotion ? 0 : Math.max(0, elapsed - 2.6) * 0.035) + mouse.x * 0.12;
       const radius = THREE.MathUtils.lerp(52, w0Radius(), fly) - scrollT * 3;
       const height = THREE.MathUtils.lerp(30, 13.5, fly) + mouse.y * -1.2 + scrollT * 6;
       camera.position.set(Math.sin(angle) * radius, height, Math.cos(angle) * radius);
