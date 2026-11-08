@@ -34,24 +34,41 @@ type Mode = "signin" | "signup" | "check-email";
 const ease = [0.16, 1, 0.3, 1] as const;
 
 /* ------------------------------------------------------------------------- */
-/* Background: drifting glow + animated flight routes                         */
+/* Background: a faint plant schematic with product flowing through pipes   */
 /* ------------------------------------------------------------------------- */
 
 const ROUTES = [
-  "M -40 620 C 260 380, 520 360, 820 470 S 1300 560, 1520 300",
-  "M 120 900 C 340 640, 700 600, 980 640 S 1380 520, 1560 620",
-  "M -60 260 C 300 140, 640 220, 900 160 S 1300 40, 1540 120",
+  "M -40 820 H 420 V 540 H 820",
+  "M 80 520 H 260 V 420 H 520 C 640 420, 680 300, 820 300",
+  "M -60 220 C 220 120, 520 160, 860 90",
+];
+
+const TANKS = [
+  { x: 668, y: 470, w: 64, h: 70, level: 0.6 },
+  { x: 742, y: 490, w: 52, h: 50, level: 0.35 },
 ];
 
 function AuthBackdrop() {
   const reduce = useReducedMotion();
   return (
     <div className="auth-backdrop" aria-hidden="true">
-      <div className="auth-glow auth-glow-a" />
-      <div className="auth-glow auth-glow-b" />
-      <div className="auth-glow auth-glow-c" />
-      <div className="auth-grid" />
-      <svg className="auth-routes" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+      <svg className="auth-routes" viewBox="0 0 820 900" preserveAspectRatio="xMidYMid slice">
+        {TANKS.map((t, i) => (
+          <g key={i}>
+            <motion.rect
+              className="auth-tank-fill"
+              x={t.x + 2}
+              width={t.w - 4}
+              initial={{ y: t.y + t.h, height: 0 }}
+              animate={{ y: t.y + t.h - t.h * t.level, height: t.h * t.level }}
+              transition={{ duration: reduce ? 0 : 2.4, delay: reduce ? 0 : 0.6 + i * 0.3, ease }}
+            />
+            <rect className="auth-tank" x={t.x} y={t.y} width={t.w} height={t.h} rx="3" />
+            <path className="auth-tank" d={`M${t.x} ${t.y} Q${t.x + t.w / 2} ${t.y - 18} ${t.x + t.w} ${t.y}`} />
+          </g>
+        ))}
+        <circle className="auth-tank" cx="735" cy="330" r="38" />
+        <path className="auth-tank-line" d="M708 357 L700 420 M762 357 L770 420" />
         {ROUTES.map((d, i) => (
           <g key={d}>
             <path d={d} className="auth-route-base" />
@@ -64,7 +81,7 @@ function AuthBackdrop() {
             />
             {!reduce && (
               <circle r="3.5" className="auth-route-dot">
-                <animateMotion dur={`${14 + i * 4}s`} begin={`${i * 1.5}s`} repeatCount="indefinite" path={d} rotate="auto" />
+                <animateMotion dur={`${10 + i * 4}s`} begin={`${i * 1.5}s`} repeatCount="indefinite" path={d} />
               </circle>
             )}
           </g>
@@ -349,7 +366,7 @@ export function LoginPage({
           {...rise(0)}
         >
           <Logo />
-          <span className="auth-brand-org">Mahathi Infra Services · Travel Desk</span>
+          <span className="auth-brand-org">Oil &amp; gas EPC · Hyderabad</span>
         </motion.button>
         <motion.div className="auth-header-actions" {...rise(0.05)}>
           {onBackToHome && (
@@ -382,18 +399,18 @@ export function LoginPage({
       <main className="auth-layout">
         <section className="auth-story">
           <motion.span className="auth-kicker" {...rise(0.1)}>
-            Corporate travel platform
+            Mahathi Infra Services · Travel desk
           </motion.span>
           <motion.h1 {...rise(0.18)}>
-            Every journey.
+            Site teams move.
             <br />
-            One desk.
+            Projects keep
             <br />
-            <span className="auth-gradient-text">Zero chaos.</span>
+            <span className="auth-gradient-text">flowing.</span>
           </motion.h1>
           <motion.p {...rise(0.26)}>
-            Plan trips, get manager sign-off and receive your tickets from one place. Built for Mahathi Infra Services
-            teams, with every step tracked.
+            Request a trip to any terminal, port or pipeline site, get one clear decision from the CEO and Admin, and keep
+            every booking and claim in one place.
           </motion.p>
           <motion.ul className="auth-trust" {...rise(0.34)}>
             {[
@@ -415,8 +432,8 @@ export function LoginPage({
           <motion.div className="auth-boarding" {...rise(0.5)} aria-hidden="true">
             <div>
               <span>From</span>
-              <strong>MAA</strong>
-              <small>Chennai</small>
+              <strong>HYD</strong>
+              <small>Hyderabad</small>
             </div>
             <div className="auth-boarding-path">
               <span className="auth-boarding-line" />
@@ -430,11 +447,11 @@ export function LoginPage({
             </div>
             <div>
               <span>To</span>
-              <strong>DEL</strong>
-              <small>New Delhi</small>
+              <strong>PPD</strong>
+              <small>Paradip site</small>
             </div>
             <div className="auth-boarding-status">
-              <CheckCircle2 size={14} /> Approved
+              <CheckCircle2 size={14} /> Approved by the CEO
             </div>
           </motion.div>
         </section>

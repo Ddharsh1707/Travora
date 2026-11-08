@@ -328,7 +328,7 @@ export function CorridorGlobe() {
       // -------------------------------------------------------------
       // First pass: Continental atmospheric luminous halo
       ctx.save();
-      ctx.strokeStyle = "rgba(242, 140, 40, 0.18)";
+      ctx.strokeStyle = "rgba(242, 169, 59, 0.18)";
       ctx.lineWidth = 3.2;
       for (let r = 0; r < WORLD_COASTLINES.length; r++) {
         const ring = WORLD_COASTLINES[r];
@@ -540,7 +540,7 @@ export function CorridorGlobe() {
           ctx.strokeStyle = arcGrad;
           ctx.lineWidth = 2.4;
         } else {
-          arcGrad.addColorStop(0, "rgba(242, 140, 40, 0.25)");
+          arcGrad.addColorStop(0, "rgba(242, 169, 59, 0.25)");
           arcGrad.addColorStop(0.5, "rgba(246, 168, 90, 0.82)");
           arcGrad.addColorStop(1, "rgba(56, 189, 248, 0.35)");
           ctx.strokeStyle = arcGrad;
@@ -571,7 +571,7 @@ export function CorridorGlobe() {
             ctx.beginPath();
             ctx.arc(scrX, scrY, isConnectedToHover ? 4.5 : 3.4, 0, Math.PI * 2);
             ctx.fillStyle = "#FFFFFF";
-            ctx.shadowColor = isConnectedToHover ? "#FBBF24" : "#F6A85A";
+            ctx.shadowColor = isConnectedToHover ? "#FBBF24" : "#F6BC55";
             ctx.shadowBlur = 12;
             ctx.fill();
             ctx.shadowBlur = 0;
@@ -640,7 +640,7 @@ export function CorridorGlobe() {
         ctx.beginPath();
         ctx.arc(px, py, isHovered ? 5.5 : 3.8, 0, Math.PI * 2);
         ctx.fillStyle = isHovered ? "#FBBF24" : isConnected ? "#38BDF8" : "#FFFFFF";
-        ctx.shadowColor = isHovered ? "#FBBF24" : "#F6A85A";
+        ctx.shadowColor = isHovered ? "#FBBF24" : "#F6BC55";
         ctx.shadowBlur = 9;
         ctx.fill();
         ctx.shadowBlur = 0;
@@ -724,7 +724,7 @@ export function CorridorGlobe() {
       <canvas ref={canvasRef} className="w-full h-full block" />
 
       {/* Futuristic Telemetry HUD Overlay */}
-      <div className="absolute top-4 left-4 p-3 rounded-none bg-[#0A1726]/85 border border-white/10 backdrop-blur-md text-[11px] font-mono space-y-1 shadow-2xl pointer-events-none">
+      <div className="absolute top-4 left-4 p-3 rounded-none bg-[#0B1319]/85 border border-white/10 backdrop-blur-md text-[11px] font-mono space-y-1 shadow-2xl pointer-events-none">
         <div className="flex items-center gap-2 text-teal-400 font-bold">
           <Radio size={12} className="animate-pulse" />
           <span>3D EARTH CORRIDOR RADAR · LIVE</span>
@@ -744,7 +744,7 @@ export function CorridorGlobe() {
       </div>
 
       {/* Security & SLA Badges Bottom Right */}
-      <div className="absolute bottom-4 right-4 p-3 rounded-none bg-[#0A1726]/85 border border-white/10 backdrop-blur-md text-[10.5px] space-y-1 text-right shadow-2xl pointer-events-none">
+      <div className="absolute bottom-4 right-4 p-3 rounded-none bg-[#0B1319]/85 border border-white/10 backdrop-blur-md text-[10.5px] space-y-1 text-right shadow-2xl pointer-events-none">
         <div className="flex items-center justify-end gap-1.5 text-emerald-400 font-bold">
           <ShieldCheck size={13} />
           <span>TLS 1.3 · TENANT ISOLATION</span>
@@ -755,7 +755,7 @@ export function CorridorGlobe() {
       </div>
 
       {/* Interactive prompt hint */}
-      <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-none bg-[#0A1726]/80 border border-slate-800 text-[10.5px] text-slate-400 backdrop-blur-md flex items-center gap-2 pointer-events-none shadow-lg">
+      <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-none bg-[#0B1319]/80 border border-slate-800 text-[10.5px] text-slate-400 backdrop-blur-md flex items-center gap-2 pointer-events-none shadow-lg">
         <Compass size={12} className="text-teal-400 animate-spin" style={{ animationDuration: "12s" }} />
         <span>Click & drag to rotate 3D Earth</span>
       </div>

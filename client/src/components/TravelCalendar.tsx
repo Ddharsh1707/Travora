@@ -84,11 +84,11 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
       {/* Calendar Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-[#111827] border border-[#E4E7EC] dark:border-[#1E293B] shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#F28C28]/10 text-[#D9761A] dark:text-[#F6A85A] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-[#F2A93B]/10 text-[#E8961C] dark:text-[#F6BC55] flex items-center justify-center">
             <CalendarDays size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-[#10243A] dark:text-[#F8FAFC]">
+            <h2 className="text-xl font-bold tracking-tight text-[#0F1A22] dark:text-[#F8FAFC]">
               {monthNames[month]} {year}
             </h2>
             <p className="text-xs text-[#667085] dark:text-[#94A3B8]">
@@ -101,7 +101,7 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
           <button
             type="button"
             onClick={goToToday}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#10243A] dark:text-[#E2E8F0] hover:bg-[#E2E8F0] dark:hover:bg-[#334155] transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#F1F5F9] dark:bg-[#1E293B] text-[#0F1A22] dark:text-[#E2E8F0] hover:bg-[#E2E8F0] dark:hover:bg-[#334155] transition-colors"
           >
             Today
           </button>
@@ -171,14 +171,14 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
                   <span
                     className={`inline-flex items-center justify-center text-xs font-semibold w-6 h-6 rounded-full ${
                       isToday
-                        ? "bg-[#F28C28] text-white font-bold shadow-sm"
-                        : "text-[#10243A] dark:text-[#F8FAFC]"
+                        ? "bg-[#F2A93B] text-white font-bold shadow-sm"
+                        : "text-[#0F1A22] dark:text-[#F8FAFC]"
                     }`}
                   >
                     {day}
                   </span>
                   {trips.length > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F28C28]/15 text-[#D9761A] dark:text-[#F6A85A]">
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#F2A93B]/15 text-[#E8961C] dark:text-[#F6BC55]">
                       {trips.length} {trips.length === 1 ? "trip" : "trips"}
                     </span>
                   )}
@@ -189,7 +189,7 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
                   {trips.slice(0, 2).map((trip) => {
                     const statusColors =
                       trip.status === "Approved" || trip.status === "Booked"
-                        ? "bg-[#F28C28]/15 text-[#D9761A] dark:text-[#F6A85A] border-[#F28C28]/30"
+                        ? "bg-[#F2A93B]/15 text-[#E8961C] dark:text-[#F6BC55] border-[#F2A93B]/30"
                         : "bg-[#2563EB]/10 text-[#2563EB] dark:text-[#60A5FA] border-[#2563EB]/25";
 
                     return (
@@ -231,17 +231,17 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
           >
             <div className="flex items-center justify-between border-b border-[#E4E7EC] dark:border-[#1E293B] pb-3">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F28C28]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#F2A93B]">
                   SCHEDULED TRAVEL
                 </span>
-                <h3 className="text-lg font-bold text-[#10243A] dark:text-[#F8FAFC]">
+                <h3 className="text-lg font-bold text-[#0F1A22] dark:text-[#F8FAFC]">
                   Trips on {selectedDayJourneys.date}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedDayJourneys(null)}
-                className="text-[#667085] hover:text-[#10243A] dark:hover:text-white"
+                className="text-[#667085] hover:text-[#0F1A22] dark:hover:text-white"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -252,17 +252,17 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
               {selectedDayJourneys.trips.map((trip) => (
                 <div
                   key={trip.id}
-                  className="p-3.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#151E2E] space-y-2 hover:border-[#F28C28] transition-colors cursor-pointer"
+                  className="p-3.5 rounded-xl border border-[#E4E7EC] dark:border-[#1E293B] bg-[#F8FAFC] dark:bg-[#151E2E] space-y-2 hover:border-[#F2A93B] transition-colors cursor-pointer"
                   onClick={() => {
                     setSelectedDayJourneys(null);
                     if (onSelectJourney) onSelectJourney(trip);
                   }}
                 >
                   <div className="flex items-center justify-between">
-                    <strong className="text-sm text-[#10243A] dark:text-[#F8FAFC]">
+                    <strong className="text-sm text-[#0F1A22] dark:text-[#F8FAFC]">
                       {trip.destination}
                     </strong>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F28C28]/20 text-[#D9761A] dark:text-[#F6A85A]">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F2A93B]/20 text-[#E8961C] dark:text-[#F6BC55]">
                       {trip.status}
                     </span>
                   </div>
@@ -281,7 +281,7 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
             <button
               type="button"
               onClick={() => setSelectedDayJourneys(null)}
-              className="w-full py-2.5 rounded-xl bg-[#F28C28] text-white font-semibold text-sm hover:bg-[#D9761A] transition-colors shadow-sm"
+              className="w-full py-2.5 rounded-xl bg-[#F2A93B] text-white font-semibold text-sm hover:bg-[#E8961C] transition-colors shadow-sm"
             >
               Close
             </button>

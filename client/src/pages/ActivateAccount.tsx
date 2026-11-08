@@ -92,7 +92,7 @@ export function ActivateAccount() {
       {/* Brand Header */}
       <div className="login-brand mb-6 flex flex-col items-center text-center">
         <div className="brand-lockup flex items-center gap-2 mb-2">
-          <span className="brand-mark w-9 h-9 rounded-xl bg-[#F28C28] flex items-center justify-center text-[#070D18] shadow-lg shadow-[#F28C28]/20">
+          <span className="brand-mark w-9 h-9 rounded-xl bg-[#F2A93B] flex items-center justify-center text-[#070D18] shadow-lg shadow-[#F2A93B]/20">
             <Plane size={20} strokeWidth={2.4} />
           </span>
           <span className="brand-name text-2xl font-bold tracking-tight text-white">travora</span>
@@ -105,7 +105,7 @@ export function ActivateAccount() {
       <div className="w-full max-w-md bg-[#0F172A] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95">
         {verifying ? (
           <div className="py-12 flex flex-col items-center justify-center text-center gap-3 text-[#94A3B8]">
-            <Loader2 size={32} className="animate-spin text-[#F28C28]" />
+            <Loader2 size={32} className="animate-spin text-[#F2A93B]" />
             <p className="text-sm font-medium">Validating your activation link...</p>
           </div>
         ) : success ? (
@@ -159,7 +159,7 @@ export function ActivateAccount() {
         ) : (
           <div>
             <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-[#F28C28]/20 text-[#F6A85A] flex items-center justify-center border border-[#F28C28]/30 mx-auto mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#F2A93B]/20 text-[#F6BC55] flex items-center justify-center border border-[#F2A93B]/30 mx-auto mb-3">
                 <KeyRound size={22} />
               </div>
               <h2 className="text-xl font-bold text-white">Activate Your Account</h2>
@@ -186,7 +186,7 @@ export function ActivateAccount() {
                     type={showPassword ? "text" : "password"}
                     required
                     minLength={6}
-                    className="w-full px-3 py-2 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#F28C28]"
+                    className="w-full px-3 py-2 pr-10 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#F2A93B]"
                     placeholder="At least 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -210,7 +210,7 @@ export function ActivateAccount() {
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
-                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#F28C28]"
+                  className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-[#F2A93B]"
                   placeholder="Re-enter password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -218,13 +218,13 @@ export function ActivateAccount() {
               </div>
 
               <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex items-center gap-2 text-[11px] text-[#94A3B8]">
-                <ShieldCheck size={14} className="text-[#F28C28] shrink-0" />
+                <ShieldCheck size={14} className="text-[#F2A93B] shrink-0" />
                 <span>Choose a secure password not shared across other sites.</span>
               </div>
 
               <button
                 type="submit"
-                className="button button-primary w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[#F28C28]/20 mt-2"
+                className="button button-primary w-full py-2.5 text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-[#F2A93B]/20 mt-2"
                 disabled={submitting}
               >
                 {submitting ? (
