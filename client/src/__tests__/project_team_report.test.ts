@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import type { LedgerRow, ProjectDetail } from "../lib/data/bi.ts";
-import { buildProjectTeamReport, describeTeamFilters } from "../lib/projectTeamReport.ts";
+import { buildProjectTeamReport, describeTeamFilters, groupSheetProjects, projectKey, type SheetTrip } from "../lib/projectTeamReport.ts";
 import { reportToCsv } from "../lib/reportDoc.ts";
 
 const trip = (o: Partial<LedgerRow>): LedgerRow => ({
@@ -42,5 +42,30 @@ describe("Project team report", () => {
   test("filters are written in words", () => {
     assert.deepEqual(describeTeamFilters({}, data), [["Filters", "None (all travel on this project)"]]);
     assert.deepEqual(describeTeamFilters({ employee: "e1", category: "multi_modal" }, data), [["Employee", "Asha Rao (E1)"], ["Travel type", "Multi-modal"]]);
+  });
+
+  test("projects come straight from the sheet's project column", () => {
+    const t = (o: Partial<SheetTrip>): SheetTrip => ({
+      id: Math.random().toString(), employee_id: "e1", departure_date: "2026-09-02", return_date: null, origin: "HYD", destination: "DEL",
+      booking_type: "flight", airline_or_provider: "IndiGo", booking_reference: "P", status: "completed", project_raw: "Kakinada Port",
+      purpose: null, amount: "1000", currency: "INR", source_sheet: "AIR", profile: { full_name: "Asha Rao", employee_id: "E1", department: "Civil" }, ...o,
+    });
+    const groups = groupSheetProjects([
+      t({}), t({ project_raw: "KAKINADA  PORT", amount: 500 }), t({ project_raw: "kakinada-port", employee_id: "e2", profile: { full_name: "Ravi", employee_id: "E2", department: "" }, amount: null }),
+      t({ project_raw: "Kakinada Port", status: "cancelled", amount: 900 }),
+      t({ project_raw: "HRRL", amount: 3000, departure_date: "2026-10-01" }),
+      t({ project_raw: "N/A" }), t({ project_raw: null }), t({ project_raw: "old name", project: { name: "HRRL" } }),
+    ]);
+    assert.deepEqual(groups.map((g) => g.name), ["HRRL", "Kakinada Port"]);
+    const k = groups[1];
+    assert.equal(k.bookings, 4);
+    assert.equal(k.travellers, 2);
+    assert.equal(k.spend, 1500, "cancelled and blank costs are not spend");
+    assert.deepEqual(k.detail.employees.map((e) => [e.full_name, e.bookings, e.department]), [["Asha Rao", 3, "Civil"], ["Ravi", 1, "Not recorded"]]);
+    assert.equal(groups[0].bookings, 2, "a booking put on a project counts under that project's name");
+    assert.equal(projectKey(" n/a "), null);
+    const doc = buildProjectTeamReport(k.detail, { projectName: k.name, filters: [] });
+    assert.equal(doc.sections[0].rows.length, 2);
+    assert.equal(doc.sections[1].rows.length, 4);
   });
 });

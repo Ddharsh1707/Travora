@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Search } from "lucide-react";
-import { Bar, BarChart, ResponsiveContainer } from "recharts";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, Download, FileSpreadsheet, FileText, Search } from "lucide-react";
 import { Link } from "wouter";
-import { KIND_LABEL, STATUS_LABEL, getProjectDetail, getProjects, useBiFilters, type ProjectKind, type ProjectRow, type ProjectStatus, type ProjectsReport } from "../../lib/data/bi";
+import { STATUS_LABEL, useBiFilters, type ProjectStatus } from "../../lib/data/bi";
+import { getSheetProjectTrips } from "../../lib/data/sheetProjects";
 import { recordReportGenerated } from "../../lib/data/travel";
+import { groupSheetProjects, type SheetProject, type SheetTrip } from "../../lib/projectTeamReport";
 import { exportToCsv } from "../../utils/exportCsv";
 import BiFilterBar from "./BiFilterBar";
 import { downloadTeamReport } from "./BiProjectDetail";
-import { Kpi, count, dateRange, plural } from "./BiParts";
+import { Kpi, count, dateRange } from "./BiParts";
 import { Empty, ErrorNotice, Loading, PageHeader, formatMoney } from "./common";
 
 const STATUS_TONE: Record<ProjectStatus, string> = { active: "approved", completed: "completed", on_hold: "pending-approval", unknown: "booked" };
@@ -17,62 +18,67 @@ export function ProjectStatusPill({ status }: { status: ProjectStatus }) {
 
 type Sort = "spend" | "bookings" | "travellers" | "name" | "latest";
 
-/** Project Intelligence: travel and spend for every project, from linked bookings only. */
-export default function BiProjects({ isCeo }: { isCeo: boolean }) {
+/**
+ * Project Intelligence: every project name from the uploaded Excel sheets,
+ * the employees who travelled under it, and a report to download.
+ */
+export default function BiProjects({ isCeo: _isCeo }: { isCeo: boolean }) {
   const [filters, setFilters] = useBiFilters();
-  const [data, setData] = useState<ProjectsReport | null>(null);
+  const [trips, setTrips] = useState<SheetTrip[] | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<ProjectKind | "">("");
-  const [withTravel, setWithTravel] = useState(true);
   const [sort, setSort] = useState<Sort>("spend");
-  const [busyId, setBusyId] = useState("");
-  const [reportError, setReportError] = useState("");
-
-  async function teamReport(p: ProjectRow) {
-    setBusyId(p.project_id);
-    setReportError("");
-    try {
-      await downloadTeamReport(await getProjectDetail(p.project_id, filters), p.name, filters, "xlsx");
-    } catch (err) {
-      setReportError(err instanceof Error ? err.message : "Could not create the report.");
-    } finally {
-      setBusyId("");
-    }
-  }
+  const [open, setOpen] = useState<string | null>(null);
+  const [busy, setBusy] = useState("");
 
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    getProjects(filters)
-      .then(setData)
+    getSheetProjectTrips(filters)
+      .then(setTrips)
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load the projects."))
       .finally(() => setLoading(false));
   }, [filters]);
   useEffect(() => load(), [load]);
 
-  const cur = data?.base_currency ?? "INR";
+  const cur = "INR";
+  const projects = useMemo(() => groupSheetProjects(trips ?? [], cur), [trips]);
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = (data?.projects ?? []).filter((p) =>
-      (!kind || p.kind === kind) && (!withTravel || p.bookings > 0) &&
-      (!q || `${p.name} ${p.code ?? ""} ${p.client ?? ""} ${p.site ?? ""}`.toLowerCase().includes(q)));
-    const by: Record<Sort, (a: ProjectRow, b: ProjectRow) => number> = {
-      spend: (a, b) => Number(b.spend) - Number(a.spend) || b.bookings - a.bookings,
+    const list = projects.filter((p) => !q || p.spellings.some((s) => s.toLowerCase().includes(q))
+      || p.detail.employees.some((e) => `${e.full_name} ${e.employee_code}`.toLowerCase().includes(q)));
+    const by: Record<Sort, (a: SheetProject, b: SheetProject) => number> = {
+      spend: (a, b) => b.spend - a.spend || b.bookings - a.bookings,
       bookings: (a, b) => b.bookings - a.bookings,
       travellers: (a, b) => b.travellers - a.travellers,
       name: (a, b) => a.name.localeCompare(b.name),
       latest: (a, b) => (b.last_date ?? "").localeCompare(a.last_date ?? ""),
     };
     return [...list].sort(by[sort]);
-  }, [data, query, kind, withTravel, sort]);
+  }, [projects, query, sort]);
+  // With a search that matches one project, open it straight away.
+  useEffect(() => { if (query.trim() && rows.length === 1) setOpen(rows[0].key); }, [query, rows]);
 
-  function download() {
-    if (!data) return;
+  const people = useMemo(() => new Set(projects.flatMap((p) => p.detail.employees.map((e) => e.employee_id))).size, [projects]);
+
+  async function report(p: SheetProject, format: "xlsx" | "pdf") {
+    setBusy(`${p.key}|${format}`);
+    setError("");
+    try {
+      await downloadTeamReport(p.detail, p.name, filters, format);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the report.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function downloadList() {
     exportToCsv("project_intelligence",
-      ["Project", "Code", "Type", "Status", "Client", "Bookings", "Travellers", `Spend (${cur})`, `Average per costed booking (${cur})`, "Bookings without a cost", "First travel", "Last travel"],
-      rows.map((p) => [p.name, p.code ?? "", KIND_LABEL[p.kind], STATUS_LABEL[p.status], p.client ?? "", p.bookings, p.travellers, p.spend, p.avg_per_booking ?? "", p.without_cost, p.first_date ?? "", p.last_date ?? ""]));
+      ["Project", "Employees", "Bookings", `Spend (${cur})`, "Bookings without a cost", "First travel", "Last travel", "Employee names"],
+      rows.map((p) => [p.name, p.travellers, p.bookings, p.spend, p.detail.kpis.missing_cost, p.first_date ?? "", p.last_date ?? "",
+        p.detail.employees.map((e) => e.full_name).join("; ")]));
     void recordReportGenerated("project_intelligence").catch(() => undefined);
   }
 
@@ -81,73 +87,93 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
       <PageHeader
         eyebrow="BUSINESS INTELLIGENCE"
         title="Project Intelligence"
-        description={`Travel booked against each project. A booking counts for a project when its project name in the sheet is linked to it${isCeo ? " or you assigned it by hand" : ""}. Download a team report to see everyone who worked on a project.`}
-        actions={<button type="button" className="button button-ghost" onClick={download} disabled={!data}><Download size={14} /> Download CSV</button>}
+        description="Every project from the project column of the uploaded Excel sheets. Search a project to see the employees who worked under it, and download their report."
+        actions={<button type="button" className="button button-ghost" onClick={downloadList} disabled={!rows.length}><Download size={14} /> Download list (CSV)</button>}
       />
       <BiFilterBar filters={filters} onChange={setFilters} hide={["project"]} />
       {error && <ErrorNotice message={error} onRetry={load} />}
-      {loading && !data && <Loading label="Adding up project travel…" />}
+      {loading && !trips && <Loading label="Reading the projects from the sheets…" />}
 
-      {data && (
+      {trips && (
         <div className={`page-stack ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
           <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-            <Kpi label="Projects" value={count(data.status_counts.total)}
-              detail={`${data.status_counts.active} active · ${data.status_counts.completed} completed · ${data.status_counts.unknown} status not set`} />
-            <Kpi label="With travel in this period" value={count(data.projects.filter((p) => p.bookings > 0 && p.kind === "project").length)}
-              detail={`plus ${plural(data.projects.filter((p) => p.bookings > 0 && p.kind !== "project").length, "cost centre or event", "cost centres or events")}`} />
-            <Kpi label="Travellers on projects" value={count(data.travellers_on_projects)} />
+            <Kpi label="Projects" value={count(projects.length)} detail="Project names found in the sheets" />
+            <Kpi label="Employees on projects" value={count(people)} />
+            <Kpi label="Bookings" value={count(projects.reduce((s, p) => s + p.bookings, 0))} />
           </div>
-          {reportError && <ErrorNotice message={reportError} />}
 
           <div className="panel table-panel">
             <div className="table-toolbar flex-wrap gap-2">
               <label className="toolbar-filters relative">
                 <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 opacity-60" aria-hidden />
-                <input type="search" className="pl-7" placeholder="Search project, code, client or site" aria-label="Search projects" value={query} onChange={(e) => setQuery(e.target.value)} />
-              </label>
-              <label className="toolbar-filters" style={{ flex: "0 0 auto" }}>
-                <select value={kind} onChange={(e) => setKind(e.target.value as ProjectKind | "")} aria-label="Type">
-                  <option value="">All types</option>
-                  {(Object.keys(KIND_LABEL) as ProjectKind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
-                </select>
+                <input type="search" className="pl-7" placeholder="Search a project (as in the Excel) or an employee" aria-label="Search projects" value={query} onChange={(e) => setQuery(e.target.value)} />
               </label>
               <label className="toolbar-filters" style={{ flex: "0 0 auto" }}>
                 <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by">
                   <option value="spend">Highest spend</option><option value="bookings">Most bookings</option>
-                  <option value="travellers">Most travellers</option><option value="latest">Latest travel</option><option value="name">Name</option>
+                  <option value="travellers">Most employees</option><option value="latest">Latest travel</option><option value="name">Name</option>
                 </select>
               </label>
-              <label className="text-xs inline-flex items-center gap-1.5"><input type="checkbox" checked={withTravel} onChange={(e) => setWithTravel(e.target.checked)} /> Only with travel</label>
             </div>
-            {rows.length === 0 ? <Empty title="No matching projects" description="Projects appear here once a sheet's project names are linked to them on the upload screen." /> : (
+            {rows.length === 0 ? (
+              <Empty title={projects.length ? "No matching projects" : "No projects yet"}
+                description={projects.length ? "Try another project name or employee." : "Projects come from the project column of uploaded travel sheets. Upload a sheet with a project name on each booking, or clear the filters."} />
+            ) : (
               <div className="responsive-table">
                 <table>
                   <thead><tr>
-                    <th>Project</th><th>Status</th><th className="text-right">Travellers</th><th className="text-right">Bookings</th>
-                    <th className="text-right">Spend</th><th className="text-right">Avg per booking</th><th>Travel</th><th>Trend</th><th>Team report</th>
+                    <th>Project</th><th className="text-right">Employees</th><th className="text-right">Bookings</th>
+                    <th className="text-right">Spend</th><th>Travel</th><th>Report</th>
                   </tr></thead>
                   <tbody>
-                    {rows.map((p) => (
-                      <tr key={p.project_id}>
-                        <td>
-                          <Link href={`/travel/bi/projects/${p.project_id}`} className="font-semibold hover:underline">{p.name}</Link>
-                          <div className="table-subline">{[KIND_LABEL[p.kind], p.code, p.client].filter(Boolean).join(" · ")}</div>
-                        </td>
-                        <td><ProjectStatusPill status={p.status} /></td>
-                        <td className="text-right">{count(p.travellers)}</td>
-                        <td className="text-right">{count(p.bookings)}{p.without_cost > 0 && <div className="table-subline" title="Bookings with no cost of their own in the sheet">{p.without_cost} without cost</div>}</td>
-                        <td className="text-right font-semibold">{formatMoney(p.spend, cur)}</td>
-                        <td className="text-right">{p.avg_per_booking == null ? "—" : formatMoney(p.avg_per_booking, cur)}</td>
-                        <td className="whitespace-nowrap text-xs">{p.bookings ? dateRange(p.first_date, p.last_date) : "—"}</td>
-                        <td style={{ width: 96 }}><Spark data={p.monthly} months={data.months} /></td>
-                        <td>
-                          <button type="button" className="button button-ghost whitespace-nowrap" onClick={() => void teamReport(p)} disabled={!p.bookings || !!busyId}
-                            aria-label={`Download the team report for ${p.name}`} title="Everyone who worked on this project, with their bookings (Excel)">
-                            <FileSpreadsheet size={14} /> {busyId === p.project_id ? "Creating…" : "Download"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.map((p) => {
+                      const isOpen = open === p.key;
+                      return (
+                        <Fragment key={p.key}>
+                          <tr>
+                            <td>
+                              <button type="button" className="font-semibold hover:underline inline-flex items-center gap-1 text-left" aria-expanded={isOpen}
+                                onClick={() => setOpen(isOpen ? null : p.key)}>
+                                {isOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}{p.name}
+                              </button>
+                              {p.spellings.length > 1 && <div className="table-subline">Also written as: {p.spellings.slice(1, 4).join(", ")}{p.spellings.length > 4 ? "…" : ""}</div>}
+                            </td>
+                            <td className="text-right">{count(p.travellers)}</td>
+                            <td className="text-right">{count(p.bookings)}{p.detail.kpis.missing_cost > 0 && <div className="table-subline">{p.detail.kpis.missing_cost} without cost</div>}</td>
+                            <td className="text-right font-semibold">{formatMoney(p.spend, cur)}</td>
+                            <td className="whitespace-nowrap text-xs">{dateRange(p.first_date, p.last_date)}</td>
+                            <td className="whitespace-nowrap">
+                              <button type="button" className="button button-ghost" onClick={() => void report(p, "xlsx")} disabled={!!busy}
+                                aria-label={`Download the Excel report for ${p.name}`}><FileSpreadsheet size={14} /> {busy === `${p.key}|xlsx` ? "Creating…" : "Excel"}</button>
+                              <button type="button" className="button button-ghost" onClick={() => void report(p, "pdf")} disabled={!!busy}
+                                aria-label={`Download the PDF report for ${p.name}`}><FileText size={14} /> {busy === `${p.key}|pdf` ? "Creating…" : "PDF"}</button>
+                            </td>
+                          </tr>
+                          {isOpen && (
+                            <tr>
+                              <td colSpan={6} style={{ background: "var(--surface-soft, transparent)" }}>
+                                <h3 className="card-kicker mb-2">Employees who worked under {p.name}</h3>
+                                <table className="bi-table">
+                                  <thead><tr><th>Employee</th><th>Employee ID</th><th>Department</th><th className="text-right">Bookings</th><th className="text-right">Spend</th><th>Travel</th></tr></thead>
+                                  <tbody>
+                                    {p.detail.employees.map((e) => (
+                                      <tr key={e.employee_id}>
+                                        <td><Link href={`/travel/employees/${e.employee_id}`} className="font-semibold hover:underline">{e.full_name}</Link></td>
+                                        <td>{e.employee_code || "—"}</td>
+                                        <td>{e.department}</td>
+                                        <td className="text-right">{e.bookings}{e.without_cost > 0 && <div className="table-subline">{e.without_cost} without cost</div>}</td>
+                                        <td className="text-right">{formatMoney(e.spend, cur)}</td>
+                                        <td className="text-xs whitespace-nowrap">{dateRange(e.first_date, e.last_date)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -155,19 +181,6 @@ export default function BiProjects({ isCeo }: { isCeo: boolean }) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Spark({ data, months }: { data: { month: string; spend: number }[]; months: string[] }) {
-  if (!data.length || months.length < 2) return <span className="opacity-40 text-xs">—</span>;
-  const map = new Map(data.map((d) => [d.month, Number(d.spend)]));
-  const series = [...months].sort().map((m) => ({ m, v: map.get(m) ?? 0 }));
-  return (
-    <div style={{ width: 90, height: 28 }} aria-hidden>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={series} margin={{ top: 2, bottom: 0, left: 0, right: 0 }}><Bar dataKey="v" fill="var(--blue)" radius={[2, 2, 0, 0]} /></BarChart>
-      </ResponsiveContainer>
     </div>
   );
 }
