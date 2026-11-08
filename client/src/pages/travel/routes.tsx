@@ -42,9 +42,8 @@ const STAFF: Role[] = ["TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
 const OVERSIGHT: Role[] = ["APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
 const MANAGERS: Role[] = ["COMPANY_ADMIN", "ADMIN"];
 
-type TravelRoute = { href: string; label: string; icon: ReactNode; roles: Role[]; group: string };
+type TravelRoute = { href: string; label: string; icon: ReactNode; roles: Role[]; group: string; hiddenFor?: Role[]; match?: string[] };
 
-const ALL: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"];
 const CEO: Role[] = ["ADMIN"];
 const ADMIN: Role[] = ["COMPANY_ADMIN"];
 
@@ -52,9 +51,10 @@ const ADMIN: Role[] = ["COMPANY_ADMIN"];
  * Separate portals:
  *  - Employees get "MY WORKSPACE": they send travel requests and see their own
  *    decisions and trips. Nothing else.
- *  - The CEO (admin role) gets "CEO" tools for the whole company, plus travel admin.
- *  - The Admin (company_admin role) gets "ADMIN" tools: the same company-wide
- *    view, claims and employee logins, without role changes or travel approvals.
+ *  - The CEO (admin role) and the Admin (company_admin role) share one short
+ *    menu: each job appears once. Screens that repeat another one (the old
+ *    Reports page, Management overview, Employee Intelligence) stay reachable
+ *    from links but are not in their menu (`hiddenFor`).
  * Managers and the travel desk keep their existing screens.
  */
 const ROUTES: TravelRoute[] = [
@@ -64,44 +64,44 @@ const ROUTES: TravelRoute[] = [
   { group: "MY WORKSPACE", href: "/travel/requests", label: "My travel requests", icon: <FileText size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/my", label: "My travel history", icon: <History size={16} />, roles: ["EMPLOYEE", "APPROVER", "TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/expenses", label: "My expenses", icon: <Receipt size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
-  // CEO portal: overall spend, every employee, decisions and the assistant
-  { group: "CEO", href: "/travel/ceo", label: "CEO dashboard", icon: <Briefcase size={16} />, roles: CEO },
+  // CEO and Admin: daily work
+  { group: "CEO", href: "/travel/ceo", label: "Dashboard", icon: <LayoutDashboard size={16} />, roles: CEO },
+  { group: "ADMIN", href: "/travel/admin", label: "Dashboard", icon: <LayoutDashboard size={16} />, roles: ADMIN },
   { group: "CEO", href: "/travel/approvals", label: "Travel requests", icon: <ClipboardCheck size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/employees", label: "Employees & expenses", icon: <UsersRound size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/uploads", label: "Uploaded Excel / PDF", icon: <Archive size={16} />, roles: CEO },
-  { group: "CEO", href: "/travel/people", label: "People & roles", icon: <UserCog size={16} />, roles: CEO },
-  // Admin portal: decisions, bookings, uploads, logins and the assistant
-  { group: "ADMIN", href: "/travel/admin", label: "Admin dashboard", icon: <Briefcase size={16} />, roles: ADMIN },
   { group: "ADMIN", href: "/travel/approvals", label: "Travel requests", icon: <ClipboardCheck size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/bulk", label: "Bulk bookings", icon: <Plane size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/people", label: "Employees & logins", icon: <UserCog size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/employees", label: "Employees & expenses", icon: <UsersRound size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/expenses/all", label: "All expenses", icon: <Receipt size={16} />, roles: ADMIN },
-  { group: "ADMIN", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: ADMIN },
+  { group: "CEO", href: "/travel/expenses/all", label: "Expenses", icon: <Receipt size={16} />, roles: CEO },
+  { group: "ADMIN", href: "/travel/expenses/all", label: "Expenses", icon: <Receipt size={16} />, roles: ADMIN },
+  { group: "CEO", href: "/travel/people", label: "Employees", icon: <UsersRound size={16} />, roles: CEO, match: ["/travel/employees"] },
+  { group: "ADMIN", href: "/travel/people", label: "Employees", icon: <UsersRound size={16} />, roles: ADMIN, match: ["/travel/employees"] },
+  { group: "CEO", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: CEO },
   { group: "ADMIN", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: ADMIN },
+  // CEO and Admin: getting data in
+  { group: "UPLOADS & BOOKINGS", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
+  { group: "UPLOADS & BOOKINGS", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
+  { group: "UPLOADS & BOOKINGS", href: "/travel/bulk", label: "Bulk bookings", icon: <Plane size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
+  { group: "UPLOADS & BOOKINGS", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
   // Business Intelligence: built only from recorded bookings; approvers see their team
-  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi", label: "Management overview", icon: <Gauge size={16} />, roles: OVERSIGHT },
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi", label: "Management overview", icon: <Gauge size={16} />, roles: OVERSIGHT, hiddenFor: MANAGERS },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/projects", label: "Project Intelligence", icon: <FolderKanban size={16} />, roles: OVERSIGHT },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/travel", label: "Travel Intelligence", icon: <Globe2 size={16} />, roles: OVERSIGHT },
-  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/employees", label: "Employee Intelligence", icon: <UserSearch size={16} />, roles: OVERSIGHT },
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/employees", label: "Employee Intelligence", icon: <UserSearch size={16} />, roles: OVERSIGHT, hiddenFor: MANAGERS },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/finance", label: "Financial Intelligence", icon: <IndianRupee size={16} />, roles: OVERSIGHT },
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: MANAGERS },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/reports", label: "Download reports", icon: <FileDown size={16} />, roles: OVERSIGHT },
+  // CEO and Admin: same job as another menu item, so reachable by link only
+  { group: "CEO", href: "/travel/employees", label: "Employees: spend & history", icon: <UsersRound size={16} />, roles: MANAGERS, hiddenFor: MANAGERS },
+  { group: "CEO", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: MANAGERS, hiddenFor: MANAGERS },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
-  { group: "TRAVEL DESK", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK", "ADMIN"] },
+  { group: "TRAVEL DESK", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "TRAVEL DESK", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "TRAVEL DESK", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
   { group: "MY WORKSPACE", href: "/travel/reports", label: "My reports", icon: <BarChart3 size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   // Travel tools
-  { group: "TRAVEL", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: OVERSIGHT },
+  { group: "TRAVEL", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   { group: "TRAVEL", href: "/travel/employees", label: "Employee travel", icon: <UsersRound size={16} />, roles: ["APPROVER"] },
-  { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: ["APPROVER", "TRAVEL_DESK", "ADMIN"] },
-  { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["APPROVER", "TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"] },
+  { group: "TRAVEL", href: "/travel/bulk", label: "Bulk & group bookings", icon: <Plane size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
+  { group: "TRAVEL", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
   { group: "TRAVEL", href: "/travel/assistant", label: "Ask the assistant", icon: <Bot size={16} />, roles: ["APPROVER", "TRAVEL_DESK"] },
 ];
 
@@ -119,8 +119,8 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/expenses": { eyebrow: "Employee", title: "My expenses" },
   "/travel/ceo": { eyebrow: "CEO", title: "CEO dashboard" },
   "/travel/admin": { eyebrow: "Admin", title: "Admin dashboard" },
-  "/travel/people": { eyebrow: "Management", title: "Manage employees" },
-  "/travel/expenses/all": { eyebrow: "Management", title: "All expenses" },
+  "/travel/people": { eyebrow: "Management", title: "Employees" },
+  "/travel/expenses/all": { eyebrow: "Management", title: "Expenses" },
   "/travel/uploads": { eyebrow: "Travel desk", title: "Upload history" },
   "/travel/reports": { eyebrow: "Travel", title: "Reports" },
   "/travel/assistant": { eyebrow: "Travel", title: "Ask the assistant" },
@@ -140,13 +140,17 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/bi/reports": { eyebrow: "Business Intelligence", title: "Download reports" },
 };
 
-export function travelNavCategories(role: Role): { category: string; items: { label: string; href: string; icon: ReactNode }[] }[] {
-  const groups: { category: string; items: { label: string; href: string; icon: ReactNode }[] }[] = [];
+type NavItem = { label: string; href: string; icon: ReactNode; match?: string[] };
+
+export function travelNavCategories(role: Role): { category: string; items: NavItem[] }[] {
+  const groups: { category: string; items: NavItem[] }[] = [];
+  const seen = new Set<string>();
   for (const r of ROUTES) {
-    if (!r.roles.includes(role)) continue;
+    if (!r.roles.includes(role) || r.hiddenFor?.includes(role) || seen.has(r.href)) continue;
+    seen.add(r.href);
     let g = groups.find((x) => x.category === r.group);
     if (!g) { g = { category: r.group, items: [] }; groups.push(g); }
-    g.items.push({ href: r.href, label: r.label, icon: r.icon });
+    g.items.push({ href: r.href, label: r.label, icon: r.icon, match: r.match });
   }
   return groups;
 }

@@ -350,7 +350,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
                   <Bot size={22} />
                 </div>
                 <h4 className="text-sm font-semibold text-white">
-                  Welcome, {user.name || user.username}!
+                  Welcome, {user.username}!
                 </h4>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
                   I can analyze your corporate travel spend, query company booking ledgers, inspect travel policies, and verify credit note refunds.

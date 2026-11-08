@@ -315,3 +315,36 @@ function secureRandom(n: number): number {
   crypto.getRandomValues(buf);
   return buf[0] % n;
 }
+
+/** Removes stored files in batches. A file that can't be removed is skipped: the data is already gone. */
+async function removeFiles(bucket: string, paths: unknown): Promise<void> {
+  const list = Array.isArray(paths) ? paths.filter((p): p is string => typeof p === "string" && p.length > 0) : [];
+  for (let i = 0; i < list.length; i += 100) {
+    try {
+      await getSupabase().storage.from(bucket).remove(list.slice(i, i + 100));
+    } catch {
+      // Leftover files can't be opened from the app, so a failure here is harmless.
+    }
+  }
+}
+
+/** CEO or Admin: delete employees for good, with their trips, claims, requests, documents and login. */
+export async function deletePeople(ids: string[]): Promise<number> {
+  const { data, error } = await getSupabase().rpc("admin_delete_people", { p_ids: ids });
+  if (error) throw friendlyError(error, "Could not delete. Has the latest SQL been run in Supabase?");
+  const result = (data ?? {}) as { deleted?: number; documents?: string[] };
+  await removeFiles("travel-documents", result.documents);
+  return Number(result.deleted ?? 0);
+}
+
+export type ResetScope = "data" | "everything";
+
+/** CEO only: wipe company data. "everything" also removes every employee except the CEO and Admins. */
+export async function resetAllData(scope: ResetScope, confirm: string): Promise<{ trips: number; people: number }> {
+  const { data, error } = await getSupabase().rpc("admin_reset_data", { p_scope: scope, p_confirm: confirm });
+  if (error) throw friendlyError(error, "Could not reset. Has the latest SQL been run in Supabase?");
+  const result = (data ?? {}) as { trips?: number; people?: number; documents?: string[]; import_files?: string[] };
+  await removeFiles("travel-documents", result.documents);
+  await removeFiles("import-files", result.import_files);
+  return { trips: Number(result.trips ?? 0), people: Number(result.people ?? 0) };
+}
