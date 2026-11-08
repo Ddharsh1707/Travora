@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import {
   ArrowRight,
@@ -20,6 +20,9 @@ import {
   X,
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
+
+// The 3D intro is loaded on its own so the rest of the page paints first.
+const TerminalScene3D = lazy(() => import("@/components/TerminalScene3D"));
 
 /*
  * Public landing page in the Mahathi energy theme. Mahathi Infra Services
@@ -488,15 +491,47 @@ function Navbar({ onSignIn }: { onSignIn: () => void }) {
 function Hero({ onSignIn }: { onSignIn: () => void }) {
   const ref = useRef<HTMLElement | null>(null);
   const reduce = useReducedMotion();
+  const [flat, setFlat] = useState(false);
+  const onFail = useCallback(() => setFlat(true), []);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const y = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : 120]);
-  const fade = useTransform(scrollYProgress, [0, 0.8], [1, reduce ? 1 : 0.2]);
+  const sceneOpacity = useTransform(scrollYProgress, [0, 0.9], [1, reduce ? 1 : 0.15]);
+  const textY = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : -60]);
 
   return (
-    <section id="top" ref={ref} className="lp-grid-dark relative overflow-hidden bg-[#0B1319] pb-20 pt-32 text-white md:pb-28 md:pt-40">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_500px_at_75%_30%,rgba(242,169,59,0.12),transparent_60%),radial-gradient(700px_400px_at_10%_90%,rgba(27,163,156,0.1),transparent_60%)]" />
-      <div className={`${container} relative grid items-center gap-14 lg:grid-cols-12`}>
-        <div className="lg:col-span-6">
+    <section id="top" ref={ref} className="lp-grid-dark relative flex flex-col overflow-hidden bg-[#0B1319] pt-28 text-white lg:min-h-[100svh] lg:flex-row lg:items-center lg:pt-24">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_600px_at_72%_45%,rgba(242,169,59,0.14),transparent_60%),radial-gradient(700px_400px_at_10%_95%,rgba(27,163,156,0.12),transparent_60%)]" />
+
+      {/* 3D plant: behind the text on wide screens, under it on phones */}
+      <motion.div
+        className="relative order-2 -mt-4 h-[360px] sm:h-[460px] lg:absolute lg:mt-0 lg:inset-0 lg:h-auto"
+        style={{ opacity: sceneOpacity }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.4, ease }}
+      >
+        {flat ? (
+          <div className="mx-auto flex h-full max-w-[760px] items-center px-5 lg:ml-[46%] lg:max-w-[52%]">
+            <HeroSchematic />
+          </div>
+        ) : (
+          <Suspense fallback={null}>
+            <TerminalScene3D className="absolute inset-0" onFail={onFail} reduceMotion={!!reduce} />
+          </Suspense>
+        )}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#0B1319] to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[55%] bg-gradient-to-r from-[#0B1319] via-[#0B1319]/70 to-transparent lg:block" />
+        <motion.div
+          className="absolute bottom-10 right-8 z-10 hidden sm:block lg:bottom-14 lg:right-12"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, ease, delay: 2.4 }}
+        >
+          <LiveRequestCard />
+        </motion.div>
+      </motion.div>
+
+      <motion.div className={`${container} relative z-10 order-1 lg:pb-24`} style={{ y: textY }}>
+        <div className="max-w-[40rem] lg:pointer-events-none [&_button]:pointer-events-auto">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease, delay: 0.2 }}>
             <Kicker dark>Mahathi Infra Services · Travel desk</Kicker>
           </motion.div>
@@ -504,7 +539,7 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             <WordReveal lines={["Site teams move.", "Projects keep", "flowing."]} gradientLast onLoad delay={0.3} />
           </h1>
           <motion.p
-            className="mt-7 max-w-xl text-base leading-relaxed text-white/65 md:text-lg"
+            className="mt-7 max-w-xl text-base leading-relaxed text-white/70 md:text-lg"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease, delay: 0.9 }}
@@ -517,7 +552,7 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
             <GhostButton onClick={() => scrollToId("workflow")}>See how it works</GhostButton>
           </motion.div>
           <motion.dl
-            className="mt-12 grid max-w-xl grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10"
+            className="mt-12 grid max-w-xl grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1, delay: 1.25 }}
@@ -527,29 +562,30 @@ function Hero({ onSignIn }: { onSignIn: () => void }) {
               ["Head office", "Hyderabad"],
               ["Group presence", "IN · GA · LR"],
             ].map(([k, v]) => (
-              <div key={k} className="bg-[#0B1319] px-4 py-4">
+              <div key={k} className="bg-[#0B1319]/90 px-4 py-4">
                 <dt className="lp-mono text-[10px] uppercase tracking-[0.16em] text-white/45">{k}</dt>
                 <dd className="lp-display mt-1.5 text-[15px] font-bold text-white sm:text-lg">{v}</dd>
               </div>
             ))}
           </motion.dl>
         </div>
-        <motion.div className="relative lg:col-span-6" style={{ y, opacity: fade }} initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1.2, ease, delay: 0.3 }}>
-          <div className="relative rounded-[18px] border border-white/10 bg-white/[0.02] p-4 sm:p-6">
-            <span className="absolute -left-px -top-px h-5 w-5 rounded-tl-[18px] border-l-2 border-t-2 border-[#F2A93B]" />
-            <span className="absolute -bottom-px -right-px h-5 w-5 rounded-br-[18px] border-b-2 border-r-2 border-[#F2A93B]" />
-            <HeroSchematic />
-          </div>
-          <motion.div
-            className="relative mt-4 flex justify-end sm:absolute sm:-bottom-14 sm:-right-4 sm:mt-0"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease, delay: 1.4 }}
-          >
-            <LiveRequestCard />
-          </motion.div>
-        </motion.div>
-      </div>
+      </motion.div>
+
+      {/* scroll cue */}
+      <motion.button
+        type="button"
+        onClick={() => scrollToId("platform")}
+        className="lp-mono absolute bottom-6 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/45 hover:text-white lg:flex"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2.8, duration: 0.8 }}
+        aria-label="Scroll to the platform section"
+      >
+        Scroll
+        <span className="relative h-10 w-px overflow-hidden bg-white/15">
+          <span className="lp-scrollcue absolute inset-x-0 top-0 h-1/2 bg-[#F2A93B]" />
+        </span>
+      </motion.button>
     </section>
   );
 }
