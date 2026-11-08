@@ -57,6 +57,8 @@ export type TravelDocument = {
   id: string;
   employee_id: string;
   travel_record_id: string | null;
+  /** The approved travel request this ticket was booked for (needs migration 20261108000300). */
+  travel_request_id?: string | null;
   document_type: DocumentType | "bulk_booking" | "spreadsheet";
   storage_path: string;
   original_filename: string;
@@ -66,6 +68,7 @@ export type TravelDocument = {
   extracted_data: Extraction | null;
   created_at: string;
   profile?: { full_name: string; employee_id: string } | null;
+  request?: { origin: string; destination: string; departure_date: string; return_date: string | null; status: string } | null;
 };
 
 type Mime = "application/pdf" | "image/png" | "image/jpeg" | "image/webp";
@@ -101,18 +104,39 @@ export function documentPath(employeeId: string, ext: string, id: string = crypt
 }
 
 const SELECT = "id, employee_id, travel_record_id, document_type, storage_path, original_filename, mime_type, size_bytes, extraction_status, extracted_data, created_at, profile:profiles!documents_employee_id_fkey(full_name, employee_id)";
+// With the request a ticket belongs to. Needs migration 20261108000300; until
+// it runs, the plain SELECT is used so the page keeps working.
+const SELECT_WITH_REQUEST = `${SELECT}, travel_request_id, request:travel_requests!documents_travel_request_id_fkey(origin, destination, departure_date, return_date, status)`;
+let requestColumnMissing = false;
 
-export async function listDocuments(opts: { employeeId?: string; status?: ExtractionStatus | "open"; limit?: number } = {}): Promise<TravelDocument[]> {
-  let q = getSupabase().from("documents").select(SELECT).order("created_at", { ascending: false }).limit(Math.min(opts.limit ?? 100, 200));
-  if (opts.employeeId) q = q.eq("employee_id", opts.employeeId);
-  if (opts.status === "open") q = q.neq("extraction_status", "verified");
-  else if (opts.status) q = q.eq("extraction_status", opts.status);
-  const { data, error } = await q;
+const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? v[0] ?? null : v ?? null);
+
+export async function listDocuments(opts: { employeeId?: string; status?: ExtractionStatus | "open"; requestIds?: string[]; limit?: number } = {}): Promise<TravelDocument[]> {
+  if (opts.requestIds && opts.requestIds.length === 0) return [];
+  const run = (select: string) => {
+    let q = getSupabase().from("documents").select(select).order("created_at", { ascending: false }).limit(Math.min(opts.limit ?? 100, 500));
+    if (opts.employeeId) q = q.eq("employee_id", opts.employeeId);
+    if (opts.requestIds) q = q.in("travel_request_id", opts.requestIds);
+    if (opts.status === "open") q = q.neq("extraction_status", "verified");
+    else if (opts.status) q = q.eq("extraction_status", opts.status);
+    return q;
+  };
+  let { data, error } = await run(requestColumnMissing ? SELECT : SELECT_WITH_REQUEST);
+  if (error && !requestColumnMissing && /travel_request|relationship|schema cache|column/i.test(error.message ?? "")) {
+    requestColumnMissing = true;
+    if (opts.requestIds) return [];
+    ({ data, error } = await run(SELECT));
+  }
   if (error) throw friendlyError(error, "Could not load documents.");
-  return ((data ?? []) as unknown as TravelDocument[]).map((d) => ({ ...d, profile: Array.isArray(d.profile) ? d.profile[0] ?? null : d.profile }));
+  return ((data ?? []) as unknown as TravelDocument[]).map((d) => ({ ...d, profile: one(d.profile), request: one(d.request) }));
 }
 
-export async function uploadDocument(employeeId: string, file: File, documentType: DocumentType, travelRecordId?: string | null): Promise<TravelDocument> {
+/** True once the ticket-to-request link exists in the database. */
+export function ticketsLinkReady(): boolean {
+  return !requestColumnMissing;
+}
+
+export async function uploadDocument(employeeId: string, file: File, documentType: DocumentType, travelRecordId?: string | null, travelRequestId?: string | null): Promise<TravelDocument> {
   const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
   const check = checkDocumentFile(file.name, file.size, head);
   if (!check.ok) throw new Error(check.error);
@@ -127,6 +151,7 @@ export async function uploadDocument(employeeId: string, file: File, documentTyp
     .insert({
       employee_id: employeeId,
       travel_record_id: travelRecordId ?? null,
+      ...(travelRequestId ? { travel_request_id: travelRequestId } : {}),
       document_type: documentType,
       storage_path: path,
       original_filename: file.name.slice(0, 255),
@@ -135,7 +160,14 @@ export async function uploadDocument(employeeId: string, file: File, documentTyp
     })
     .select(SELECT)
     .single();
-  if (error) throw friendlyError(error, "The file was uploaded but could not be saved. Please try again.");
+  if (error) {
+    // Do not leave an orphan file behind when the row is refused.
+    await supabase.storage.from(DOCUMENT_BUCKET).remove([path]).catch(() => undefined);
+    if (travelRequestId && /travel_request_id/i.test(error.message ?? "")) {
+      throw new Error("Ticket uploads need the latest database update. Ask the CEO to run the SQL file in Supabase.");
+    }
+    throw friendlyError(error, "The file was uploaded but could not be saved. Please try again.");
+  }
   return data as unknown as TravelDocument;
 }
 

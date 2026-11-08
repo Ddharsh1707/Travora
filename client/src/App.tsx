@@ -67,7 +67,8 @@ import { Link, useLocation } from "wouter";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { isSupabaseEnabled } from "./lib/supabase";
-import { TravelPage, isTravelPathAllowed, travelHomeFor, travelNavCategories, travelPageMeta } from "./pages/travel/routes";
+import { TravelPage, isTravelPathAllowed, travelHomeFor, travelNavCategories, travelPageMeta, travelRail } from "./pages/travel/routes";
+import { NavRail } from "./components/NavRail";
 import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
@@ -686,6 +687,26 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
   const path = location === "/" ? "/employee" : location;
   const meta = pageMeta[path] ?? travelPageMeta[path] ?? (path.startsWith("/travel/employees/") ? { eyebrow: "Travel", title: "Employee travel history" } : path.startsWith("/travel/uploads/") ? { eyebrow: "Travel desk", title: "Upload report" } : path.startsWith("/travel/bi/projects/") ? { eyebrow: "Business Intelligence", title: "Project" } : pageMeta["/employee"]);
   useEffect(() => setMobileOpen(false), [location]);
+  // Supabase portals use the slim icon rail with fly-out menus.
+  const rail = useMemo(() => (isSupabaseEnabled ? travelRail(role) : []), [role]);
+  const useRail = rail.length > 0;
+  const railProps = { sections: rail, path, userName: user.username, userCode: user.employeeId || "", roleLabel: roleLabels[role], onLogout };
+  if (useRail) {
+    return (
+      <div className="app-shell rail-shell">
+        <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} user={user} onLogout={onLogout} />
+        <div className={`sidebar-overlay ${mobileOpen ? "visible" : ""}`} onClick={() => setMobileOpen(false)} />
+        <div className={`sidebar-drawer rail-drawer ${mobileOpen ? "open" : ""}`}>
+          <NavRail {...railProps} variant="drawer" logo={<Logo />} onClose={() => setMobileOpen(false)} />
+        </div>
+        <div className="desktop-sidebar rail-slot">
+          <NavRail {...railProps} variant="rail" logo={<Logo compact />} />
+        </div>
+        <ShellMain location={location} meta={meta} user={user} onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} collapsed={false}>{children}</ShellMain>
+        <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
+      </div>
+    );
+  }
   return (
     <div className="app-shell">
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} user={user} onLogout={onLogout} />
@@ -707,32 +728,39 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
           />
         </LayoutGroup>
       </div>
-      <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
-        <div className="relative">
-          <Topbar onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} meta={meta} user={user} />
-          <motion.div
-            key={`progress-${location}`}
-            className="route-progress"
-            initial={{ scaleX: 0, opacity: 1 }}
-            animate={{ scaleX: 1, opacity: [1, 1, 0] }}
-            transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1], opacity: { duration: 1.2, times: [0, 0.7, 1] } }}
-          />
-        </div>
-        <main className="content-wrap">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={location}
-              initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(2px)", transition: { duration: 0.16 } }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
-        </main>
-      </div>
+      <ShellMain location={location} meta={meta} user={user} onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed}>{children}</ShellMain>
       <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
+    </div>
+  );
+}
+
+/** Top bar, route progress line and the animated page area. */
+function ShellMain({ children, location, meta, user, onMenu, onOpenSearch, collapsed }: { children: ReactNode; location: string; meta: { eyebrow: string; title: string; description?: string }; user: AuthUser; onMenu: () => void; onOpenSearch: () => void; collapsed: boolean }) {
+  return (
+    <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
+      <div className="relative">
+        <Topbar onMenu={onMenu} onOpenSearch={onOpenSearch} meta={meta} user={user} />
+        <motion.div
+          key={`progress-${location}`}
+          className="route-progress"
+          initial={{ scaleX: 0, opacity: 1 }}
+          animate={{ scaleX: 1, opacity: [1, 1, 0] }}
+          transition={{ duration: 0.9, ease: [0.65, 0, 0.35, 1], opacity: { duration: 1.2, times: [0, 0.7, 1] } }}
+        />
+      </div>
+      <main className="content-wrap">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location}
+            initial={{ opacity: 0, y: 16, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -8, filter: "blur(2px)", transition: { duration: 0.16 } }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </main>
     </div>
   );
 }

@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-import { Check, ClipboardCheck, IndianRupee, Receipt, UsersRound } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, ClipboardCheck, FileCheck2, FolderKanban, IndianRupee, Receipt, UsersRound } from "lucide-react";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CATEGORY_LABELS, decideExpense, getCeoDashboard, listExpenses, type CeoDashboard as Dash, type Expense } from "../../lib/data/expenses";
 import { presetRange, useLiveRefresh, type RangePreset } from "../../lib/data/reports";
-import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney } from "./common";
+import { getSheetProjectTrips } from "../../lib/data/sheetProjects";
+import { listAllRequests, type TravelRequest } from "../../lib/data/travel";
+import { groupSheetProjects, type SheetProject } from "../../lib/projectTeamReport";
+import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, routeLabel } from "./common";
+import { useRequestTickets } from "./RequestTickets";
 
 const PRESETS: Array<[Exclude<RangePreset, "custom">, string]> = [
   ["last_12_months", "Last 12 months"],
@@ -15,25 +19,47 @@ const PRESETS: Array<[Exclude<RangePreset, "custom">, string]> = [
 ];
 
 const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFractionDigits: 1 });
-const monthLabel = (m: string) => new Date(`${m}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+const TOP_PROJECTS = 10;
+const short = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-/** CEO and Admin home: company-wide people, expenses and travel at a glance. */
+type ProjectBar = { name: string; full: string; spend: number; bookings: number; travellers: number; share: number };
+
+/** Hover card for one project bar. */
+function ProjectTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ProjectBar }> }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="chart-tip">
+      <strong>{p.full}</strong>
+      <span>{formatMoney(p.spend)} · {p.share}% of project spend</span>
+      <span>{p.bookings} booking{p.bookings === 1 ? "" : "s"} · {p.travellers} traveller{p.travellers === 1 ? "" : "s"}</span>
+    </div>
+  );
+}
+
+/** CEO and Admin home: company-wide projects, people, expenses and travel at a glance. */
 export default function CeoDashboard({ name, profileId, isCeo = true }: { name: string; profileId: string; isCeo?: boolean }) {
   const [preset, setPreset] = useState<Exclude<RangePreset, "custom">>("last_12_months");
   const [dash, setDash] = useState<Dash | null>(null);
   const [pending, setPending] = useState<Expense[]>([]);
+  const [projects, setProjects] = useState<SheetProject[] | null>(null);
+  const [requests, setRequests] = useState<TravelRequest[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const range = presetRange(preset);
     try {
-      const [d, p] = await Promise.all([
+      const [d, p, trips, reqs] = await Promise.all([
         getCeoDashboard(range.from, range.to),
         listExpenses({ status: "submitted", limit: 6 }),
+        getSheetProjectTrips({ from: range.from, to: range.to }).catch(() => []),
+        listAllRequests({ status: "all", limit: 300 }).catch(() => [] as TravelRequest[]),
       ]);
       setDash(d);
       setPending(p.filter((e) => e.employee_id !== profileId).slice(0, 5));
+      setProjects(groupSheetProjects(trips));
+      setRequests(reqs);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load the dashboard.");
@@ -41,6 +67,17 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   }, [preset, profileId]);
   useEffect(() => { void load(); }, [load]);
   useLiveRefresh(["expenses", "travel_records", "travel_requests"], load);
+
+  const waiting = useMemo(() => requests.filter((r) => r.status === "pending").sort((a, b) => a.departure_date.localeCompare(b.departure_date)), [requests]);
+  const approved = useMemo(() => requests.filter((r) => r.status === "approved" || r.status === "booked"), [requests]);
+  const { byRequest } = useRequestTickets(approved);
+  const needTicket = useMemo(() => approved.filter((r) => !(byRequest[r.id]?.length)).sort((a, b) => a.departure_date.localeCompare(b.departure_date)), [approved, byRequest]);
+
+  const projectTotal = useMemo(() => (projects ?? []).reduce((a, p) => a + p.spend, 0), [projects]);
+  const bars: ProjectBar[] = useMemo(() => (projects ?? []).slice(0, TOP_PROJECTS).map((p) => ({
+    name: short(p.name), full: p.name, spend: p.spend, bookings: p.bookings, travellers: p.travellers,
+    share: projectTotal > 0 ? Math.round((p.spend / projectTotal) * 100) : 0,
+  })), [projects, projectTotal]);
 
   async function approve(e: Expense) {
     setBusy(e.id);
@@ -56,11 +93,14 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   }
 
   // One tile per job. Details live on the page each tile opens.
+  const top = projects?.[0];
   const tiles = dash ? [
     { label: "Total spend", value: formatMoney(Number(dash.expenses.total) + Number(dash.travel.spend)), hint: `Travel ${formatMoney(dash.travel.spend)} · claims ${formatMoney(dash.expenses.total)}`, href: "/travel/bi/finance", icon: <IndianRupee size={16} /> },
-    { label: "Travel requests waiting", value: String(dash.pending_travel_requests), hint: "Sent to you and the " + (isCeo ? "Admin" : "CEO"), href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
-    { label: "Claims to review", value: String(dash.expenses.submitted_count), hint: `${formatMoney(dash.expenses.submitted_amount)} · ${formatMoney(dash.expenses.approved_amount)} approved, to pay`, href: "/travel/expenses/all", icon: <Receipt size={16} /> },
-    { label: "Employees", value: String(dash.people.active), hint: `${dash.travel.travellers} travelled · ${dash.travel.trips} trips${dash.people.without_login ? ` · ${dash.people.without_login} without sign-in` : ""}`, href: "/travel/people", icon: <UsersRound size={16} /> },
+    { label: "Projects", value: String(projects?.length ?? 0), hint: top ? `Most spent: ${top.name}` : "From the uploaded sheets", href: "/travel/bi/projects", icon: <FolderKanban size={16} /> },
+    { label: "Requests waiting", value: String(dash.pending_travel_requests), hint: "Sent to you and the " + (isCeo ? "Admin" : "CEO"), href: "/travel/approvals", icon: <ClipboardCheck size={16} /> },
+    { label: "Tickets to upload", value: String(needTicket.length), hint: `${approved.length} approved trip${approved.length === 1 ? "" : "s"}`, href: "/travel/approvals", icon: <FileCheck2 size={16} /> },
+    { label: "Claims to review", value: String(dash.expenses.submitted_count), hint: `${formatMoney(dash.expenses.submitted_amount)} waiting`, href: "/travel/expenses/all", icon: <Receipt size={16} /> },
+    { label: "Employees", value: String(dash.people.active), hint: `${dash.travel.travellers} travelled · ${dash.travel.trips} trips`, href: "/travel/people", icon: <UsersRound size={16} /> },
   ] : [];
 
   return (
@@ -68,7 +108,7 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
       <PageHeader
         eyebrow={isCeo ? "CEO DASHBOARD" : "ADMIN DASHBOARD"}
         title={`Good to see you, ${name.split(" ")[0] || (isCeo ? "CEO" : "Admin")}`}
-        description="Spend, requests and claims across the company. Updates by itself."
+        description="Project spend, travel requests, tickets and claims across the company. Updates by itself."
         actions={
           <select aria-label="Date range" value={preset} onChange={(e) => setPreset(e.target.value as typeof preset)} className="button button-ghost">
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -78,7 +118,7 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
       {error && <ErrorNotice message={error} onRetry={load} />}
       {!dash && !error ? <Loading /> : dash && (
         <>
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
             {tiles.map((t) => (
               <Link key={t.label} href={t.href} className="panel p-4 min-w-0 hover:shadow-md transition-shadow block">
                 <span className="card-kicker flex items-center gap-1">{t.icon} {t.label}</span>
@@ -90,23 +130,68 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
 
           <div className="grid gap-3 lg:grid-cols-3">
             <section className="panel p-4 lg:col-span-2 min-w-0">
-              <span className="card-kicker">Spend by month</span>
-              {dash.by_month.length === 0 ? <Empty title="No spend yet" description="Expenses and trips will show here." /> : (
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={dash.by_month.map((m) => ({ ...m, label: monthLabel(m.month) }))} margin={{ left: 0, right: 8, top: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="label" fontSize={11} />
-                    <YAxis fontSize={11} tickFormatter={(v) => compact.format(Number(v))} width={48} />
-                    <Tooltip formatter={(v) => formatMoney(Number(v))} />
-                    <Legend />
-                    <Bar dataKey="expenses" name="Expenses" stackId="s" fill="#F2A93B" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="travel" name="Travel" stackId="s" fill="#2C4250" radius={[3, 3, 0, 0]} className="tx-bar-steel" />
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="flex flex-wrap items-baseline gap-2">
+                <span className="card-kicker">Spend by project</span>
+                <span className="text-xs opacity-60">{projects?.length ? `${formatMoney(projectTotal)} across ${projects.length} project${projects.length === 1 ? "" : "s"}` : ""}</span>
+                <Link href="/travel/bi/projects" className="text-xs underline ml-auto">All projects</Link>
+              </div>
+              {projects === null ? <Loading /> : bars.length === 0 ? (
+                <Empty title="No project spend yet" description="Upload the travel Excel with a Project column. Each project name in the sheet shows here with what was spent on it." />
+              ) : (
+                <>
+                  <div role="img" aria-label={`Spend by project. ${bars.map((b) => `${b.full}: ${formatMoney(b.spend)}`).join("; ")}`}>
+                    <ResponsiveContainer width="100%" height={Math.max(160, bars.length * 34 + 24)}>
+                      <BarChart data={bars} layout="vertical" margin={{ left: 4, right: 64, top: 4, bottom: 4 }} barCategoryGap={6}>
+                        <CartesianGrid horizontal={false} strokeDasharray="2 4" opacity={0.35} />
+                        <XAxis type="number" fontSize={11} tickFormatter={(v) => compact.format(Number(v))} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" width={170} fontSize={11.5} axisLine={false} tickLine={false} />
+                        <Tooltip content={<ProjectTip />} cursor={{ fill: "rgba(242,169,59,0.08)" }} />
+                        <Bar dataKey="spend" name="Spend" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                          {bars.map((b, i) => <Cell key={b.full} fill={i === 0 ? "#F2A93B" : "#1BA39C"} />)}
+                          <LabelList dataKey="spend" position="right" formatter={(v: unknown) => compact.format(Number(v))} className="chart-value-label" fontSize={11} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  {(projects?.length ?? 0) > TOP_PROJECTS && <p className="text-xs opacity-60">Showing the {TOP_PROJECTS} projects with the most spend. <Link href="/travel/bi/projects" className="underline">See all {projects?.length}</Link></p>}
+                </>
               )}
             </section>
             <section className="panel p-4 min-w-0">
-              <div className="flex items-center justify-between"><span className="card-kicker">Waiting for your review</span><Link href="/travel/expenses/all" className="text-xs underline">See all</Link></div>
+              <div className="flex items-center justify-between"><span className="card-kicker">Travel requests to decide</span><Link href="/travel/approvals" className="text-xs underline">Open</Link></div>
+              {waiting.length === 0 ? <p className="text-sm opacity-70 mt-3">No requests waiting.</p> : (
+                <ul className="mt-2 space-y-2">
+                  {waiting.slice(0, 6).map((r) => (
+                    <li key={r.id} className="text-sm">
+                      <Link href="/travel/approvals" className="block min-w-0 hover:underline">
+                        <div className="font-semibold truncate">{r.employee?.full_name ?? "Employee"} · {routeLabel(r.origin, r.destination)}</div>
+                        <div className="text-xs opacity-70 truncate">{formatDate(r.departure_date)}{r.project_name ? ` · ${r.project_name}` : ""} · {r.purpose}</div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <section className="panel p-4 min-w-0">
+              <div className="flex items-center justify-between"><span className="card-kicker">Approved trips: ticket to upload</span><Link href="/travel/approvals" className="text-xs underline">Upload tickets</Link></div>
+              {needTicket.length === 0 ? <p className="text-sm opacity-70 mt-3">Every approved trip has its ticket.</p> : (
+                <ul className="mt-2 space-y-2">
+                  {needTicket.slice(0, 5).map((r) => (
+                    <li key={r.id} className="text-sm">
+                      <Link href="/travel/approvals" className="block min-w-0 hover:underline">
+                        <div className="font-semibold truncate">{r.employee?.full_name ?? "Employee"} · {routeLabel(r.origin, r.destination)}</div>
+                        <div className="text-xs opacity-70 truncate">Travels {formatDate(r.departure_date)}{r.decided_by_name ? ` · approved by ${r.decided_by_name}` : ""}</div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="panel p-4 min-w-0">
+              <div className="flex items-center justify-between"><span className="card-kicker">Claims to review</span><Link href="/travel/expenses/all" className="text-xs underline">See all</Link></div>
               {pending.length === 0 ? <p className="text-sm opacity-70 mt-3">Nothing waiting. Nice.</p> : (
                 <ul className="mt-2 space-y-2">
                   {pending.map((e) => (

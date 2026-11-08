@@ -5,6 +5,7 @@ import { useLiveRefresh } from "../../lib/data/reports";
 import { TIMES_OF_DAY, cancelMyRequest, createMyRequest, listMyRequests, type TravelRequest } from "../../lib/data/travel";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, labelFor } from "./common";
 import { RequestDecision, RequestDetails, RequestStatusBadge } from "./RequestParts";
+import { RequestTickets, useRequestTickets } from "./RequestTickets";
 
 const BLANK = {
   origin: "", destination: "", departure_date: "", return_date: "", purpose: "", travel_type: "flight", estimated_cost: "",
@@ -55,6 +56,8 @@ export default function MyRequests({ profileId }: { profileId: string }) {
     rejected: rows.filter((r) => r.status === "rejected").length,
   }), [rows]);
   const shown = filter === "all" ? rows : rows.filter((r) => r.status === filter);
+  // Tickets the CEO or Admin uploaded for approved trips.
+  const { byRequest } = useRequestTickets(rows);
 
   const set = (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const value = e.target instanceof HTMLInputElement && e.target.type === "checkbox" ? e.target.checked : e.target.value;
@@ -127,6 +130,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
                 <div className="flex-1 min-w-0"><RequestDecision r={r} /></div>
                 {r.status === "pending" && <button type="button" className="table-action table-action-danger" onClick={() => cancel(r.id)}>Cancel request</button>}
               </div>
+              <RequestTickets request={r} docs={byRequest[r.id] ?? []} canUpload={false} />
             </article>
           ))}
         </div>

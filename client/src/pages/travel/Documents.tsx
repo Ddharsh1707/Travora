@@ -83,7 +83,7 @@ export default function Documents({ profileId, canManage }: { profileId: string;
         eyebrow="Travel"
         title="Tickets & documents"
         description={canManage
-          ? "Upload tickets or invoices, scan them, check the details and save them as trips. Nothing is saved until you confirm."
+          ? "Upload tickets or invoices under an employee. Each file shows in that employee’s own Tickets & documents page. Scan them to save the trip details; nothing is saved as a trip until you confirm."
           : "Upload your tickets and invoices. The Travel Desk checks them and adds the trips to your history."}
       />
 

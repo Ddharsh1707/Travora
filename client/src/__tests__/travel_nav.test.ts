@@ -21,7 +21,7 @@ test("CEO and Admin menus list each page once", () => {
 });
 
 test("other roles keep their menus", () => {
-  assert.deepEqual(hrefs("EMPLOYEE"), ["/travel/home", "/travel/requests", "/travel/my"]);
+  assert.deepEqual(hrefs("EMPLOYEE"), ["/travel/home", "/travel/requests", "/travel/my", "/travel/documents"]);
   assert.ok(hrefs("APPROVER").includes("/travel/bi"));
   assert.ok(hrefs("TRAVEL_DESK").includes("/travel/employees"));
   assert.ok(!isTravelPathAllowed("EMPLOYEE", "/travel/people"));
