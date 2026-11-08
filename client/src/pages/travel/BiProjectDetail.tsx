@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Pencil, Search, X } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, FileText, Pencil, Search, X } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "wouter";
 import {
-  KIND_LABEL, STATUS_LABEL, assignTripProject, fillMonthGaps, getFilterOptions, getProjectDetail, updateProject, useBiFilters,
-  type FilterOptions, type Project, type ProjectDetail, type ProjectKind, type ProjectStatus,
+  KIND_LABEL, STATUS_LABEL, fillMonthGaps, getProjectDetail, updateProject, useBiFilters,
+  type BiFilters, type Project, type ProjectDetail, type ProjectKind, type ProjectStatus,
 } from "../../lib/data/bi";
 import { monthLabel } from "../../lib/data/reports";
 import { recordReportGenerated } from "../../lib/data/travel";
+import { buildProjectTeamReport, describeTeamFilters } from "../../lib/projectTeamReport";
 import { exportToCsv } from "../../utils/exportCsv";
 import BiFilterBar from "./BiFilterBar";
 import { BI_PALETTE, CostCell, DataQuality, Kpi, Panel, ShareBar, compact, count, dateRange, plural } from "./BiParts";
@@ -26,8 +27,7 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
-  const [options, setOptions] = useState<FilterOptions | null>(null);
-  const [rowError, setRowError] = useState("");
+  const [busy, setBusy] = useState<"" | "xlsx" | "pdf">("");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -38,7 +38,6 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
       .finally(() => setLoading(false));
   }, [projectId, filters]);
   useEffect(() => load(), [load]);
-  useEffect(() => { if (isCeo) getFilterOptions().then(setOptions).catch(() => undefined); }, [isCeo]);
 
   const cur = data?.base_currency ?? "INR";
   const months = useMemo(() => fillMonthGaps(data?.monthly ?? []).map((m) => ({ ...m, label: monthLabel(m.month) })), [data]);
@@ -52,13 +51,15 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
   const p = data?.project ?? null;
   const title = projectId ? p?.name ?? "Project" : "Travel not linked to a project";
 
-  async function assign(tripId: string, target: string) {
-    setRowError("");
+  async function teamReport(format: "xlsx" | "pdf") {
+    if (!data) return;
+    setBusy(format);
     try {
-      await assignTripProject(tripId, target || null);
-      load();
+      await downloadTeamReport(data, title, filters, format);
     } catch (err) {
-      setRowError(err instanceof Error ? err.message : "Could not change the project.");
+      setError(err instanceof Error ? err.message : "Could not create the report.");
+    } finally {
+      setBusy("");
     }
   }
 
@@ -66,7 +67,7 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
     if (!data) return;
     exportToCsv(`project_${title.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}`,
       ["Travel date", "Return date", "Employee ID", "Employee", "Type", "From", "To", "Provider", "PNR / reference", "Status",
-        "Project in sheet", "Purpose", "Cost", "Currency", "Cost status", "Cost lines", "Sheet"],
+        "Project", "Purpose", "Cost", "Currency", "Cost status", "Cost lines", "Sheet"],
       ledger.map((r) => [r.departure_date, r.return_date ?? "", r.employee_code, r.full_name, labelFor(r.category), r.origin ?? "", r.destination ?? "",
         r.provider ?? "", r.booking_reference ?? "", r.status, r.project_raw ?? "", r.purpose ?? "", r.amount ?? "", r.currency, r.cost_state, r.cost_lines, r.source_sheet ?? ""]));
     void recordReportGenerated("project_detail").catch(() => undefined);
@@ -86,7 +87,9 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
         actions={<>
           {p && <ProjectStatusPill status={p.status} />}
           {p && isCeo && <button type="button" className="button button-ghost" onClick={() => setEditing(true)}><Pencil size={14} /> Edit details</button>}
-          <button type="button" className="button button-ghost" onClick={download} disabled={!data?.ledger.length}><Download size={14} /> Download CSV</button>
+          <button type="button" className="button button-primary" onClick={() => void teamReport("xlsx")} disabled={!data?.ledger.length || !!busy} title="Everyone who worked on this project, with their bookings"><FileSpreadsheet size={14} /> {busy === "xlsx" ? "Creating…" : "Team report (Excel)"}</button>
+          <button type="button" className="button button-ghost" onClick={() => void teamReport("pdf")} disabled={!data?.ledger.length || !!busy}><FileText size={14} /> {busy === "pdf" ? "Creating…" : "Team report (PDF)"}</button>
+          <button type="button" className="button button-ghost" onClick={download} disabled={!data?.ledger.length}><Download size={14} /> Bookings CSV</button>
         </>}
       />
       {data && data.aliases.length > 0 && (
@@ -182,7 +185,6 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
                 <h2 className="section-heading">Every booking behind these figures</h2>
                 <p className="text-xs opacity-70">
                   {plural(data.ledger_total, "booking")}{data.ledger_total > data.ledger.length ? ` (showing the latest ${data.ledger.length}; download for all)` : ""}.
-                  {isCeo && !projectId ? " You can link a booking to a project here when the sheet did not name one." : ""}
                 </p>
               </div>
               <label className="toolbar-filters relative">
@@ -190,10 +192,9 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
                 <input type="search" className="pl-7" placeholder="Search name, place, PNR or provider" aria-label="Search bookings" value={query} onChange={(e) => setQuery(e.target.value)} />
               </label>
             </div>
-            {rowError && <p className="text-sm text-red-600 px-4" role="alert">{rowError}</p>}
             <div className="responsive-table">
               <table>
-                <thead><tr><th>Date</th><th>Traveller</th><th>Trip</th><th>Provider / PNR</th><th>From the sheet</th><th className="text-right">Cost</th>{isCeo && <th>Project</th>}</tr></thead>
+                <thead><tr><th>Date</th><th>Traveller</th><th>Trip</th><th>Provider / PNR</th><th>Project</th><th className="text-right">Cost</th></tr></thead>
                 <tbody>
                   {ledger.map((r) => (
                     <tr key={r.id}>
@@ -203,14 +204,6 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
                       <td>{r.provider ?? "—"}<div className="table-subline">{r.booking_reference ?? ""}</div></td>
                       <td className="text-xs">{r.project_raw ? `“${r.project_raw}”` : <span className="opacity-60">No project</span>}{r.purpose && <div className="table-subline">{r.purpose}</div>}{r.source_sheet && <div className="table-subline">Sheet: {r.source_sheet}</div>}</td>
                       <td className="text-right whitespace-nowrap"><CostCell amount={r.amount} currency={r.currency} state={r.cost_state} status={r.status} />{r.cost_lines > 1 && <div className="table-subline">{r.cost_lines} charges</div>}</td>
-                      {isCeo && (
-                        <td>
-                          <select className="bi-row-select" aria-label={`Project for ${r.full_name} on ${formatDate(r.departure_date)}`} value={projectId ?? ""} onChange={(e) => void assign(r.id, e.target.value)} disabled={!options}>
-                            <option value="">Not linked</option>
-                            {options?.projects.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                          </select>
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -222,6 +215,14 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
       {editing && p && <EditProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load(); }} />}
     </div>
   );
+}
+
+/** Builds the team report for one project and downloads it as Excel or PDF. */
+export async function downloadTeamReport(data: ProjectDetail, projectName: string, filters: BiFilters, format: "xlsx" | "pdf") {
+  const doc = buildProjectTeamReport(data, { projectName, filters: describeTeamFilters(filters, data) });
+  const files = await import("../../lib/reportFiles");
+  await (format === "xlsx" ? files.downloadExcel(doc) : files.downloadPdf(doc));
+  void recordReportGenerated("project_report").catch(() => undefined);
 }
 
 function EditProjectDialog({ project, onClose, onSaved }: { project: Project; onClose: () => void; onSaved: () => void }) {
