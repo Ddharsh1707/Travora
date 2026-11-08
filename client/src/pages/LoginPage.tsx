@@ -15,9 +15,11 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Logo } from "../components/Logo";
+
+const TerminalScene3D = lazy(() => import("../components/TerminalScene3D"));
 import { useTheme } from "../contexts/ThemeContext";
 import { getResolvedUrl, login as loginApi, persistAuth, type AuthUser } from "../lib/api";
 import { isSupabaseEnabled } from "../lib/supabase";
@@ -34,7 +36,8 @@ type Mode = "signin" | "signup" | "check-email";
 const ease = [0.16, 1, 0.3, 1] as const;
 
 /* ------------------------------------------------------------------------- */
-/* Background: a faint plant schematic with product flowing through pipes   */
+/* Background: a live 3D oil and gas terminal. If WebGL is not available,   */
+/* a flat plant drawing with product flowing through the pipes is shown.    */
 /* ------------------------------------------------------------------------- */
 
 const ROUTES = [
@@ -47,6 +50,21 @@ const TANKS = [
   { x: 668, y: 470, w: 64, h: 70, level: 0.6 },
   { x: 742, y: 490, w: 52, h: 50, level: 0.35 },
 ];
+
+function AuthScene() {
+  const reduce = useReducedMotion();
+  const [flat, setFlat] = useState(false);
+  const onFail = useCallback(() => setFlat(true), []);
+  if (flat) return <AuthBackdrop />;
+  return (
+    <motion.div className="auth-scene" aria-hidden="true" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.4, ease }}>
+      <Suspense fallback={<AuthBackdrop />}>
+        <TerminalScene3D className="auth-scene-canvas" onFail={onFail} reduceMotion={!!reduce} shift={-0.04} />
+      </Suspense>
+      <div className="auth-scene-shade" />
+    </motion.div>
+  );
+}
 
 function AuthBackdrop() {
   const reduce = useReducedMotion();
@@ -355,7 +373,7 @@ export function LoginPage({
 
   return (
     <div className="auth-page">
-      <AuthBackdrop />
+      <AuthScene />
 
       <header className="auth-header">
         <motion.button
@@ -429,31 +447,6 @@ export function LoginPage({
               </motion.li>
             ))}
           </motion.ul>
-          <motion.div className="auth-boarding" {...rise(0.5)} aria-hidden="true">
-            <div>
-              <span>From</span>
-              <strong>HYD</strong>
-              <small>Hyderabad</small>
-            </div>
-            <div className="auth-boarding-path">
-              <span className="auth-boarding-line" />
-              <motion.span
-                className="auth-boarding-plane"
-                animate={reduce ? undefined : { x: ["-40%", "40%", "-40%"] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              >
-                ✈
-              </motion.span>
-            </div>
-            <div>
-              <span>To</span>
-              <strong>PPD</strong>
-              <small>Paradip site</small>
-            </div>
-            <div className="auth-boarding-status">
-              <CheckCircle2 size={14} /> Approved by the CEO
-            </div>
-          </motion.div>
         </section>
 
         <motion.section

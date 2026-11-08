@@ -2,13 +2,17 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 /**
- * Live 3D wallpaper for the landing page intro: an oil and gas terminal at
- * night, of the kind Mahathi Infra Services builds. Storage tanks, an LPG
- * sphere, a pumpjack and a flare rise out of a drawing-grid ground, the tanks
- * fill, product flows through the pipes and roof lights blink across the
- * plant. The camera flies in on load, then circles slowly like a looping
- * film, follows the mouse a little and tilts as the page scrolls. Rendering
- * stops while the scene is off screen.
+ * Live 3D wallpaper used behind the landing intro and the sign-in page: an
+ * oil and gas terminal at night, of the kind Mahathi Infra Services builds.
+ * Storage tanks, an LPG sphere, a pumpjack, a pipe rack and a flare push up
+ * out of the ground with a glowing ripple, the tanks fill, product flows
+ * through the pipes, steam drifts, tanker trucks drive past and roof lights
+ * blink. Tanks at the back of the yard keep sinking and rising again so the
+ * scene never stops moving. The camera flies in on load, then circles slowly
+ * like a looping film, follows the mouse a little and tilts as the page
+ * scrolls. Rendering stops while the scene is off screen.
+ *
+ * `shift` moves the plant sideways on wide screens (negative = to the right).
  *
  * `onFail` is called when WebGL is not available so the page can fall back
  * to the flat drawing.
@@ -19,13 +23,41 @@ const TEAL = 0x1ba39c;
 const STEEL = 0x8796a0;
 const GRAPHITE = 0x0b1319;
 
-type Rising = { obj: THREE.Object3D; delay: number; sy?: number };
+type Rising = { obj: THREE.Object3D; delay: number; baseY?: number; depth?: number; ripple?: THREE.Mesh; cycle?: number };
 type Fill = { mesh: THREE.Mesh; ring: THREE.Mesh; height: number; level: number; base: number; delay: number };
 type Flow = { curve: THREE.Curve<THREE.Vector3>; dots: THREE.Mesh[]; speed: number };
 
 const easeOut = (t: number) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 4);
 
-export default function TerminalScene3D({ className = "", onFail, reduceMotion = false }: { className?: string; onFail?: () => void; reduceMotion?: boolean }) {
+/** Soft round sprite used for dust, steam and glows. */
+function softDot(inner = "rgba(255,255,255,1)") {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const g = c.getContext("2d");
+  if (g) {
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, inner);
+    grad.addColorStop(0.4, "rgba(255,255,255,0.45)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+export default function TerminalScene3D({
+  className = "",
+  onFail,
+  reduceMotion = false,
+  shift = -0.21,
+}: {
+  className?: string;
+  onFail?: () => void;
+  reduceMotion?: boolean;
+  shift?: number;
+}) {
   const host = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -44,6 +76,8 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.1;
+    // Everything below ground level is cut away, so structures can rise out of the ground.
+    renderer.clippingPlanes = [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.02)];
     el.appendChild(renderer.domElement);
     renderer.domElement.style.display = "block";
     renderer.domElement.setAttribute("aria-hidden", "true");
@@ -92,6 +126,34 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
 
     const rising: Rising[] = [];
     const fills: Fill[] = [];
+    const soft = keep(softDot());
+    const rippleGeo = keep(new THREE.RingGeometry(0.86, 1, 64));
+
+    // A glowing ring on the ground where a structure breaks through.
+    function ripple(x: number, z: number, r: number) {
+      const m = new THREE.Mesh(rippleGeo, keep(new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.04, z);
+      m.scale.setScalar(r);
+      m.userData.r = r;
+      m.visible = false;
+      scene.add(m);
+      return m;
+    }
+
+    // Spiral stair up the side of a tank, with an outer handrail.
+    function helix(r: number, h: number, turns: number, start: number) {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 60; i++) {
+        const u = i / 60;
+        const a = start + u * turns * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * r, u * h, Math.sin(a) * r));
+      }
+      return new THREE.CatmullRomCurve3(pts);
+    }
+
+    const blinkers: THREE.Mesh[] = [];
+    const postGeo = keep(new THREE.CylinderGeometry(0.018, 0.018, 0.32, 4));
 
     // Storage tanks: a steel shell (open wireframe so the level shows), a cone roof, a level ring.
     function tank(x: number, z: number, r: number, h: number, level: number, delay: number) {
@@ -109,11 +171,25 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       const base = new THREE.Mesh(keep(new THREE.CylinderGeometry(r * 1.08, r * 1.08, 0.12, 48)), darkSteel);
       base.position.y = 0.06;
       g.add(base);
-      // stair rail around the side
-      const stair = new THREE.Mesh(keep(new THREE.TorusGeometry(r * 1.04, 0.03, 6, 48, Math.PI * 0.9)), darkSteel);
-      stair.rotation.x = Math.PI / 2;
-      stair.position.y = h * 0.92;
+      // spiral stair, roof handrail with posts, and a roof beacon
+      const stair = new THREE.Mesh(keep(new THREE.TubeGeometry(helix(r * 1.04, h, 0.3, 2.2), 60, 0.045, 5)), pipeMat);
       g.add(stair);
+      const rail = new THREE.Mesh(keep(new THREE.TubeGeometry(helix(r * 1.1, h + 0.3, 0.3, 2.2), 60, 0.02, 4)), pipeMat);
+      g.add(rail);
+      const roofRail = new THREE.Mesh(keep(new THREE.TorusGeometry(r * 0.98, 0.025, 6, 64)), pipeMat);
+      roofRail.rotation.x = Math.PI / 2;
+      roofRail.position.y = h + 0.32;
+      g.add(roofRail);
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2;
+        const post = new THREE.Mesh(postGeo, pipeMat);
+        post.position.set(Math.cos(a) * r * 0.98, h + 0.16, Math.sin(a) * r * 0.98);
+        g.add(post);
+      }
+      const beacon = new THREE.Mesh(keep(new THREE.SphereGeometry(0.09, 8, 6)), amberGlow);
+      beacon.position.y = h + r * 0.35 + 0.08;
+      g.add(beacon);
+      blinkers.push(beacon);
       const fill = new THREE.Mesh(keep(new THREE.CylinderGeometry(r * 0.96, r * 0.96, 1, 48)), product);
       fill.scale.y = 0.001;
       fill.position.y = 0.12;
@@ -123,7 +199,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       ring.position.y = 0.12;
       g.add(ring);
       scene.add(g);
-      rising.push({ obj: g, delay });
+      rising.push({ obj: g, delay, ripple: ripple(x, z, r * 1.5) });
       fills.push({ mesh: fill, ring, height: h - 0.2, level, base: 0.12, delay: delay + 0.6 });
       return g;
     }
@@ -149,13 +225,24 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       sphere.add(leg);
     }
     scene.add(sphere);
-    rising.push({ obj: sphere, delay: 0.8 });
+    // ladder up to the sphere's top platform
+    const ladder = new THREE.Mesh(keep(new THREE.TubeGeometry(helix(2.05, 5.1, 0.35, 2.2), 60, 0.045, 5)), darkSteel);
+    sphere.add(ladder);
+    const topDeck = new THREE.Mesh(keep(new THREE.TorusGeometry(0.55, 0.03, 6, 32)), pipeMat);
+    topDeck.rotation.x = Math.PI / 2;
+    topDeck.position.y = 5.4;
+    sphere.add(topDeck);
+    rising.push({ obj: sphere, delay: 0.8, ripple: ripple(5.2, -0.6, 2.8) });
 
     // Small pump house and flare stack for scale.
     const house = new THREE.Mesh(keep(new THREE.BoxGeometry(1.6, 1.1, 1.2)), darkSteel);
     house.position.set(2.6, 0.55, 3.4);
     scene.add(house);
     rising.push({ obj: house, delay: 0.9 });
+    const chimney = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 10)), darkSteel);
+    chimney.position.set(3.0, 1.55, 3.6);
+    scene.add(chimney);
+    rising.push({ obj: chimney, delay: 1.0 });
     const stack = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.12, 0.16, 5.2, 12)), darkSteel);
     stack.position.set(9.2, 2.6, -4.6);
     scene.add(stack);
@@ -164,6 +251,20 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     scene.add(flame);
     rising.push({ obj: stack, delay: 1.0 });
     rising.push({ obj: flame, delay: 1.1 });
+    const flareGlow = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: soft, color: 0xffb54d, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })));
+    flareGlow.position.set(9.2, 5.6, -4.6);
+    flareGlow.scale.setScalar(2.6);
+    scene.add(flareGlow);
+    // guy wires on the flare stack
+    for (const [dx, dz] of [[1.6, 0.6], [-1.2, 1.2], [0.2, -1.7]] as Array<[number, number]>) {
+      const a = new THREE.Vector3(9.2, 4.6, -4.6);
+      const b = new THREE.Vector3(9.2 + dx, 0, -4.6 + dz);
+      const wire = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.012, 0.012, a.distanceTo(b), 4)), pipeMat);
+      wire.position.copy(a).add(b).multiplyScalar(0.5);
+      wire.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      scene.add(wire);
+      rising.push({ obj: wire, delay: 1.2 });
+    }
 
     // Oil pumpjack at the wellhead: the beam nods up and down.
     const jack = new THREE.Group();
@@ -195,7 +296,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     well.position.set(2.7, 0.6, 0);
     jack.add(well);
     scene.add(jack);
-    rising.push({ obj: jack, delay: 0.2 });
+    rising.push({ obj: jack, delay: 0.2, ripple: ripple(-5.4, -8.6, 3.4) });
 
     // Pipelines with product flowing through them.
     const flows: Flow[] = [];
@@ -243,13 +344,40 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     }
 
     // Far side of the terminal: more tanks and spheres fading into the night, with blinking roof lights.
-    const blinkers: THREE.Mesh[] = [];
     const blinkGeo = keep(new THREE.SphereGeometry(0.11, 8, 6));
     const farMat = keep(new THREE.MeshStandardMaterial({ color: 0x5c6b77, metalness: 0.6, roughness: 0.5 }));
     const far: Array<[number, number, number, number, string]> = [
       [-14, -12, 2.4, 3.4, "tank"], [-8, -15, 2.0, 3.0, "tank"], [9, -13, 2.2, 3.2, "tank"], [15, -9, 1.8, 2.6, "tank"],
       [-17, -4, 1.6, 2.4, "tank"], [14, -18, 2.6, 3.6, "tank"], [-2, -18, 1.7, 0, "sphere"], [19, -2, 1.5, 0, "sphere"],
     ];
+    // Mid-yard tanks: lit steel, banded, with a stair. These and the far tanks keep re-emerging.
+    const midMat = keep(new THREE.MeshStandardMaterial({ color: 0xaab7bf, metalness: 0.7, roughness: 0.35 }));
+    const mid: Array<[number, number, number, number]> = [[1.4, -11.4, 1.5, 2.8], [5.2, -10.6, 1.8, 3.3], [-10.6, -9.6, 1.4, 2.4], [-11.5, 1.5, 1.2, 2.2]];
+    mid.forEach(([x, z, r, h], i) => {
+      const g = new THREE.Group();
+      g.position.set(x, 0, z);
+      const body = new THREE.Mesh(keep(new THREE.CylinderGeometry(r, r, h, 40)), midMat);
+      body.position.y = h / 2;
+      g.add(body);
+      const roof = new THREE.Mesh(keep(new THREE.ConeGeometry(r * 1.02, r * 0.32, 40)), steel);
+      roof.position.y = h + r * 0.16;
+      g.add(roof);
+      for (const f of [0.33, 0.66]) {
+        const band = new THREE.Mesh(keep(new THREE.TorusGeometry(r * 1.005, 0.03, 6, 48)), f === 0.66 ? amberGlow : darkSteel);
+        band.rotation.x = Math.PI / 2;
+        band.position.y = h * f;
+        g.add(band);
+      }
+      const st = new THREE.Mesh(keep(new THREE.TubeGeometry(helix(r * 1.06, h, 0.5, i), 60, 0.045, 5)), darkSteel);
+      g.add(st);
+      const light = new THREE.Mesh(blinkGeo, amberGlow);
+      light.position.y = h + r * 0.34;
+      g.add(light);
+      blinkers.push(light);
+      scene.add(g);
+      rising.push({ obj: g, delay: 0.4 + i * 0.15, ripple: ripple(x, z, r * 1.5), cycle: 1 });
+    });
+
     far.forEach(([x, z, r, h, kind], i) => {
       const g = new THREE.Group();
       g.position.set(x, 0, z);
@@ -280,8 +408,115 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
         blinkers.push(light);
       }
       scene.add(g);
-      rising.push({ obj: g, delay: 0.1 + i * 0.08 });
+      rising.push({ obj: g, delay: 0.1 + i * 0.08, ripple: ripple(x, z, r * 1.5), cycle: 1 });
     });
+
+    // Elevated pipe rack behind the tanks: portal frames carrying three lines.
+    const rackZ = [-6.9, -7.25, -7.6];
+    for (let x = -2.4; x <= 8.2; x += 2.12) {
+      const frame = new THREE.Group();
+      frame.position.set(x, 0, -7.25);
+      for (const dz of [-0.55, 0.55]) {
+        const post = new THREE.Mesh(keep(new THREE.BoxGeometry(0.14, 1.9, 0.14)), darkSteel);
+        post.position.set(0, 0.95, dz);
+        frame.add(post);
+      }
+      const cross = new THREE.Mesh(keep(new THREE.BoxGeometry(0.14, 0.12, 1.3)), darkSteel);
+      cross.position.y = 1.84;
+      frame.add(cross);
+      scene.add(frame);
+      rising.push({ obj: frame, delay: 1.0 + (x + 2.4) * 0.04 });
+    }
+    rackZ.forEach((z, i) => pipe([[-3.2, 0.2, z], [-3.2, 1.98, z], [9, 1.98, z], [9, 0.2, z]], 0.07 + i * 0.025, i === 1 ? 10 : 6));
+
+    // Floodlight masts with soft light beams.
+    const beamMat = keep(new THREE.MeshBasicMaterial({ color: 0xffe1b0, transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    const beamGeo = keep(new THREE.ConeGeometry(3.2, 7, 32, 1, true));
+    for (const [x, z] of [[-12, 3.5], [11.6, -7.4], [-9.2, -5.2]] as Array<[number, number]>) {
+      const mast = new THREE.Group();
+      mast.position.set(x, 0, z);
+      const pole = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.06, 0.1, 7.2, 8)), darkSteel);
+      pole.position.y = 3.6;
+      mast.add(pole);
+      const lamp = new THREE.Mesh(keep(new THREE.BoxGeometry(0.7, 0.22, 0.4)), keep(new THREE.MeshStandardMaterial({ color: 0xfff1d6, emissive: 0xffe1b0, emissiveIntensity: 1.6 })));
+      lamp.position.y = 7.2;
+      mast.add(lamp);
+      const cone = new THREE.Mesh(beamGeo, beamMat);
+      cone.position.y = 3.6;
+      mast.add(cone);
+      scene.add(mast);
+      rising.push({ obj: mast, delay: 0.6 });
+    }
+
+    // Road along the front with tanker trucks driving through.
+    const road = new THREE.Mesh(keep(new THREE.PlaneGeometry(80, 2.2)), keep(new THREE.MeshStandardMaterial({ color: 0x0d171e, roughness: 1 })));
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(0, 0.015, 8.6);
+    scene.add(road);
+    const laneGeo = keep(new THREE.PlaneGeometry(1, 0.06));
+    const laneMat = keep(new THREE.MeshBasicMaterial({ color: AMBER, transparent: true, opacity: 0.5 }));
+    for (let x = -40; x < 40; x += 2.4) {
+      const lane = new THREE.Mesh(laneGeo, laneMat);
+      lane.rotation.x = -Math.PI / 2;
+      lane.position.set(x, 0.02, 8.6);
+      scene.add(lane);
+    }
+    const trucks: THREE.Group[] = [];
+    const cabMat = keep(new THREE.MeshStandardMaterial({ color: AMBER, metalness: 0.3, roughness: 0.5 }));
+    const headMat = keep(new THREE.MeshBasicMaterial({ color: 0xfff4dc }));
+    const tailMat = keep(new THREE.MeshBasicMaterial({ color: 0xff4a2a }));
+    const lightBeamGeo = keep(new THREE.ConeGeometry(0.9, 4, 16, 1, true));
+    for (let k = 0; k < 2; k++) {
+      const tr = new THREE.Group();
+      const cab = new THREE.Mesh(keep(new THREE.BoxGeometry(0.9, 0.85, 0.9)), cabMat);
+      cab.position.set(1.35, 0.6, 0);
+      tr.add(cab);
+      const chassis = new THREE.Mesh(keep(new THREE.BoxGeometry(3.4, 0.18, 0.8)), darkSteel);
+      chassis.position.set(0.1, 0.28, 0);
+      tr.add(chassis);
+      const tankBody = new THREE.Mesh(keep(new THREE.CapsuleGeometry(0.42, 1.8, 6, 16)), steel);
+      tankBody.rotation.z = Math.PI / 2;
+      tankBody.position.set(-0.35, 0.82, 0);
+      tr.add(tankBody);
+      const stripe = new THREE.Mesh(keep(new THREE.TorusGeometry(0.43, 0.025, 6, 24)), amberGlow);
+      stripe.rotation.y = Math.PI / 2;
+      stripe.position.set(-0.35, 0.82, 0);
+      tr.add(stripe);
+      for (const dz of [-0.3, 0.3]) {
+        const hl = new THREE.Mesh(blinkGeo, headMat);
+        hl.position.set(1.81, 0.45, dz);
+        tr.add(hl);
+        const tl = new THREE.Mesh(blinkGeo, tailMat);
+        tl.position.set(-1.6, 0.4, dz);
+        tl.scale.setScalar(0.7);
+        tr.add(tl);
+      }
+      const hb = new THREE.Mesh(lightBeamGeo, beamMat);
+      hb.rotation.z = Math.PI / 2;
+      hb.position.set(3.8, 0.45, 0);
+      tr.add(hb);
+      for (const wx of [-1.2, -0.5, 1.3]) {
+        for (const dz of [-0.42, 0.42]) {
+          const wheel = new THREE.Mesh(keep(new THREE.CylinderGeometry(0.2, 0.2, 0.14, 12)), darkSteel);
+          wheel.rotation.x = Math.PI / 2;
+          wheel.position.set(wx, 0.2, dz);
+          tr.add(wheel);
+        }
+      }
+      tr.position.set(0, 0, k === 0 ? 8.1 : 9.1);
+      if (k === 1) tr.rotation.y = Math.PI;
+      scene.add(tr);
+      trucks.push(tr);
+    }
+
+    // Steam drifting up from the pump house chimney and a vent by the sphere.
+    const emitters = [new THREE.Vector3(3.0, 2.0, 3.6), new THREE.Vector3(7.4, 0.6, 1.6)];
+    const steamCount = 70;
+    const steamPos = new Float32Array(steamCount * 3);
+    const steamGeo = keep(new THREE.BufferGeometry());
+    steamGeo.setAttribute("position", new THREE.BufferAttribute(steamPos, 3));
+    const steam = new THREE.Points(steamGeo, keep(new THREE.PointsMaterial({ map: soft, color: 0xc4d0d6, size: 1.3, transparent: true, opacity: 0.16, depthWrite: false })));
+    scene.add(steam);
 
     // Night sky.
     const starCount = 400;
@@ -314,11 +549,18 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
     }
     const dustGeo = keep(new THREE.BufferGeometry());
     dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
-    const dust = new THREE.Points(dustGeo, keep(new THREE.PointsMaterial({ color: 0xf6bc55, size: 0.06, transparent: true, opacity: 0.5, depthWrite: false })));
+    const dust = new THREE.Points(dustGeo, keep(new THREE.PointsMaterial({ map: soft, color: 0xf6bc55, size: 0.16, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })));
     scene.add(dust);
 
     // Start state for the rise-in.
-    for (const r of rising) { r.sy = r.obj.scale.y; r.obj.scale.y = 0.001; }
+    const box = new THREE.Box3();
+    for (const r of rising) {
+      box.setFromObject(r.obj);
+      r.baseY = r.obj.position.y;
+      r.depth = Math.max(0.3, box.max.y) + 0.25;
+      r.obj.position.y = r.baseY - r.depth;
+    }
+    const cycled = rising.filter((r) => r.cycle);
 
     // Camera framing: wide screens push the plant to the right of the text.
     const target = new THREE.Vector3();
@@ -332,7 +574,7 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       renderer.domElement.style.width = "100%";
       renderer.domElement.style.height = "100%";
       camera.aspect = w / h;
-      frameShift = w > 1024 ? -0.21 : 0;
+      frameShift = w > 1024 ? shift : 0;
       camera.clearViewOffset();
       if (frameShift) camera.setViewOffset(w, h, frameShift * w, 0, w, h);
       camera.updateProjectionMatrix();
@@ -361,9 +603,29 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
 
     function update(t: number, elapsed: number) {
       // Rise-in of every structure, staggered.
+      // Back-yard tanks take turns sinking into the ground and pushing back up.
+      const slot = 3.2;
+      const period = cycled.length * slot;
       for (const r of rising) {
-        const p = easeOut((t - r.delay) / 1.1);
-        r.obj.scale.y = Math.max(0.001, p) * (r.sy ?? 1);
+        let p = easeOut((t - r.delay) / 1.4);
+        let rippleT = (t - r.delay) / 1.4;
+        if (r.cycle && !reduceMotion && t > 7) {
+          const idx = cycled.indexOf(r);
+          const local = (((t - 7 - idx * slot) % period) + period) % period;
+          if (local < 1.1) { p = Math.min(p, 1 - easeOut(local / 1.1) * 0.999); rippleT = -1; }
+          else if (local < 2.9) { p = Math.min(p, easeOut((local - 1.1) / 1.8)); rippleT = (local - 1.1) / 1.8; }
+        }
+        r.obj.position.y = (r.baseY ?? 0) - (r.depth ?? 0) * (1 - p);
+        r.obj.visible = p > 0.002;
+        if (r.ripple) {
+          const on = rippleT > 0 && rippleT < 1.3 && !reduceMotion;
+          r.ripple.visible = on;
+          if (on) {
+            const q = rippleT / 1.3;
+            r.ripple.scale.setScalar(r.ripple.userData.r * (0.7 + q * 0.9));
+            (r.ripple.material as THREE.MeshBasicMaterial).opacity = Math.sin(Math.min(q, 1) * Math.PI) * 0.9;
+          }
+        }
       }
       // Tanks fill to their level, then breathe a little.
       for (const f of fills) {
@@ -391,6 +653,21 @@ export default function TerminalScene3D({ className = "", onFail, reduceMotion =
       beam.rotation.z = Math.sin(elapsed * 1.6) * 0.22;
       flame.scale.set(1 + Math.sin(elapsed * 9) * 0.08, 1 + Math.sin(elapsed * 7) * 0.18, 1);
       dust.rotation.y = elapsed * 0.01;
+      flareGlow.scale.setScalar(2.4 + Math.sin(elapsed * 9) * 0.25 + Math.sin(elapsed * 3.1) * 0.2);
+      // Tanker trucks on the front road, one each way.
+      trucks.forEach((tr, k) => {
+        const x = (((elapsed * 2.6 + k * 30) % 70) + 70) % 70 - 35;
+        tr.position.x = k === 0 ? x : -x;
+      });
+      // Steam puffs rise, spread and recycle.
+      for (let i = 0; i < steamCount; i++) {
+        const e = emitters[i % emitters.length];
+        const life = ((elapsed * 0.22 + i / steamCount) % 1 + 1) % 1;
+        steamPos[i * 3] = e.x + Math.sin(i * 12.9 + elapsed * 0.4) * life * 0.9 + life * 1.4;
+        steamPos[i * 3 + 1] = e.y + life * 4.2;
+        steamPos[i * 3 + 2] = e.z + Math.cos(i * 7.3) * life * 0.8;
+      }
+      steamGeo.attributes.position.needsUpdate = true;
 
       // Camera: fly-in, slow drift, mouse parallax, scroll tilt.
       const fly = easeOut(t / 2.6);
