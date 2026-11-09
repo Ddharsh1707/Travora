@@ -8,6 +8,7 @@ import {
 } from "../../lib/data/documents";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 const STATUS_LABEL: Record<TravelDocument["extraction_status"], { label: string; tone: string }> = {
   none: { label: "not scanned", tone: "pending" },
@@ -295,7 +296,7 @@ function ReviewDialog({ doc, extraction, onClose, onSaved, onRescan }: {
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="review-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="review-title">
       <form className="confirm-dialog max-w-2xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">CHECK SCAN</span>
@@ -346,6 +347,6 @@ function ReviewDialog({ doc, extraction, onClose, onSaved, onRescan }: {
           <button type="submit" className="button button-primary" disabled={saving}><CheckCircle2 size={15} /> {saving ? "Saving…" : "Confirm and save trip"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

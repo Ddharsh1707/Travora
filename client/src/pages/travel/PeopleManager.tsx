@@ -9,6 +9,7 @@ import {
 import { useLiveRefresh } from "../../lib/data/reports";
 import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, PeopleTabs, Stat } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 const DANGER = { background: "#dc2626", borderColor: "#dc2626", color: "#fff" };
 
@@ -239,7 +240,7 @@ function PersonDialog({ person, people, onClose, onSaved }: { person: Person | n
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="person-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="person-title">
       <form className="confirm-dialog max-w-xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">EMPLOYEE</span>
@@ -267,7 +268,7 @@ function PersonDialog({ person, people, onClose, onSaved }: { person: Person | n
           <button type="submit" className="button button-primary" disabled={saving}>{saving ? "Saving…" : person ? "Save changes" : "Add employee"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -305,7 +306,7 @@ function LoginDialog({ person, onClose, onDone }: { person: Person; onClose: () 
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="login-title">
       <form className="confirm-dialog max-w-md w-full text-left" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">{reset ? "RESET PASSWORD" : "CREATE LOGIN"}</span>
@@ -337,7 +338,7 @@ function LoginDialog({ person, onClose, onDone }: { person: Person; onClose: () 
           </>
         )}
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -366,7 +367,7 @@ function DeleteDialog({ people, onClose, onDone }: { people: Person[]; onClose: 
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-title">
       <form className="confirm-dialog max-w-md w-full text-left" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">DELETE FOR GOOD</span>
@@ -390,7 +391,7 @@ function DeleteDialog({ people, onClose, onDone }: { people: Person[]; onClose: 
           <button type="submit" className="button" style={DANGER} disabled={saving || !ready}>{saving ? "Deleting…" : "Delete"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -419,7 +420,7 @@ function ResetDialog({ onClose, onDone }: { onClose: () => void; onDone: () => v
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reset-title">
       <form className="confirm-dialog max-w-lg w-full text-left" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">RESET DATA</span>
@@ -441,6 +442,6 @@ function ResetDialog({ onClose, onDone }: { onClose: () => void; onDone: () => v
           <button type="submit" className="button" style={DANGER} disabled={saving || !ready}>{saving ? "Resetting…" : "Reset data"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

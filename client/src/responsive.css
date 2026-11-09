@@ -118,3 +118,11 @@ html, body, #root { max-width: 100%; overflow-x: hidden; }
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* Pop-up forms render straight into <body> (components/ModalPortal.tsx) so
+   they open on the screen the user is looking at; keep them above the sidebar,
+   top bar and AI launcher. */
+.modal-portal > .modal-overlay,
+.modal-portal > .drawer-overlay,
+.modal-portal > div[class*="fixed inset-0"] { z-index: 1300 !important; }
+.modal-portal > .journey-drawer { z-index: 1301 !important; }

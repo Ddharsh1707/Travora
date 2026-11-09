@@ -5,6 +5,7 @@ import BiFilterBar from "./BiFilterBar";
 import { Kpi, Panel, ShareBar, count, plural } from "./BiParts";
 import TravelMap from "./TravelMap";
 import { Empty, ErrorNotice, Loading, PageHeader, formatMoney, labelFor } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 /** Travel Intelligence: where people go, by which routes, on a map of real places. */
 export default function BiTravel({ canLink }: { canLink: boolean }) {
@@ -165,7 +166,7 @@ function LinkPlaceDialog({ label, onClose, onDone }: { label: string; onClose: (
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="link-place-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="link-place-title">
       <div className="confirm-dialog max-w-xl w-full text-left max-h-[90vh] overflow-y-auto">
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">PUT A PLACE ON THE MAP</span>
@@ -190,6 +191,6 @@ function LinkPlaceDialog({ label, onClose, onDone }: { label: string; onClose: (
         {error && <p className="text-sm text-red-600 mt-3" role="alert">{error}</p>}
         <div className="dialog-actions"><button type="button" className="button button-ghost" onClick={onClose}>Cancel</button></div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

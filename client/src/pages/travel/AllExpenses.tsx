@@ -9,6 +9,7 @@ import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney } from "./common";
 import { ExpenseStatusPill } from "./ExpenseStatusPill";
 import AllSpend from "./AllSpend";
+import ModalPortal from "../../components/ModalPortal";
 
 type Decision = "approved" | "rejected" | "reimbursed";
 
@@ -216,7 +217,7 @@ function ClaimsReview({ profileId, isCeo }: { profileId: string; isCeo: boolean 
 function RejectDialog({ expense, onClose, onReject }: { expense: Expense; onClose: () => void; onReject: (note: string) => Promise<void> }) {
   const [note, setNote] = useState("");
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reject-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reject-title">
       <form className="confirm-dialog max-w-md w-full text-left" onSubmit={(e) => { e.preventDefault(); void onReject(note); }}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">REJECT CLAIM</span>
@@ -229,6 +230,6 @@ function RejectDialog({ expense, onClose, onReject }: { expense: Expense; onClos
           <button type="submit" className="button button-primary">Reject claim</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

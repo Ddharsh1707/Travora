@@ -10,6 +10,7 @@ import {
 import { uploadDocument } from "../../lib/data/documents";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney, labelFor } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 const REVIEW_LABEL: Record<BulkBooking["review_status"], { label: string; tone: string }> = {
   pending_review: { label: "awaiting review", tone: "pending" },
@@ -351,7 +352,7 @@ function BulkEditor({ booking, members, onClose, onSaved }: {
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bulk-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bulk-title">
       <form className="confirm-dialog w-full text-left max-h-[90vh] overflow-y-auto" style={{ maxWidth: "min(960px, 100%)" }} onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">BULK BOOKING</span>
@@ -430,6 +431,6 @@ function BulkEditor({ booking, members, onClose, onSaved }: {
           <button type="submit" className="button button-primary" disabled={saving || rows.length === 0}>{saving ? "Saving…" : booking ? "Save changes" : "Create bulk booking"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

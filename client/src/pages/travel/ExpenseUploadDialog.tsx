@@ -7,6 +7,7 @@ import { EXPENSE_FIELD_LABELS, EXPENSE_TEMPLATE_HEADERS, EXPENSE_TEMPLATE_ROWS, 
 import { uploadSpreadsheetDocument } from "../../lib/data/documents";
 import { exportToCsv } from "../../utils/exportCsv";
 import { formatDate, formatMoney } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 async function readSheets(file: File, kind: "csv" | "xlsx"): Promise<Array<{ name: string; rows: CellValue[][] }>> {
   if (kind === "csv") {
@@ -89,7 +90,7 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="upload-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="upload-title">
       <div className="confirm-dialog max-w-4xl w-full text-left max-h-[90vh] overflow-y-auto">
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">UPLOAD EXPENSES</span>
@@ -151,6 +152,6 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }

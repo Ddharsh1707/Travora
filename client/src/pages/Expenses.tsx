@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import type { Expense, Journey } from "../types";
 import { exportToCsv } from "../utils/exportCsv";
 import { expenseApi, type BackendExpense, type AuthUser } from "../lib/api";
+import ModalPortal from "../components/ModalPortal";
 
 const CATEGORY_ICONS: Record<string, any> = {
   Flight: Plane,
@@ -562,7 +563,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
 
       {/* Log Expense Modal Dialog */}
       {isCreateOpen && (
-        <div
+        <ModalPortal><div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"
           onClick={() => setIsCreateOpen(false)}
         >
@@ -697,7 +698,7 @@ export function Expenses({ journeys = [], user }: { journeys?: Journey[]; user?:
               </div>
             </form>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

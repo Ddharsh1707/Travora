@@ -12,6 +12,7 @@ import { exportToCsv } from "../../utils/exportCsv";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, formatDate, formatMoney } from "./common";
 import { ExpenseStatusPill } from "./ExpenseStatusPill";
 import ExpenseUploadDialog from "./ExpenseUploadDialog";
+import ModalPortal from "../../components/ModalPortal";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const BLANK = { expense_date: "", category: "meals", description: "", amount: "", payment_method: "personal", project_id: "", origin: "", destination: "" };
@@ -192,7 +193,7 @@ function ExpenseDialog({ profileId, expense, projects, onClose, onSaved }: { pro
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="expense-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="expense-title">
       <form className="confirm-dialog max-w-xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">EXPENSE CLAIM</span>
@@ -232,6 +233,6 @@ function ExpenseDialog({ profileId, expense, projects, onClose, onSaved }: { pro
           <button type="submit" className="button button-primary" disabled={saving}>{saving ? "Saving…" : expense ? "Save changes" : "Submit expense"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }
