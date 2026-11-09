@@ -30,7 +30,8 @@ export async function downloadExcel(doc: ReportDoc) {
     ["Generated", generatedText(doc.generatedAt)],
     ["Covers", doc.scope],
     ...doc.filters.map(([k, v]) => [k, v]),
-    [], ["Headline numbers"], ...doc.highlights.map((h) => [h.label, h.value]),
+    ...(doc.summary?.length ? [[], ["Answer"], ...doc.summary.map((l) => [l])] : []),
+    ...(doc.highlights.length ? [[], ["Headline numbers"], ...doc.highlights.map((h) => [h.label, h.value])] : []),
     [], ["How this was calculated"], ...doc.methodology.map((m) => [m]),
     [], ["Data completeness"], ...doc.completeness.map((m) => [m]),
     [], ["Sheets in this file"], ...doc.sections.map((s) => [s.title, s.note ?? ""]),
@@ -92,7 +93,20 @@ export async function downloadPdf(doc: ReportDoc) {
     pdf.setFont("helvetica", "bold").setFontSize(11).setTextColor(...INK).text(pdf.splitTextToSize(t(h.value), boxW - 16)[0], x + 8, y + 32);
     pdf.setFont("helvetica", "normal");
   });
-  y += 62;
+  y += doc.highlights.length ? 62 : 0;
+
+  if (doc.summary?.length) {
+    pdf.setFont("helvetica", "bold").setFontSize(12).setTextColor(...INK).text("Answer", M, y);
+    y += 14;
+    pdf.setFont("helvetica", "normal").setFontSize(9).setTextColor(...INK);
+    for (const l of doc.summary) {
+      const wrapped = pdf.splitTextToSize(t(l), W - 2 * M);
+      y = ensure(y, 12 * wrapped.length);
+      pdf.text(wrapped, M, y);
+      y += 12 * wrapped.length + 2;
+    }
+    y += 14;
+  }
 
   for (const s of doc.sections) {
     y = ensure(y, 70);

@@ -21,7 +21,12 @@ export type ToolName =
   | "get_person_profile"
   | "find_spend"
   | "spend_summary"
-  | "list_uploads";
+  | "list_uploads"
+  | "company_overview"
+  | "list_employees"
+  | "list_travel_requests"
+  | "list_tickets"
+  | "list_projects";
 
 type Schema = { type: "object"; properties: Record<string, unknown>; required: string[]; additionalProperties: false };
 
@@ -97,6 +102,9 @@ const nullableText = (description: string) => ({ anyOf: [{ type: "string" }, { t
 export const GROUPS = ["employee", "project", "department", "category", "month", "week", "source", "status", "none"] as const;
 export const SOURCES = ["claim", "trip"] as const;
 export const STATUSES = ["submitted", "approved", "reimbursed", "rejected", "withdrawn", "confirmed", "completed", "cancelled"] as const;
+export const REQUEST_STATUSES = ["pending", "approved", "rejected", "cancelled", "booked", "completed"] as const;
+export const EMPLOYEE_STATUSES = ["current", "past", "all"] as const;
+export const ROLES = ["employee", "approver", "travel_desk", "company_admin", "admin"] as const;
 export const CATEGORIES = ["airfare", "train", "bus", "cab", "hotel", "meals", "local_transport", "visa", "communication", "multi_modal", "other"] as const;
 
 /**
@@ -155,6 +163,57 @@ export const MANAGER_TOOLS: Array<{ name: ToolName; description: string; input_s
     description: "Travel Excel sheets uploaded by the travel desk: file name, who uploaded it, when, rows, trips and spend added, and whether the original file is stored.",
     input_schema: { type: "object", properties: { from: nullableDate, to: nullableDate }, required: ["from", "to"], additionalProperties: false },
   },
+  {
+    name: "company_overview",
+    description: "One snapshot of the whole company: employees (current, past, with a login), travel requests by status, tickets attached, projects, uploads, and spend this month and this financial year. Use for general 'how are we doing' or 'how many' questions.",
+    input_schema: { type: "object", properties: {}, required: [], additionalProperties: false },
+  },
+  {
+    name: "list_employees",
+    description: "Lists employees with ID, department, designation, role, manager, whether they have a login and whether they are current or past. Filter by status, department, role or a name/ID search.",
+    input_schema: {
+      type: "object",
+      properties: {
+        employee_status: { type: "string", enum: [...EMPLOYEE_STATUSES], description: "current = still working here, past = left, all = both" },
+        department: nullableText("Department name, or null for every department"),
+        role: { anyOf: [{ type: "string", enum: [...ROLES] }, { type: "null" }], description: "admin = Director, company_admin = Travel Desk, travel_desk = booking assistant; null for any role" },
+        search: nullableText("Part of a name or employee ID, or null"),
+      },
+      required: ["employee_status", "department", "role", "search"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "list_travel_requests",
+    description: "Travel requests employees sent: who, route, dates, mode, project, estimated cost, status, who decided and when, and whether a ticket is attached. Filter by status, person, project and departure dates.",
+    input_schema: {
+      type: "object",
+      properties: {
+        request_status: { anyOf: [{ type: "string", enum: [...REQUEST_STATUSES] }, { type: "null" }], description: "Request status, or null for any" },
+        employee: nullableText("Employee name or ID, or null for everyone"),
+        project: nullableText("Project name, or null"),
+        from: nullableDate,
+        to: nullableDate,
+      },
+      required: ["request_status", "employee", "project", "from", "to"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "list_tickets",
+    description: "Tickets the travel desk attached to approved travel requests: employee, file name, ticket type, the request's route and date, and when it was attached. Filter by person and attach dates.",
+    input_schema: {
+      type: "object",
+      properties: { employee: nullableText("Employee name or ID, or null for everyone"), from: nullableDate, to: nullableDate },
+      required: ["employee", "from", "to"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "list_projects",
+    description: "Projects and cost centres: name, code, client, site, status and dates. For spend per project use spend_summary with group_by project.",
+    input_schema: { type: "object", properties: { search: nullableText("Part of a project name or code, or null for all") }, required: ["search"], additionalProperties: false },
+  },
 ];
 
 export const MANAGER_TOOL_NAMES = new Set<string>(MANAGER_TOOLS.map((t) => t.name));
@@ -181,6 +240,11 @@ export type ValidArgs = {
   source?: string | null;
   status?: string | null;
   group_by?: string;
+  request_status?: string | null;
+  employee_status?: string;
+  department?: string | null;
+  role?: string | null;
+  search?: string | null;
 };
 
 export function isIsoDate(v: unknown): v is string {
@@ -245,6 +309,24 @@ export function validateToolInput(name: string, input: unknown): { ok: true; arg
     const err = pick(key, allowed);
     if (err) return { ok: false, error: err };
   }
+  for (const [key, allowed] of [["request_status", REQUEST_STATUSES], ["role", ROLES]] as const) {
+    if (!(key in raw)) continue;
+    const v = raw[key];
+    if (v === null) args[key] = null;
+    else if (typeof v === "string" && (allowed as readonly string[]).includes(v)) args[key] = v;
+    else return { ok: false, error: `Unknown ${key}` };
+  }
+  if ("employee_status" in raw) {
+    if (typeof raw.employee_status !== "string" || !(EMPLOYEE_STATUSES as readonly string[]).includes(raw.employee_status)) return { ok: false, error: "Unknown employee_status" };
+    args.employee_status = raw.employee_status;
+  }
+  for (const key of ["department", "search"] as const) {
+    if (!(key in raw)) continue;
+    if (raw[key] === null) { args[key] = null; continue; }
+    const v = cleanTerm(raw[key], 100);
+    if (!v) return { ok: false, error: `${key} must be at least 2 letters or digits` };
+    args[key] = v;
+  }
   if ("group_by" in raw) {
     if (typeof raw.group_by !== "string" || !(GROUPS as readonly string[]).includes(raw.group_by)) return { ok: false, error: "Unknown grouping" };
     args.group_by = raw.group_by;
@@ -308,6 +390,8 @@ export function systemPrompt(opts: { name: string; role: string; today: string }
       "Every number you give must come from a tool result in this conversation. Use the totals the tools return; do not add up rows yourself when a total is available, and say how many records a figure is based on.",
       "counted is the amount that goes into totals: rejected or withdrawn claims and cancelled trips count as 0. Mention them separately if they matter.",
       "If a name matches several people, list them and ask which one is meant.",
+      "Other tools: company_overview for a whole-company snapshot, list_employees for people (current or past, logins, departments, roles), list_travel_requests for requests and decisions, list_tickets for tickets attached to requests, list_projects for projects.",
+      "Under your answer the person gets buttons to download the full records behind it as Excel, CSV or PDF. For a long list, give the key figures and the first few rows, and say the full list is in the download. Never refuse a list because it is long.",
     ] : []),
     "Answer questions about trips, travel spend, requests and approvals using only the tools. Do not answer from memory or make up trips, amounts or people.",
     "The tools only return what this person is allowed to see. If a tool returns nothing, say you found no records they can see; do not speculate about whether other records exist, and do not suggest ways around access rules.",
@@ -316,4 +400,62 @@ export function systemPrompt(opts: { name: string; role: string; today: string }
     "Answer in plain sentences or short lists. Format money in the record's currency (INR as ₹ with Indian digit grouping). Keep answers short.",
     "You cannot book, approve, change or delete anything. If asked to, say where in the app the person can do it.",
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Free AI providers (Groq, Google Gemini) speak the OpenAI "chat completions"
+// format. Their tool schemas support fewer JSON Schema features, so nullable
+// fields are sent as plain optional fields and filled back in with null
+// before the strict check above runs.
+// ---------------------------------------------------------------------------
+
+type JsonSchema = Record<string, unknown>;
+
+function isNullable(prop: unknown): prop is { anyOf: JsonSchema[]; description?: string } {
+  return !!prop && typeof prop === "object" && Array.isArray((prop as { anyOf?: unknown }).anyOf)
+    && ((prop as { anyOf: JsonSchema[] }).anyOf).some((o) => o.type === "null");
+}
+
+/** One tool in the OpenAI format, with nullable fields turned into optional ones. */
+export function toOpenAITool(t: { name: string; description: string; input_schema: Schema }) {
+  const properties: Record<string, unknown> = {};
+  const required: string[] = [];
+  for (const [key, prop] of Object.entries(t.input_schema.properties)) {
+    if (isNullable(prop)) {
+      const real = prop.anyOf.find((o) => o.type !== "null") ?? { type: "string" };
+      const desc = [real.description, prop.description].filter(Boolean).join(". ");
+      properties[key] = { ...real, description: `${desc} (optional: leave out for no filter)` };
+    } else {
+      properties[key] = prop;
+      if (t.input_schema.required.includes(key)) required.push(key);
+    }
+  }
+  return { type: "function" as const, function: { name: t.name, description: t.description, parameters: { type: "object", properties, required } } };
+}
+
+/** Puts back null for optional fields the model left out, and drops empty strings, so validateToolInput sees the full shape. */
+export function fillOptional(name: string, input: unknown): unknown {
+  const tool = [...TOOLS, ...MANAGER_TOOLS].find((t) => t.name === name);
+  if (!tool || !input || typeof input !== "object" || Array.isArray(input)) return input;
+  const out: Record<string, unknown> = { ...(input as Record<string, unknown>) };
+  for (const [key, prop] of Object.entries(tool.input_schema.properties)) {
+    if (!isNullable(prop)) continue;
+    if (!(key in out) || out[key] === "" || out[key] === undefined) out[key] = null;
+  }
+  return out;
+}
+
+/**
+ * What the model sees of a tool result: every list cut to `rows` items, with a
+ * note on how many there are. The full lists still go to the download buttons.
+ */
+export function forModel(out: Record<string, unknown>, rows: number): Record<string, unknown> {
+  const res: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(out)) {
+    if (Array.isArray(v) && v.length > rows) {
+      res[k] = v.slice(0, rows);
+      res[`${k}_note`] = `Showing the first ${rows} of ${v.length}. The person can download all ${v.length} with the buttons under your answer.`;
+    } else res[k] = v;
+  }
+  return res;
 }

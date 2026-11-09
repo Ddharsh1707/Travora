@@ -9,7 +9,7 @@ and what to set up before going live.
 | --- | --- | --- |
 | Browser (React on Vercel) | The user's own session token and the public anon key | Roles, other people's data, any secret key |
 | Postgres (Row Level Security) | Every permission decision | Values sent by the browser without checks |
-| Edge Functions (Deno) | `ANTHROPIC_API_KEY`, the service-role key (one call only) | Anything the model returns, until checked in code |
+| Edge Functions (Deno) | AI keys (`GROQ_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`), the service-role key (one call only) | Anything the model returns, until checked in code |
 | Claude (scanner, assistant) | Reading a document or a question | SQL, keys, direct database access, final decisions |
 
 The rule throughout: **the database decides**. Screens hide what a role cannot
@@ -79,7 +79,7 @@ release as well; it rolls back everything it creates.
 
 1. `supabase db push`, then deploy `admin-users`, `document-extract` and
    `ai-assistant`.
-2. Secrets: `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS` (the exact site origins,
+2. Secrets: an AI key (`GROQ_API_KEY` free, `GEMINI_API_KEY` free, or `ANTHROPIC_API_KEY`), `ALLOWED_ORIGINS` (the exact site origins,
    comma separated) and `INVITE_REDIRECT_URL` with `supabase secrets set`. Never prefix a secret with
    `VITE_`; anything `VITE_` is shipped to every browser.
 3. Vercel environment: `VITE_AUTH_PROVIDER=supabase`, `VITE_SUPABASE_URL`,

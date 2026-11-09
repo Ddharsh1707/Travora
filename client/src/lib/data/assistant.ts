@@ -10,12 +10,16 @@ import { friendlyError } from "./travel";
 export type Conversation = { id: string; title: string | null; created_at: string };
 export type RecordSet = { tool: string; rows: Array<Record<string, unknown>> };
 export type ChatMessage = { id: string; role: "user" | "assistant"; content: string; created_at: string; tools_used?: string[]; records?: RecordSet[] };
-export type AskResult = { conversationId: string; answer: string; tools: string[]; records?: RecordSet[]; saved: boolean };
+export type AskResult = { conversationId: string; answer: string; tools: string[]; records?: RecordSet[]; provider?: string; saved: boolean };
 
 export const MAX_QUESTION = 2000;
 
 export const EXAMPLE_QUESTIONS: Record<"self" | "team" | "manager", string[]> = {
   manager: [
+    "Give me a company overview for this month",
+    "List all pending travel requests",
+    "Which employees have no login yet?",
+    "Which approved requests still have no ticket?",
     "How much did Ravi spend in September?",
     "Show all trips for project HRRL",
     "Who spent the most this month, claims and trips together?",
@@ -51,6 +55,11 @@ export const TOOL_LABELS: Record<string, string> = {
   find_spend: "claims and trips",
   spend_summary: "spend totals",
   list_uploads: "uploaded Excel sheets",
+  company_overview: "company overview",
+  list_employees: "employees",
+  list_travel_requests: "travel requests",
+  list_tickets: "tickets",
+  list_projects: "projects",
 };
 
 /** Column headings for the records panel; unknown keys are shown as they are. */
@@ -60,6 +69,11 @@ export const RECORD_COLUMN_LABELS: Record<string, string> = {
   booking_reference: "PNR", booking_type: "Mode", airline_or_provider: "Provider", amount: "Amount", currency: "Cur.", counted: "Counted",
   status: "Status", group: "Group", records: "Records", counted_amount: "Total", claims: "Claims", trips: "Trips", people: "People",
   file: "File", uploaded_by: "Uploaded by", uploaded_on: "Uploaded", spend: "Spend", rows: "Rows",
+  designation: "Designation", role: "Role", employment: "Current / past", has_login: "Has login", manager: "Manager", added_on: "Added",
+  return_date: "Return", mode: "Mode", estimated_cost: "Est. cost", hotel: "Hotel", purpose: "Purpose", submitted: "Submitted",
+  decided_by: "Decided by", decided_on: "Decided", decision_comment: "Comment", ticket_attached: "Ticket", ticket_type: "Ticket type",
+  request_status: "Request status", attached_on: "Attached", code: "Code", kind: "Kind", client: "Client", site: "Site",
+  start_date: "Start", end_date: "End", imported_rows: "Imported", error_rows: "Errors",
 };
 
 /** The columns to show for a set of records: the keys that have a value in any row, in first-seen order. */

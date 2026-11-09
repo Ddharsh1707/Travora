@@ -21,6 +21,8 @@ export type ReportDoc = {
   scope: string;
   filters: [string, string][];
   highlights: { label: string; value: string }[];
+  /** Optional text shown before the tables (used for AI answers). */
+  summary?: string[];
   sections: ReportSection[];
   methodology: string[];
   completeness: string[];
@@ -246,6 +248,7 @@ export function reportToCsv(doc: ReportDoc): string {
     line(["Generated", generatedText(doc.generatedAt)]), line(["Covers", doc.scope]),
     ...doc.filters.map(([k, v]) => line([k, v])),
     "",
+    ...(doc.summary?.length ? [line(["Answer"]), ...doc.summary.map((l) => line([l])), ""] : []),
   ];
   for (const s of doc.sections) {
     out.push(line([s.title]));

@@ -6,6 +6,7 @@ import {
   type ChatMessage, type Conversation, type RecordSet,
 } from "../../lib/data/assistant";
 import { exportToCsv } from "../../utils/exportCsv";
+import { AnswerDownloads } from "../../components/AnswerDownloads";
 import { ErrorNotice, Loading, PageHeader, formatDate } from "./common";
 
 /**
@@ -128,7 +129,7 @@ export default function Assistant({ canSeeOthers, isManager = false }: { canSeeO
                   ))}
                 </div>
               </div>
-            ) : messages.map((m) => (
+            ) : messages.map((m, idx) => (
               <div key={m.id} className={`flex gap-2 min-w-0 ${m.role === "user" ? "justify-end" : ""}`}>
                 {m.role === "assistant" && <Bot size={18} className="mt-1 shrink-0 text-teal-600" aria-hidden />}
                 <div className={`rounded-lg px-3 py-2 text-sm max-w-[85%] min-w-0 ${m.role === "user" ? "bg-teal-700 text-white" : "bg-black/5"}`}>
@@ -138,6 +139,10 @@ export default function Assistant({ canSeeOthers, isManager = false }: { canSeeO
                     <div className="text-xs opacity-60 mt-1">{toolSummary(m.tools_used)}</div>
                   )}
                   {m.role === "assistant" && m.records?.map((r, i) => <RecordsUsed key={i} set={r} />)}
+                  {m.role === "assistant" && (
+                    <AnswerDownloads className="mt-2 text-xs" answer={m.content} records={m.records}
+                      question={[...messages.slice(0, idx)].reverse().find((x) => x.role === "user")?.content ?? "Question"} />
+                  )}
                 </div>
                 {m.role === "user" && <User size={18} className="mt-1 shrink-0 opacity-60" aria-hidden />}
               </div>
