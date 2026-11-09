@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import type { Journey } from "../types";
+import ModalPortal from "./ModalPortal";
 
 interface TravelCalendarProps {
   journeys: Journey[];
@@ -221,7 +222,7 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
 
       {/* Selected Day Journeys Modal */}
       {selectedDayJourneys && (
-        <div
+        <ModalPortal><div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in"
           onClick={() => setSelectedDayJourneys(null)}
         >
@@ -286,7 +287,7 @@ export function TravelCalendar({ journeys, onSelectJourney }: TravelCalendarProp
               Close
             </button>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

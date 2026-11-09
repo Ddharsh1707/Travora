@@ -34,6 +34,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import ModalPortal from "../components/ModalPortal";
 import {
   spendReportsApi,
   type AuthUser,
@@ -1674,7 +1675,7 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
 
       {/* DETAILED EMPLOYEE TRAVEL HISTORY MODAL */}
       {selectedEmployeeId && (
-        <div
+        <ModalPortal><div
           className="fixed inset-0 flex items-center justify-center p-3 sm:p-6"
           style={{
             zIndex: 99999,
@@ -1902,7 +1903,7 @@ export function TravelSpendReports({ user }: TravelSpendReportsProps) {
               </div>
             )}
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

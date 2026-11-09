@@ -26,6 +26,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import ModalPortal from "../components/ModalPortal";
 import {
   usersApi,
   type AuthUser,
@@ -569,7 +570,7 @@ export function UserManagement({ user }: UserManagementProps) {
       {/* 4. CREATE USER MODAL */}
       {/* ==================================================================== */}
       {createModalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-lg w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -758,14 +759,14 @@ export function UserManagement({ user }: UserManagementProps) {
               </div>
             </form>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* ==================================================================== */}
       {/* 5. ACTIVATION LINK SUCCESS MODAL */}
       {/* ==================================================================== */}
       {activationResult && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in-95">
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30 mb-3 mx-auto">
               <CheckCircle2 size={26} />
@@ -813,14 +814,14 @@ export function UserManagement({ user }: UserManagementProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* ==================================================================== */}
       {/* 6. EDIT USER MODAL */}
       {/* ==================================================================== */}
       {editUser && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -913,14 +914,14 @@ export function UserManagement({ user }: UserManagementProps) {
               </div>
             </form>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* ==================================================================== */}
       {/* 7. VIEW DETAILS MODAL */}
       {/* ==================================================================== */}
       {viewUser && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2">
@@ -987,14 +988,14 @@ export function UserManagement({ user }: UserManagementProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* ==================================================================== */}
       {/* 8. CONFIRM DEACTIVATE / REACTIVATE DIALOG */}
       {/* ==================================================================== */}
       {confirmStatusUser && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-sm w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-2xl text-center">
             <div
               className={`w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 border ${
@@ -1050,7 +1051,7 @@ export function UserManagement({ user }: UserManagementProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

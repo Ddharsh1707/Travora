@@ -28,6 +28,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
+import ModalPortal from "../components/ModalPortal";
 import {
   importsApi,
   employeesApi,
@@ -1249,7 +1250,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
 
       {/* MODAL 1: Column Mapping Modal */}
       {mappingModalOpen && currentBatch && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-2xl w-full">
             <button
               type="button"
@@ -1317,12 +1318,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* MODAL 2: Import Confirmation Modal */}
       {confirmModalOpen && currentBatch && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-md w-full">
             <button
               type="button"
@@ -1377,12 +1378,12 @@ export function ExcelImport({ user }: ExcelImportProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
 
       {/* MODAL 3: Row Inspector Modal */}
       {selectedRecord && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="confirm-dialog max-w-lg w-full">
             <button
               type="button"
@@ -1506,7 +1507,7 @@ export function ExcelImport({ user }: ExcelImportProps) {
               </button>
             </div>
           </div>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );

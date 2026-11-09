@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { createTravelRecord, listEmployees, updateTravelRecord, type EmployeeSummary, type TravelRecord, type TravelRecordInput, type TravelRequest } from "../../lib/data/travel";
+import ModalPortal from "../../components/ModalPortal";
 
 /** Add or edit a trip. Only Travel Desk / Admin can save (enforced by RLS). */
 export function TravelRecordDialog({ record, presetEmployee, fromRequest, onClose, onSaved }: {
@@ -62,7 +63,7 @@ export function TravelRecordDialog({ record, presetEmployee, fromRequest, onClos
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="trip-dialog-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="trip-dialog-title">
       <form className="confirm-dialog max-w-2xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">TRAVEL RECORD</span>
@@ -127,6 +128,6 @@ export function TravelRecordDialog({ record, presetEmployee, fromRequest, onClos
           <button type="submit" className="button button-primary" disabled={saving || !form.employee_id}>{saving ? "Saving…" : "Save trip"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

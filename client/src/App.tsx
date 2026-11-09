@@ -93,6 +93,7 @@ import { AnimatedCounter } from "./components/AnimatedCounter";
 import { RouteVisualizer } from "./components/RouteVisualizer";
 import { WorkflowTimeline } from "./components/WorkflowTimeline";
 import { SkeletonMetrics, SkeletonTable, SkeletonCard } from "./components/SkeletonLoader";
+import ModalPortal from "./components/ModalPortal";
 
 type Journey = {
   id: string;
@@ -1458,7 +1459,7 @@ function DeleteConfirmDialog({
 }) {
   const [loading, setLoading] = useState(false);
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="confirm-dialog">
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
           <X size={18} />
@@ -1493,7 +1494,7 @@ function DeleteConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -1764,7 +1765,7 @@ function JourneyDrawer({ journey, onClose, onDeleted }: { journey: Journey; onCl
   const cancelled = Boolean(booking?.cancelled);
 
   return (
-    <>
+    <ModalPortal>
       <div className="drawer-overlay" onClick={onClose} />
       <aside className="journey-drawer">
         <div className="drawer-header">
@@ -1929,7 +1930,7 @@ function JourneyDrawer({ journey, onClose, onDeleted }: { journey: Journey; onCl
           onClose={() => setConfirmDelete(false)}
         />
       )}
-    </>
+    </ModalPortal>
   );
 }
 function Detail({ label, value, icon }: { label: string; value: string; icon: ReactNode }) { return <div className="detail-row"><span className="detail-icon">{icon}</span><span><small>{label}</small><strong>{value}</strong></span></div>; }
@@ -1974,7 +1975,7 @@ function ApproverRequestDetailsModal({
   const isPending = journey.status === "Pending approval";
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="approver-modal-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="approver-modal-title">
       <div className="request-details-modal">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close details">
           <X size={18} />
@@ -2214,7 +2215,7 @@ function ApproverRequestDetailsModal({
           onClose={() => setConfirmDelete(false)}
         />
       )}
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -2234,7 +2235,7 @@ function ApproverBookingDetailModal({
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="request-details-modal">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close booking details">
           <X size={18} />
@@ -2369,7 +2370,7 @@ function ApproverBookingDetailModal({
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -2747,7 +2748,7 @@ function GroupManifestModal({
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="request-details-modal" style={{ maxWidth: 860, maxHeight: "90vh", overflowY: "auto" }}>
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close group voucher">
           <X size={18} />
@@ -3026,7 +3027,7 @@ function GroupManifestModal({
           />
         )}
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -3467,7 +3468,7 @@ function BulkBookingDialog({
   };
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="booking-dialog" style={{ maxWidth: 740, maxHeight: "90vh", overflowY: "auto" }}>
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close dialog">
           <X size={18} />
@@ -3802,7 +3803,7 @@ function BulkBookingDialog({
           </div>
         </form>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -4048,7 +4049,7 @@ function Approvals({ history = false }: { history?: boolean }) {
 function ConfirmDialog({ action, onClose, onConfirm }: { action: "approve" | "reject"; onClose: () => void; onConfirm: () => void }) {
   const Icon = action === "approve" ? Check : XCircle;
   return (
-    <div className="modal-overlay">
+    <ModalPortal><div className="modal-overlay">
       <div className="confirm-dialog">
         <button className="icon-button dialog-close" onClick={onClose}><X size={18} /></button>
         <div className={`confirm-icon ${action}`}><Icon size={22} /></div>
@@ -4062,7 +4063,7 @@ function ConfirmDialog({ action, onClose, onConfirm }: { action: "approve" | "re
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -4095,7 +4096,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
   const isHotel = (booking?.bookingType || "").toUpperCase() === "HOTEL";
 
   return (
-    <div className="voucher-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="voucher-title">
+    <ModalPortal><div className="voucher-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="voucher-title">
       <div className="voucher-card">
         <div className="voucher-header-bar">
           <div className="voucher-brand">
@@ -4266,7 +4267,7 @@ function VoucherModal({ journey, booking, onClose }: { journey: Journey; booking
           </div>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -5582,7 +5583,7 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
   const chips = CARRIER_QUICK_CHIPS[bookingType] || [];
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="booking-dialog-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="booking-dialog-title">
       <div className="booking-dialog">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close booking form"><X size={18} /></button>
         <div className="booking-dialog-header">
@@ -5823,7 +5824,7 @@ function BookingDialog({ journey, onClose, onSubmit }: { journey: Journey; onClo
           </div>
         </form>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -5970,7 +5971,7 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
   const chips = CARRIER_QUICK_CHIPS[bookingType] || [];
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="booking-dialog">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close edit booking"><X size={18} /></button>
         <div className="booking-dialog-header">
@@ -6088,7 +6089,7 @@ function BookingEditDialog({ booking, onClose, onSubmit }: { booking: any; onClo
           </div>
         </form>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -6115,7 +6116,7 @@ function CancellationDialog({ booking, onClose, onSubmit }: { booking: any; onCl
     }
   }
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="confirm-dialog cancellation-dialog">
         <button className="icon-button dialog-close" onClick={onClose} aria-label="Close cancellation dialog"><X size={18} /></button>
         <div className="confirm-icon reject"><XCircle size={22} /></div>
@@ -6138,7 +6139,7 @@ function CancellationDialog({ booking, onClose, onSubmit }: { booking: any; onCl
           </div>
         </form>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 
@@ -6382,7 +6383,7 @@ function adminRequestSubmitted(request: Record<string, any>) { return request.cr
 function AdminRequestDetails({ request, onClose }: { request: Record<string, any>; onClose: () => void }) {
   const employee = request.employee || {};
   const fields = [["Employee", employee.name || employee.username || "—"], ["Employee ID", employee.employeeId || "—"], ["Trip type", request.tripType || "—"], ["From location", request.fromLocation || "—"], ["To location", request.toLocation || "—"], ["Travel date", adminRequestDate(request.travelDate)], ["Return date", adminRequestDate(request.returnDate)], ["Project", request.projectName || "—"], ["Submitted", adminRequestDate(adminRequestSubmitted(request))], ["Approver", request.approverName || "—"], ["Approval date", adminRequestDate(request.approvalDate)]];
-  return <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-request-details-title"><div className="confirm-dialog admin-request-dialog"><button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close request details"><X size={18} /></button><div className="confirm-icon approve"><FileText size={22} /></div><span className="card-kicker">REQUEST DETAILS</span><h2 id="admin-request-details-title">Travel request #{request.id ?? "—"}</h2><p>Complete request information returned by the authenticated backend.</p><div className="admin-request-detail-grid">{fields.map(([label, value]) => <div className="admin-request-detail" key={label}><small>{label}</small><strong>{String(value)}</strong></div>)}<div className="admin-request-detail"><small>Status</small><StatusBadge status={adminRequestStatus(request.status) as any} /></div><div className="admin-request-detail admin-request-detail-wide"><small>Reason</small><strong>{request.reason || "No reason provided"}</strong></div>{request.approvalComment && <div className="admin-request-detail admin-request-detail-wide"><small>Approval comment</small><strong>{request.approvalComment}</strong></div>}</div><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close details</button></div></div></div>;
+  return <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-request-details-title"><div className="confirm-dialog admin-request-dialog"><button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close request details"><X size={18} /></button><div className="confirm-icon approve"><FileText size={22} /></div><span className="card-kicker">REQUEST DETAILS</span><h2 id="admin-request-details-title">Travel request #{request.id ?? "—"}</h2><p>Complete request information returned by the authenticated backend.</p><div className="admin-request-detail-grid">{fields.map(([label, value]) => <div className="admin-request-detail" key={label}><small>{label}</small><strong>{String(value)}</strong></div>)}<div className="admin-request-detail"><small>Status</small><StatusBadge status={adminRequestStatus(request.status) as any} /></div><div className="admin-request-detail admin-request-detail-wide"><small>Reason</small><strong>{request.reason || "No reason provided"}</strong></div>{request.approvalComment && <div className="admin-request-detail admin-request-detail-wide"><small>Approval comment</small><strong>{request.approvalComment}</strong></div>}</div><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close details</button></div></div></div></ModalPortal>;
 }
 function AdminRequests() {
   const [requests, setRequests] = useState<Array<Record<string, any>>>([]);
@@ -6582,7 +6583,7 @@ function adminBookingDetails(booking: Record<string, any>) {
   const request = booking.travelRequest || {}; const employee = request.employee || {};
   return [["Booking ID", booking.id], ["Travel request ID", request.id], ["Employee", employee.name], ["Employee ID", employee.employeeId], ["Trip type", request.tripType], ["From", request.fromLocation], ["To", request.toLocation], ["Travel date", adminRequestDate(request.travelDate)], ["Return date", adminRequestDate(request.returnDate)], ["Project", request.projectName], ["Booking type", booking.bookingType], ["Provider", booking.provider], ["Reference / ticket", booking.bookingReference], ["Cost", booking.cost], ["Savings", booking.savings], ["Booked at", adminRequestDate(booking.bookedAt)], ["Cancellation reason", booking.cancellationReason], ["Cancellation charge", booking.cancellationCharge]].filter(([, value]) => value !== undefined && value !== null && value !== "");
 }
-function AdminBookingDetails({ booking, onClose }: { booking: Record<string, any>; onClose: () => void }) { return <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-booking-details-title"><div className="confirm-dialog admin-request-dialog"><button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close booking details"><X size={18} /></button><div className="confirm-icon approve"><TicketCheck size={22} /></div><span className="card-kicker">BOOKING DETAILS</span><h2 id="admin-booking-details-title">Booking #{booking.id ?? "—"}</h2><p>Complete booking and linked travel-request information returned by the authenticated backend.</p><div className="admin-request-detail-grid">{adminBookingDetails(booking).map(([label, value]) => <div className="admin-request-detail" key={String(label)}><small>{String(label)}</small><strong>{String(value)}</strong></div>)}<div className="admin-request-detail"><small>Status</small><StatusBadge status={adminBookingStatus(booking) as any} /></div>{booking.notes && <div className="admin-request-detail admin-request-detail-wide"><small>Notes</small><strong>{booking.notes}</strong></div>}</div><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close details</button></div></div></div>; }
+function AdminBookingDetails({ booking, onClose }: { booking: Record<string, any>; onClose: () => void }) { return <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-booking-details-title"><div className="confirm-dialog admin-request-dialog"><button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close booking details"><X size={18} /></button><div className="confirm-icon approve"><TicketCheck size={22} /></div><span className="card-kicker">BOOKING DETAILS</span><h2 id="admin-booking-details-title">Booking #{booking.id ?? "—"}</h2><p>Complete booking and linked travel-request information returned by the authenticated backend.</p><div className="admin-request-detail-grid">{adminBookingDetails(booking).map(([label, value]) => <div className="admin-request-detail" key={String(label)}><small>{String(label)}</small><strong>{String(value)}</strong></div>)}<div className="admin-request-detail"><small>Status</small><StatusBadge status={adminBookingStatus(booking) as any} /></div>{booking.notes && <div className="admin-request-detail admin-request-detail-wide"><small>Notes</small><strong>{booking.notes}</strong></div>}</div><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close details</button></div></div></div></ModalPortal>; }
 function AdminBookings() {
   const [bookings, setBookings] = useState<Array<Record<string, any>>>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [query, setQuery] = useState(""); const [statusFilter, setStatusFilter] = useState("ALL"); const [selected, setSelected] = useState<Record<string, any> | null>(null);
   useEffect(() => { let active = true; setLoading(true); setError(""); bookingsApi.list().then((data) => { if (active) setBookings(Array.isArray(data) ? data as Array<Record<string, any>> : []); }).catch((requestError) => { if (active) setError(requestError instanceof Error ? requestError.message : "Bookings are unavailable."); }).finally(() => { if (active) setLoading(false); }); return () => { active = false; }; }, []);
@@ -6894,7 +6895,7 @@ function EmployeeDetailModal({ employee, onClose }: { employee: EmployeeRecord; 
     ["Updated", employee.updatedAt ? new Date(employee.updatedAt).toLocaleDateString() : "—"],
   ];
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
       <div className="confirm-dialog admin-request-dialog">
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close employee details">
           <X size={18} />
@@ -6919,7 +6920,7 @@ function EmployeeDetailModal({ employee, onClose }: { employee: EmployeeRecord; 
           </button>
         </div>
       </div>
-    </div>
+    </div></ModalPortal>
   );
 }
 

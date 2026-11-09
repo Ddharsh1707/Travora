@@ -14,6 +14,7 @@ import BiFilterBar from "./BiFilterBar";
 import { BI_PALETTE, CostCell, DataQuality, Kpi, Panel, ShareBar, compact, count, dateRange, plural } from "./BiParts";
 import { ProjectStatusPill } from "./BiProjects";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, routeLabel } from "./common";
+import ModalPortal from "../../components/ModalPortal";
 
 /**
  * One project (or the bookings linked to no project): who travelled, where,
@@ -246,7 +247,7 @@ function EditProjectDialog({ project, onClose, onSaved }: { project: Project; on
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="project-dialog-title">
+    <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="project-dialog-title">
       <form className="confirm-dialog max-w-2xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
         <button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         <span className="card-kicker">PROJECT DETAILS</span>
@@ -274,6 +275,6 @@ function EditProjectDialog({ project, onClose, onSaved }: { project: Project; on
           <button type="submit" className="button button-primary" disabled={saving}>{saving ? "Saving…" : "Save details"}</button>
         </div>
       </form>
-    </div>
+    </div></ModalPortal>
   );
 }

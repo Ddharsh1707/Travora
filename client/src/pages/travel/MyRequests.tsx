@@ -6,6 +6,7 @@ import { TIMES_OF_DAY, cancelMyRequest, createMyRequest, listMyRequests, type Tr
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, labelFor } from "./common";
 import { RequestDecision, RequestDetails, RequestStatusBadge } from "./RequestParts";
 import { RequestTickets, useRequestTickets } from "./RequestTickets";
+import ModalPortal from "../../components/ModalPortal";
 
 const BLANK = {
   origin: "", destination: "", departure_date: "", return_date: "", purpose: "", travel_type: "flight", estimated_cost: "",
@@ -137,7 +138,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
       )}
 
       {open && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-request-title">
+        <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-request-title">
           <form className="confirm-dialog max-w-2xl w-full text-left max-h-[90vh] overflow-y-auto" onSubmit={submit}>
             <button type="button" className="icon-button dialog-close" onClick={() => setOpen(false)} aria-label="Close"><X size={18} /></button>
             <span className="card-kicker">TRAVEL REQUEST</span>
@@ -194,7 +195,7 @@ export default function MyRequests({ profileId }: { profileId: string }) {
               <button type="submit" className="button button-primary" disabled={saving}>{saving ? "Sending…" : "Send request"}</button>
             </div>
           </form>
-        </div>
+        </div></ModalPortal>
       )}
     </div>
   );
