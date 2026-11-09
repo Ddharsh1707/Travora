@@ -25,6 +25,12 @@ import {
   AIMessageItem,
   AIChatResult
 } from "../lib/api";
+import { isSupabaseEnabled } from "../lib/supabase";
+import { ask as askSupabase, getMessages as getSupabaseMessages, listConversations, type RecordSet } from "../lib/data/assistant";
+import { AnswerDownloads } from "./AnswerDownloads";
+
+/** One chat bubble. Supabase answers carry the records behind them, for downloads. */
+type ChatItem = Omit<AIMessageItem, "id" | "conversationId"> & { id: number | string; conversationId: number | string; records?: RecordSet[] };
 
 interface TrappleAIFloatingChatProps {
   user: AuthUser;
@@ -46,13 +52,13 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
     setIsHidden(hide);
     try { if (hide) localStorage.setItem(HIDE_KEY, "1"); else localStorage.removeItem(HIDE_KEY); } catch { /* storage blocked */ }
   };
-  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<AIMessageItem[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<number | string | null>(null);
+  const [messages, setMessages] = useState<ChatItem[]>([]);
   const [inputPrompt, setInputPrompt] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
-  const [copiedMsgId, setCopiedMsgId] = useState<number | null>(null);
-  const [feedbackState, setFeedbackState] = useState<Record<number, "THUMBS_UP" | "THUMBS_DOWN">>({});
+  const [copiedMsgId, setCopiedMsgId] = useState<number | string | null>(null);
+  const [feedbackState, setFeedbackState] = useState<Record<string, "THUMBS_UP" | "THUMBS_DOWN">>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -85,7 +91,18 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
   const currentModule = getModuleName(currentPath);
 
   // Suggestion prompts tailored to user role and current view
-  const suggestionChips = isPrivileged
+  const isDirectorOrDesk = role === "ADMIN" || role === "COMPANY_ADMIN" || role === "PLATFORM_ADMIN";
+  const suggestionChips = isSupabaseEnabled && isDirectorOrDesk
+    ? [
+        { label: "Company overview this month", prompt: "Give me a company overview for this month: employees, requests, tickets and spend." },
+        { label: "Pending travel requests", prompt: "List all pending travel requests with employee, route, date and estimated cost." },
+        { label: "Top spenders this financial year", prompt: "Who spent the most this financial year, claims and trips together? Show the top 10." },
+        { label: "Spend by project", prompt: "Show total spend by project this financial year." },
+        { label: "Approved requests without a ticket", prompt: "Which approved travel requests do not have a ticket attached yet?" },
+        { label: "Employees without a login", prompt: "List current employees who do not have a login yet." },
+        { label: "Excel uploads this month", prompt: "Which Excel sheets were uploaded this month and what did they add?" },
+      ]
+    : isPrivileged
     ? [
         { label: "Executive Net Spend", prompt: "What is our company total net spend, gross spend, and credit notes deducted?" },
         { label: "Project Spend Analysis", prompt: "Show travel expenditure allocated across projects and cost centers." },
@@ -133,6 +150,19 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
   }, [isOpen]);
 
   const loadLatestConversation = async () => {
+    if (isSupabaseEnabled) {
+      try {
+        const convs = await listConversations();
+        if (convs.length > 0) {
+          setActiveConversationId(convs[0].id);
+          const msgs = await getSupabaseMessages(convs[0].id);
+          setMessages(msgs.map((m) => ({ id: m.id, conversationId: convs[0].id, senderType: m.role === "user" ? "USER" : "ASSISTANT", content: m.content, createdAt: m.created_at })));
+        }
+      } catch {
+        // No earlier conversations, or not signed in yet.
+      }
+      return;
+    }
     try {
       const res = await aiAssistantApi.getConversations(0, 1);
       if (res && res.content && res.content.length > 0) {
@@ -162,7 +192,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
     setIsLoading(true);
 
     // Optimistically add user message to feed
-    const tempUserMsg: AIMessageItem = {
+    const tempUserMsg: ChatItem = {
       id: Date.now(),
       conversationId: activeConversationId || 0,
       senderType: "USER",
@@ -170,6 +200,21 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempUserMsg]);
+
+    if (isSupabaseEnabled) {
+      try {
+        const res = await askSupabase(textToSend, typeof activeConversationId === "string" ? activeConversationId : null);
+        setActiveConversationId(res.conversationId);
+        setMessages((prev) => [...prev, {
+          id: `a-${Date.now()}`, conversationId: res.conversationId, senderType: "ASSISTANT", content: res.answer, createdAt: new Date().toISOString(), records: res.records,
+        }]);
+      } catch (err: unknown) {
+        setErrorBanner(err instanceof Error ? err.message : "Unable to reach Trapple AI assistant. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     try {
       const clientContext = {
@@ -181,7 +226,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
 
       const result: AIChatResult = await aiAssistantApi.chat(
         textToSend,
-        activeConversationId,
+        typeof activeConversationId === "number" ? activeConversationId : null,
         clientContext
       );
 
@@ -189,7 +234,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
         setActiveConversationId(result.conversationId);
       }
 
-      const assistantMsg: AIMessageItem = {
+      const assistantMsg: ChatItem = {
         id: result.messageId || Date.now(),
         conversationId: result.conversationId,
         senderType: "ASSISTANT",
@@ -213,15 +258,15 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
     }
   };
 
-  const handleCopyText = (text: string, msgId: number) => {
+  const handleCopyText = (text: string, msgId: number | string) => {
     navigator.clipboard.writeText(text);
     setCopiedMsgId(msgId);
     setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  const handleFeedback = async (msgId: number, rating: "THUMBS_UP" | "THUMBS_DOWN") => {
+  const handleFeedback = async (msgId: number | string, rating: "THUMBS_UP" | "THUMBS_DOWN") => {
     try {
-      await aiAssistantApi.sendFeedback(msgId, rating);
+      if (typeof msgId === "number" && !isSupabaseEnabled) await aiAssistantApi.sendFeedback(msgId, rating);
       setFeedbackState((prev) => ({ ...prev, [msgId]: rating }));
     } catch (e) {
       console.warn("Feedback submission error", e);
@@ -236,7 +281,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
   };
 
   const rolePrefix = role.toLowerCase().replace("_", "-");
-  const fullPageUrl = `/${role === "ADMIN" || role === "COMPANY_ADMIN" || role === "PLATFORM_ADMIN" ? "admin" : rolePrefix}/ai-assistant`;
+  const fullPageUrl = isSupabaseEnabled ? "/travel/assistant" : `/${role === "ADMIN" || role === "COMPANY_ADMIN" || role === "PLATFORM_ADMIN" ? "admin" : rolePrefix}/ai-assistant`;
 
   // 1. MINIMIZED FLOATING BAR STATE
   if (isOpen && isMinimized) {
@@ -365,7 +410,9 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
                   Welcome, {user.username}!
                 </h4>
                 <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
-                  I can analyze your corporate travel spend, query company booking ledgers, inspect travel policies, and verify credit note refunds.
+                  {isSupabaseEnabled && isDirectorOrDesk
+                    ? "Ask anything about employees, travel requests, tickets, trips, expense claims, projects and Excel uploads. Every answer can be downloaded as Excel, CSV or PDF."
+                    : "I can analyze your corporate travel spend, query company booking ledgers, inspect travel policies, and verify credit note refunds."}
                 </p>
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-[10.5px] text-slate-300 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -394,8 +441,9 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
           )}
 
           {/* Message Stream */}
-          {messages.map((msg) => {
+          {messages.map((msg, idx) => {
             const isUser = msg.senderType === "USER";
+            const askedFor = isUser ? "" : [...messages.slice(0, idx)].reverse().find((m) => m.senderType === "USER")?.content ?? "Question";
             return (
               <div
                 key={msg.id}
@@ -426,6 +474,10 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
                     </div>
                   )}
                 </div>
+
+                {!isUser && isSupabaseEnabled && (
+                  <AnswerDownloads question={askedFor} answer={msg.content} records={msg.records} className="mt-1 px-1 text-[10px] text-slate-400" />
+                )}
 
                 {/* Assistant Message Actions */}
                 {!isUser && (

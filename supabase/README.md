@@ -106,8 +106,23 @@ Realtime must be enabled for the project (it is by default); the migration adds
 ```bash
 supabase db push
 supabase functions deploy ai-assistant
-# uses the same ANTHROPIC_API_KEY secret as the document scanner (Phase 4)
 ```
+
+The assistant works with a free AI key. Set at least one (server-side only,
+never `VITE_`); the first one set is used and the others are a backup:
+
+```bash
+supabase secrets set GROQ_API_KEY=<key from console.groq.com>      # free, recommended
+supabase secrets set GEMINI_API_KEY=<key from aistudio.google.com> # free backup (Google may use free-tier data)
+# or the paid Claude key the document scanner already uses: ANTHROPIC_API_KEY
+# optional: AI_PROVIDER=groq|gemini|anthropic, GROQ_MODEL, GEMINI_MODEL, ANTHROPIC_MODEL
+supabase functions deploy ai-assistant
+```
+
+The Director and the Travel Desk can also ask about employees (current, past,
+logins), travel requests and decisions, tickets, projects and a company
+overview. Every answer has Excel, CSV and PDF download buttons with all the
+records behind it (up to 1,000 rows per table).
 
 - **Ask the assistant** (`/travel/assistant`) for every role. Questions such as
   "who is travelling to Mumbai next week?", "which requests are waiting for my
