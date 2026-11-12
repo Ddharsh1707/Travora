@@ -134,13 +134,6 @@ export async function ask(question: string, conversationId: string | null): Prom
   return data as AskResult;
 }
 
-export async function renameConversation(id: string, title: string): Promise<void> {
-  const t = title.trim().slice(0, 200);
-  if (!t) throw new Error("Give the conversation a name.");
-  const { error } = await getSupabase().from("ai_conversations").update({ title: t }).eq("id", id);
-  if (error) throw friendlyError(error, "Could not rename the conversation.");
-}
-
 export async function deleteConversation(id: string): Promise<void> {
   const { error } = await getSupabase().from("ai_conversations").delete().eq("id", id);
   if (error) throw friendlyError(error, "Could not delete the conversation.");

@@ -1,34 +1,36 @@
-import type { ReactNode } from "react";
-import { Archive, BarChart3, CircleHelp, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, Briefcase, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UserCog, UsersRound } from "lucide-react";
+import { lazy, type ReactNode } from "react";
+import { Archive, BarChart3, CircleHelp, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
-import TravelSearch from "./TravelSearch";
-import EmployeeDirectory from "./EmployeeDirectory";
-import EmployeeHistory from "./EmployeeHistory";
-import MyRequests from "./MyRequests";
-import ApprovalQueue from "./ApprovalQueue";
-import RequestsDesk from "./RequestsDesk";
-import ImportTravel from "./ImportTravel";
-import Documents from "./Documents";
-import BulkBookings from "./BulkBookings";
-import Reports from "./Reports";
-import Overview from "./Overview";
-import Assistant from "./Assistant";
-import EmployeeHome from "./EmployeeHome";
-import MyExpenses from "./MyExpenses";
-import CeoDashboard from "./CeoDashboard";
-import AllExpenses from "./AllExpenses";
-import PeopleManager from "./PeopleManager";
-import UploadReport from "./UploadReport";
-import BiOverview from "./BiOverview";
-import BiProjects from "./BiProjects";
-import BiProjectDetail from "./BiProjectDetail";
-import BiTravel from "./BiTravel";
-import BiEmployees from "./BiEmployees";
-import BiFinance from "./BiFinance";
-import UploadHistory from "./UploadHistory";
-import BiReports from "./BiReports";
-import EmployeeDocuments from "./EmployeeDocuments";
+
+// Each screen is its own chunk, downloaded the first time it is opened.
+const TravelSearch = lazy(() => import("./TravelSearch"));
+const EmployeeDirectory = lazy(() => import("./EmployeeDirectory"));
+const EmployeeHistory = lazy(() => import("./EmployeeHistory"));
+const MyRequests = lazy(() => import("./MyRequests"));
+const ApprovalQueue = lazy(() => import("./ApprovalQueue"));
+const RequestsDesk = lazy(() => import("./RequestsDesk"));
+const ImportTravel = lazy(() => import("./ImportTravel"));
+const Documents = lazy(() => import("./Documents"));
+const BulkBookings = lazy(() => import("./BulkBookings"));
+const Reports = lazy(() => import("./Reports"));
+const Overview = lazy(() => import("./Overview"));
+const Assistant = lazy(() => import("./Assistant"));
+const EmployeeHome = lazy(() => import("./EmployeeHome"));
+const MyExpenses = lazy(() => import("./MyExpenses"));
+const CeoDashboard = lazy(() => import("./CeoDashboard"));
+const AllExpenses = lazy(() => import("./AllExpenses"));
+const PeopleManager = lazy(() => import("./PeopleManager"));
+const UploadReport = lazy(() => import("./UploadReport"));
+const BiOverview = lazy(() => import("./BiOverview"));
+const BiProjects = lazy(() => import("./BiProjects"));
+const BiProjectDetail = lazy(() => import("./BiProjectDetail"));
+const BiTravel = lazy(() => import("./BiTravel"));
+const BiEmployees = lazy(() => import("./BiEmployees"));
+const BiFinance = lazy(() => import("./BiFinance"));
+const UploadHistory = lazy(() => import("./UploadHistory"));
+const BiReports = lazy(() => import("./BiReports"));
+const EmployeeDocuments = lazy(() => import("./EmployeeDocuments"));
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when

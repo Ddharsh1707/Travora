@@ -1,23 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import {
-  Sparkles,
-  Send,
-  Plus,
-  Minus,
-  X,
-  Maximize2,
-  Copy,
-  Check,
-  ThumbsUp,
-  ThumbsDown,
-  TrendingUp,
-  AlertCircle,
-  CornerDownLeft,
-  Bot,
-  RotateCcw
-} from "lucide-react";
-import { Streamdown } from "streamdown";
+import { Sparkles, Send, Plus, Minus, X, Maximize2, Copy, Check, ThumbsUp, ThumbsDown, AlertCircle, Bot } from "lucide-react";
+import { Markdown } from "@/components/Markdown";
 import {
   AuthUser,
   Role,
@@ -460,7 +444,7 @@ export function TrappleAIFloatingChat({ user, role, currentPath }: TrappleAIFloa
                     <div className="whitespace-pre-wrap">{msg.content}</div>
                   ) : (
                     <div className="prose prose-invert prose-xs max-w-none text-slate-200 prose-headings:text-white prose-a:text-emerald-400 prose-strong:text-white prose-table:text-xs">
-                      <Streamdown>{msg.content}</Streamdown>
+                      <Markdown>{msg.content}</Markdown>
 
                       {/* Decision 3 Financial KPI Badge if structuredData exists */}
                       {msg.structuredData && (msg.structuredData.netSpend !== undefined || msg.structuredData.totalNetCost !== undefined) && (

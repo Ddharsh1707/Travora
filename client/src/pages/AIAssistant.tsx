@@ -1,32 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Sparkles,
-  Send,
-  Plus,
-  Trash2,
-  ThumbsUp,
-  ThumbsDown,
-  Copy,
-  Check,
-  PanelRightClose,
-  PanelRightOpen,
-  TrendingUp,
-  Building2,
-  UsersRound,
-  Plane,
-  AlertCircle,
-  Clock,
-  Briefcase,
-  ShieldCheck,
-  CheckCircle2,
-  HelpCircle,
-  FileText,
-  DollarSign,
-  ArrowRight,
-  MessageSquare,
-  Edit2
-} from "lucide-react";
-import { Streamdown } from "streamdown";
+import { Sparkles, Send, Plus, Trash2, ThumbsUp, ThumbsDown, Copy, Check, PanelRightClose, PanelRightOpen, TrendingUp, Plane, AlertCircle, Clock, ShieldCheck, ArrowRight, MessageSquare, Edit2 } from "lucide-react";
+import { Markdown } from "@/components/Markdown";
 import {
   AuthUser,
   aiAssistantApi,
@@ -449,7 +423,7 @@ export function AIAssistant({ user }: AIAssistantProps) {
                         <div className="whitespace-pre-wrap">{msg.content}</div>
                       ) : (
                         <div className="prose prose-invert prose-xs max-w-none prose-p:leading-relaxed prose-headings:text-slate-100 prose-a:text-emerald-400 prose-code:text-emerald-300">
-                          <Streamdown>{msg.content}</Streamdown>
+                          <Markdown>{msg.content}</Markdown>
                         </div>
                       )}
                     </div>
