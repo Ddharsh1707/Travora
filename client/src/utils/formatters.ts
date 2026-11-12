@@ -13,16 +13,18 @@ export function mapRequestStatus(status: string | undefined): Journey["status"] 
   if (normalized === "APPROVED") return "Approved";
   if (normalized === "BOOKED") return "Booked";
   if (normalized === "CANCELLED") return "Cancelled";
-  if (normalized === "REJECTED") return "Rejected" as Journey["status"];
+  if (normalized === "REJECTED") return "Cancelled";
   if (normalized === "COMPLETED") return "Completed";
   return "Pending approval";
 }
 
 export function toJourney(request: BackendRequest): Journey {
   const employee = request.employee || {};
-  const dates = request.returnDate
-    ? `${formatRequestDate(request.travelDate)} – ${formatRequestDate(request.returnDate)}`
-    : formatRequestDate(request.travelDate);
+  const dates = request.returnDate ? `${formatRequestDate(request.travelDate)} – ${formatRequestDate(request.returnDate)}` : formatRequestDate(request.travelDate);
+  const empName = employee.name || employee.username || request.passenger || "Employee";
+  const empId = employee.employeeId || request.employeeId || "EMP";
+  const dept = employee.department || "General Operations";
+  const desig = employee.designation || "Staff";
   return {
     id: String(request.id),
     destination: request.toLocation || "Destination not provided",
@@ -32,7 +34,19 @@ export function toJourney(request: BackendRequest): Journey {
     tripType: request.tripType || "Business",
     project: request.projectName || "—",
     status: mapRequestStatus(request.status),
-    passenger: employee.name || employee.employeeId || undefined,
+    passenger: empName,
+    approverName: request.approverName,
+    approvalComment: request.approvalComment,
+    approvalDate: request.approvalDate,
+    reason: request.reason || "Business travel",
+    employee: {
+      id: employee.id || request.userId,
+      name: empName,
+      employeeId: empId,
+      department: dept,
+      designation: desig,
+    },
+    rawRequest: request,
   };
 }
 
@@ -54,13 +68,8 @@ export function adminRequestStatus(value: unknown) {
   return labels[normalized] || normalized.replaceAll("_", " ");
 }
 
-export function adminRequestDate(value: unknown) {
-  if (!value) return "—";
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime())
-    ? String(value)
-    : new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(date);
-}
+/** Same display format as formatRequestDate; kept as a named alias for admin views. */
+export const adminRequestDate = formatRequestDate;
 
 export function adminRequestSubmitted(request: Record<string, any>) {
   return request.createdAt || request.createdDate || request.submittedAt || request.submissionDate || request.requestDate || request.createdOn;

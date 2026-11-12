@@ -1,29 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { escapeHtml } from "../lib/safeHtml";
-import {
-  FileSpreadsheet,
-  FileText,
-  Download,
-  Printer,
-  Search,
-  Filter,
-  DollarSign,
-  TrendingUp,
-  TicketCheck,
-  Plane,
-  Building2,
-  Car,
-  ShieldCheck,
-  CheckCircle2,
-  Clock3,
-  XCircle,
-  ArrowUpRight,
-  Sparkles,
-  Layers,
-  ChevronDown,
-  Calendar,
-  Share2,
-} from "lucide-react";
+import { FileSpreadsheet, FileText, Download, Search, Filter, DollarSign, TrendingUp, TicketCheck, Plane, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminRequestDate } from "../utils/formatters";
 import { type AuthUser, REGISTERED_EMPLOYEES } from "../lib/api";

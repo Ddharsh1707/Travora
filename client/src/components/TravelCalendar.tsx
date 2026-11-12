@@ -1,16 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  Plane,
-  Clock,
-  ArrowRight,
-  Sparkles,
-  MapPin,
-  CalendarDays,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plane, ArrowRight, CalendarDays, X } from "lucide-react";
 import type { Journey } from "../types";
 import ModalPortal from "./ModalPortal";
 

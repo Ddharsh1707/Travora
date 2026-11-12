@@ -131,11 +131,6 @@ export async function listDocuments(opts: { employeeId?: string; status?: Extrac
   return ((data ?? []) as unknown as TravelDocument[]).map((d) => ({ ...d, profile: one(d.profile), request: one(d.request) }));
 }
 
-/** True once the ticket-to-request link exists in the database. */
-export function ticketsLinkReady(): boolean {
-  return !requestColumnMissing;
-}
-
 export async function uploadDocument(employeeId: string, file: File, documentType: DocumentType, travelRecordId?: string | null, travelRequestId?: string | null): Promise<TravelDocument> {
   const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
   const check = checkDocumentFile(file.name, file.size, head);

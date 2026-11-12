@@ -166,7 +166,3 @@ export function checkTravelUploadFile(name: string, size: number, firstBytes: Ui
 
 /** A small example sheet so the travel desk knows which columns to use. */
 export const SAMPLE_UPLOAD_HEADERS = ["Employee ID", "Employee Name", "Department", "Travel Date", "Return Date", "From", "To", "Travel Mode", "Airline", "PNR", "Ticket Number", "Amount", "Currency"];
-export const SAMPLE_UPLOAD_ROWS: string[][] = [
-  ["EMP001", "Arun Kumar", "Engineering", "2026-10-14", "2026-10-16", "Chennai", "Delhi", "Flight", "IndiGo", "AB12CD", "0981234567890", "8450", "INR"],
-  ["EMP002", "Bina Rao", "Finance", "2026-10-21", "", "Mumbai", "Pune", "Train", "IRCTC", "PNR4455", "", "1250", "INR"],
-];

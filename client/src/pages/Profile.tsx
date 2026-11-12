@@ -1,20 +1,5 @@
-import { useState, useEffect } from "react";
-import {
-  UserRound,
-  Mail,
-  Building2,
-  Phone,
-  Plane,
-  ShieldCheck,
-  Save,
-  CheckCircle2,
-  Compass,
-  FileText,
-  HeartHandshake,
-  Sparkles,
-  CalendarDays,
-  Clock3,
-} from "lucide-react";
+import { useState } from "react";
+import { Mail, Building2, Phone, Plane, ShieldCheck, Save, CheckCircle2, Compass, HeartHandshake, CalendarDays, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { REGISTERED_EMPLOYEES, type AuthUser } from "../lib/api";
 import type { Journey, UserProfile } from "../types";

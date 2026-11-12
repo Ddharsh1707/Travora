@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plane, Compass, MapPin, Sparkles, Navigation, Globe2, ShieldCheck, Clock, ArrowRight, Activity } from "lucide-react";
+import { Plane, MapPin, Globe2, Clock } from "lucide-react";
 
 interface CityHub {
   id: string;

@@ -34,9 +34,6 @@ export type ApiRequestOptions = RequestInit & {
 export const AUTH_EXPIRED_EVENT = "travora:auth-expired";
 const VALID_ROLES: Role[] = ["EMPLOYEE", "APPROVER", "TRAVEL_DESK", "ADMIN", "COMPANY_ADMIN", "PLATFORM_ADMIN"];
 
-export const DEMO_REQUESTS: any[] = [];
-export const DEMO_BOOKINGS: any[] = [];
-
 export type EmployeeAccount = {
   id: number;
   employeeNumber: string;
@@ -57,16 +54,6 @@ export type EmployeeAccount = {
  * signed-in user's own details.
  */
 export const REGISTERED_EMPLOYEES: EmployeeAccount[] = [];
-
-export const DEMO_EMPLOYEES = REGISTERED_EMPLOYEES.map((emp) => ({
-  id: String(emp.id),
-  name: emp.fullName,
-  displayName: emp.displayName,
-  department: emp.department,
-  designation: emp.designation,
-  employeeId: emp.employeeNumber,
-  email: emp.workEmail,
-}));
 
 export function getToken() {
   if (!hasStorage()) return null;
@@ -236,10 +223,7 @@ export function persistAuth(user: AuthUser) {
 /**
  * ─── UNIFIED SYSTEM STORAGE KEYS & TOMBSTONES ───
  */
-const SYSTEM_REQUESTS_KEY = "travora_system_requests";
-const SYSTEM_BOOKINGS_KEY = "travora_system_bookings";
 const SYSTEM_BULK_BOOKINGS_KEY = "travora_system_bulk_bookings_v1";
-const SYSTEM_NOTIFICATIONS_KEY = "travora_system_notifications";
 const DELETED_REQUESTS_KEY = "travora_deleted_request_ids";
 const DELETED_BOOKINGS_KEY = "travora_deleted_booking_ids";
 const DELETED_BULK_BOOKINGS_KEY = "travora_deleted_bulk_booking_ids";
@@ -258,19 +242,6 @@ export function getDeletedRequestIds(): Set<string> {
   return new Set();
 }
 
-export function markRequestIdsDeleted(ids: Array<string | number>) {
-  if (!hasStorage()) return;
-  try {
-    const set = getDeletedRequestIds();
-    ids.forEach((id) => {
-      if (id !== undefined && id !== null) set.add(String(id));
-    });
-    window.localStorage.setItem(DELETED_REQUESTS_KEY, JSON.stringify(Array.from(set)));
-  } catch (e) {
-    console.warn("Failed to save deleted request ids", e);
-  }
-}
-
 export function getDeletedBookingIds(): Set<string> {
   if (!hasStorage()) return new Set();
   try {
@@ -283,19 +254,6 @@ export function getDeletedBookingIds(): Set<string> {
     console.warn("Failed to read deleted booking ids", e);
   }
   return new Set();
-}
-
-export function markBookingIdsDeleted(ids: Array<string | number>) {
-  if (!hasStorage()) return;
-  try {
-    const set = getDeletedBookingIds();
-    ids.forEach((id) => {
-      if (id !== undefined && id !== null) set.add(String(id));
-    });
-    window.localStorage.setItem(DELETED_BOOKINGS_KEY, JSON.stringify(Array.from(set)));
-  } catch (e) {
-    console.warn("Failed to save deleted booking ids", e);
-  }
 }
 
 export function getDeletedBulkBookingIds(): Set<string> {
@@ -1429,30 +1387,6 @@ export const spendReportsApi = {
   },
 };
 
-export async function uploadDocument(file: File): Promise<{
-  id: string;
-  originalFileName: string;
-  contentType: string;
-  sizeBytes: number;
-  downloadUrl: string;
-}> {
-  const formData = new FormData();
-  formData.append("file", file);
-  const token = typeof window !== "undefined" ? (window.localStorage.getItem("trapple_token") || window.localStorage.getItem("travora_token")) : null;
-  const res = await fetch(`${API_BASE_URL}/api/documents/upload`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData,
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(errText || "Failed to upload document to server.");
-  }
-  return await res.json();
-}
-
-export const API_CONFIG = { baseUrl: API_BASE_URL };
-
 export type BackendExpense = {
   id: number;
   companyId?: number;
@@ -1519,26 +1453,6 @@ export const expenseApi = {
   },
   delete: async (id: number | string): Promise<void> => {
     await apiRequest(`/api/expenses/${id}`, { method: "DELETE" });
-  },
-};
-
-export const companyApi = {
-  getCurrent: async (): Promise<{ id: number; name: string; code: string; domain?: string; active: boolean }> => {
-    return await apiRequest("/api/companies/current");
-  },
-  register: async (data: {
-    name: string;
-    code: string;
-    domain?: string;
-    adminUsername: string;
-    adminPassword: string;
-    adminEmail?: string;
-  }): Promise<{ id: number; name: string; code: string; domain?: string; active: boolean }> => {
-    return await apiRequest("/api/companies/register", {
-      method: "POST",
-      body: JSON.stringify(data),
-      skipAuth: true,
-    });
   },
 };
 

@@ -1,24 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useInView, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
-import {
-  ArrowRight,
-  BarChart3,
-  Bot,
-  CheckCircle2,
-  ClipboardCheck,
-  Clock3,
-  FileSpreadsheet,
-  FolderKanban,
-  KeyRound,
-  Lock,
-  Menu,
-  Plane,
-  Receipt,
-  ScrollText,
-  ShieldCheck,
-  UsersRound,
-  X,
-} from "lucide-react";
+import { ArrowRight, BarChart3, Bot, CheckCircle2, ClipboardCheck, FileSpreadsheet, FolderKanban, KeyRound, Lock, Menu, Plane, Receipt, ScrollText, ShieldCheck, UsersRound, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 // The 3D intro is loaded on its own so the rest of the page paints first.

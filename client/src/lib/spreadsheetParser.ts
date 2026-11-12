@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { ImportedRecordResponse, ImportBatchResponse, EmployeeRecord } from "./api";
+import type { ImportedRecordResponse, EmployeeRecord } from "./api";
 
 const xlsx: any = XLSX;
 const ssfLib: any = (xlsx as Record<string, any>).SSF || (xlsx as Record<string, any>)["default"]?.SSF;

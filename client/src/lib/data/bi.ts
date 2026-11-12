@@ -145,14 +145,8 @@ async function call<T>(fn: string, args: Record<string, unknown>, fallback: stri
 
 export const getFilterOptions = () => call<FilterOptions>("bi_filter_options", {}, "Could not load the filters.");
 export const getOverview = (f: BiFilters) => call<Overview>("bi_overview", { p_filters: cleanFilters(f) }, "Could not load the overview.");
-export const getProjects = (f: BiFilters) => call<ProjectsReport>("bi_projects", { p_filters: cleanFilters(f) }, "Could not load the projects.");
 export const getProjectDetail = (id: string | null, f: BiFilters) =>
   call<ProjectDetail>("bi_project_detail", { p_project: id, p_filters: cleanFilters(f) }, "Could not load the project.");
-
-/** CEO only: link a trip to a project by hand (null removes a manual link). */
-export async function assignTripProject(tripId: string, projectId: string | null): Promise<void> {
-  await call<null>("trip_assign_project", { p_trip: tripId, p_project: projectId }, "Could not change the project.");
-}
 
 /** CEO only: project details that are not in the travel sheet. */
 export async function updateProject(p: Project): Promise<Project> {

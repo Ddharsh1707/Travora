@@ -41,7 +41,6 @@ export const WB_FIELDS = [
   { key: "remarks", label: "Remarks" },
 ] as const;
 export type WbField = (typeof WB_FIELDS)[number]["key"];
-export const WB_FIELD_LABEL: Record<string, string> = Object.fromEntries(WB_FIELDS.map((f) => [f.key, f.label]));
 
 // Headings seen in real sheets, after normalizeHeader(). Exact matches only.
 const ALIASES: Record<WbField, string[]> = {

@@ -1,66 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { openAttachment } from "./lib/safeHtml";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  BarChart3,
-  Bell,
-  BriefcaseBusiness,
-  CalendarDays,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  ChevronLeft,
-  CircleHelp,
-  Clock3,
-  Compass,
-  FileCheck2,
-  FileText,
-  Filter,
-  Globe2,
-  Headphones,
-  LayoutDashboard,
-  Lock,
-  LogOut,
-  Menu,
-  Moon,
-  Plane,
-  Plus,
-  Search,
-  Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-  Sun,
-  TicketCheck,
-  UserRound,
-  UserPlus,
-  UsersRound,
-  WalletCards,
-  Eye,
-  EyeOff,
-  X,
-  XCircle,
-  Download,
-  Upload,
-  Image as ImageIcon,
-  AlertCircle,
-  AlertTriangle,
-  Trash2,
-  RotateCcw,
-  Printer,
-  Train,
-  Car,
-  Building2,
-  Bus,
-  Zap,
-  TrendingUp,
-  Send,
-  QrCode,
-  FileSpreadsheet,
-  CheckCircle2,
-} from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowUpRight, BarChart3, Bell, BriefcaseBusiness, CalendarDays, Check, ChevronDown, ChevronRight, ChevronLeft, CircleHelp, Clock3, Compass, FileCheck2, FileText, Filter, Headphones, LayoutDashboard, LogOut, Menu, Moon, Plane, Plus, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles, Sun, TicketCheck, UserRound, UserPlus, UsersRound, WalletCards, Eye, X, XCircle, Download, Upload, Image as ImageIcon, AlertTriangle, Trash2, RotateCcw, Printer, Train, Building2, Zap, TrendingUp, QrCode, FileSpreadsheet, CheckCircle2 } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { AnimatePresence, LayoutGroup, MotionConfig, motion } from "framer-motion";
 import { toast } from "sonner";
 import { Link, useLocation } from "wouter";
@@ -69,23 +10,12 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { isSupabaseEnabled } from "./lib/supabase";
 import { TravelPage, isTravelPathAllowed, travelHomeFor, travelNavCategories, travelPageMeta, travelRail } from "./pages/travel/routes";
 import { NavRail } from "./components/NavRail";
-import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignIn, supabaseSignOut } from "./lib/supabaseAuth";
-import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, login as loginApi, persistAuth, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, getResolvedUrl, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord, type PaginatedEmployees } from "./lib/api";
+import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignOut } from "./lib/supabaseAuth";
+import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { Logo } from "./components/Logo";
 import { LoginPage } from "./pages/LoginPage";
 import { TravelCalendar } from "./components/TravelCalendar";
-import { Expenses } from "./pages/Expenses";
-import { Profile } from "./pages/Profile";
-import { UserManagement } from "./pages/UserManagement";
-import { ActivateAccount } from "./pages/ActivateAccount";
-import { ExcelImport } from "./pages/ExcelImport";
-import { TravelSpendReports } from "./pages/TravelSpendReports";
-import { AIAssistant } from "./pages/AIAssistant";
-import { TrappleAIFloatingChat } from "./components/TrappleAIFloatingChat";
-import { LandingPage } from "./pages/LandingPage";
-import { InteractiveRouteMap } from "./components/InteractiveRouteMap";
-import { ReportExtractionSuite } from "./components/ReportExtractionSuite";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { exportToCsv } from "./utils/exportCsv";
 import { SpotlightCard } from "./components/SpotlightCard";
@@ -94,81 +24,32 @@ import { RouteVisualizer } from "./components/RouteVisualizer";
 import { WorkflowTimeline } from "./components/WorkflowTimeline";
 import { SkeletonMetrics, SkeletonTable, SkeletonCard } from "./components/SkeletonLoader";
 import ModalPortal from "./components/ModalPortal";
+import type { Journey } from "./types";
+import { adminBookingDetails, adminBookingStatus, adminRequestDate, adminRequestStatus, adminRequestSubmitted, formatNotificationTime, formatRequestDate, reportBarRows, reportCount, toJourney } from "./utils/formatters";
 
-type Journey = {
-  id: string;
-  destination: string;
-  from: string;
-  to: string;
-  dates: string;
-  tripType: string;
-  project: string;
-  status: "Pending approval" | "Approved" | "Booked" | "Completed" | "Cancelled";
-  booking?: string;
-  passenger?: string;
-  approverName?: string;
-  approvalComment?: string;
-  approvalDate?: string;
-  reason?: string;
-  employee?: {
-    id?: number | string;
-    name?: string;
-    employeeId?: string;
-    department?: string;
-    designation?: string;
-  };
-  rawRequest?: BackendRequest;
-};
+// Heavy screens load on first visit instead of in the main bundle. The AI
+// chat pulls in a markdown renderer with code highlighting and diagrams, the
+// spend reports pull in PDF/Excel export, and the route map pulls in map data.
+function lazyNamed<K extends string, P>(load: () => Promise<Record<K, ComponentType<P>>>, name: K) {
+  return lazy(() => load().then((module) => ({ default: module[name] })));
+}
+const Expenses = lazyNamed(() => import("./pages/Expenses"), "Expenses");
+const Profile = lazyNamed(() => import("./pages/Profile"), "Profile");
+const UserManagement = lazyNamed(() => import("./pages/UserManagement"), "UserManagement");
+const ActivateAccount = lazyNamed(() => import("./pages/ActivateAccount"), "ActivateAccount");
+const ExcelImport = lazyNamed(() => import("./pages/ExcelImport"), "ExcelImport");
+const TravelSpendReports = lazyNamed(() => import("./pages/TravelSpendReports"), "TravelSpendReports");
+const AIAssistant = lazyNamed(() => import("./pages/AIAssistant"), "AIAssistant");
+const LandingPage = lazyNamed(() => import("./pages/LandingPage"), "LandingPage");
+const TrappleAIFloatingChat = lazyNamed(() => import("./components/TrappleAIFloatingChat"), "TrappleAIFloatingChat");
+const InteractiveRouteMap = lazyNamed(() => import("./components/InteractiveRouteMap"), "InteractiveRouteMap");
+const ReportExtractionSuite = lazyNamed(() => import("./components/ReportExtractionSuite"), "ReportExtractionSuite");
 
-type BackendRequest = Record<string, any>;
-
-function formatRequestDate(value: unknown) {
-  if (!value) return "—";
-  const date = new Date(String(value));
-  return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(date);
+/** Shown while a lazily loaded screen downloads. */
+function PageFallback() {
+  return <div className="page-stack" aria-busy="true"><SkeletonMetrics /><SkeletonTable rows={4} /></div>;
 }
 
-function mapRequestStatus(status: string | undefined): Journey["status"] {
-  const normalized = (status || "PENDING").toUpperCase();
-  if (normalized === "APPROVED") return "Approved";
-  if (normalized === "BOOKED") return "Booked";
-  if (normalized === "CANCELLED") return "Cancelled";
-  if (normalized === "REJECTED") return "Cancelled";
-  if (normalized === "COMPLETED") return "Completed";
-  return "Pending approval";
-}
-
-function toJourney(request: BackendRequest): Journey {
-  const employee = request.employee || {};
-  const dates = request.returnDate ? `${formatRequestDate(request.travelDate)} – ${formatRequestDate(request.returnDate)}` : formatRequestDate(request.travelDate);
-  const empName = employee.name || employee.username || request.passenger || "Employee";
-  const empId = employee.employeeId || request.employeeId || "EMP";
-  const dept = employee.department || "General Operations";
-  const desig = employee.designation || "Staff";
-  return {
-    id: String(request.id),
-    destination: request.toLocation || "Destination not provided",
-    from: request.fromLocation || "Origin not provided",
-    to: request.toLocation || "Destination not provided",
-    dates,
-    tripType: request.tripType || "Business",
-    project: request.projectName || "—",
-    status: mapRequestStatus(request.status),
-    passenger: empName,
-    approverName: request.approverName,
-    approvalComment: request.approvalComment,
-    approvalDate: request.approvalDate,
-    reason: request.reason || "Business travel",
-    employee: {
-      id: employee.id || request.userId,
-      name: empName,
-      employeeId: empId,
-      department: dept,
-      designation: desig,
-    },
-    rawRequest: request,
-  };
-}
 
 function useTravelRequests(user?: AuthUser | null, refreshKey = 0) {
   const [journeys, setJourneys] = useState<Journey[]>([]);
@@ -664,7 +545,6 @@ function NotificationBell() {
   async function markAllRead(event?: React.SyntheticEvent) { event?.preventDefault(); event?.stopPropagation(); setActionId("all"); setError(""); try { await notificationsApi.markAllRead(); await refresh(); toast.success("All notifications marked as read."); } catch (requestError) { const message = requestError instanceof Error ? requestError.message : "Notifications could not be marked as read."; setError(message); toast.error(message); } finally { setActionId(null); } }
   return <div className="notification-wrap"><button type="button" className="icon-button notification-button" aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Bell size={18} />{unread > 0 && <span className="notification-count">{unread > 9 ? "9+" : unread}</span>}</button>{open && <><button type="button" className="notification-dismiss" aria-label="Close notifications" onClick={() => setOpen(false)} /><section className="notification-panel" aria-label="Notifications"><div className="notification-panel-header"><div><span className="card-kicker">TRAPPLE INBOX</span><h2>Notifications</h2></div>{unread > 0 && <button type="button" className="text-link" disabled={actionId === "all"} onPointerDown={(event) => event.stopPropagation()} onClick={markAllRead}>{actionId === "all" ? "Updating…" : "Mark all as read"}</button>}</div>{loading ? <div className="notification-state"><Clock3 size={18} /> Loading notifications…</div> : error ? <div className="notification-state notification-error"><XCircle size={18} />{error}</div> : items.length ? <div className="notification-list">{items.map((item) => <div className={`notification-item ${item.read ? "read" : "unread"}`} key={String(item.id)}><span className={`notification-type notification-type-${String(item.type || "").toLowerCase()}`}><Bell size={14} /></span><span className="notification-copy"><strong>{item.title}</strong><span>{item.message}</span><small>{formatNotificationTime(item.createdAt)}</small></span>{!item.read && <button type="button" className="notification-mark-read" disabled={actionId === String(item.id)} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => markRead(item.id, event)}>{actionId === String(item.id) ? "Updating…" : "Mark as read"}</button>}{!item.read && <span className="notification-unread-dot" />}</div>)}</div> : <div className="notification-state"><Bell size={20} /><strong>You’re all caught up</strong><span>Important travel activity will appear here.</span></div>}</section></>}</div>;
 }
-function formatNotificationTime(value: unknown) { if (!value) return "Just now"; const date = new Date(String(value)); if (Number.isNaN(date.getTime())) return String(value); const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000)); if (minutes < 1) return "Just now"; if (minutes < 60) return `${minutes}m ago`; const hours = Math.floor(minutes / 60); if (hours < 24) return `${hours}h ago`; return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short" }).format(date); }
 
 function AppShell({ children, role, user, onLogout }: { children: ReactNode; role: Role; user: AuthUser; onLogout: () => void }) {
   const [location] = useLocation();
@@ -707,7 +587,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
           <NavRail {...railProps} variant="rail" logo={<Logo compact />} />
         </div>
         <ShellMain location={location} meta={meta} user={user} onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} collapsed={false}>{children}</ShellMain>
-        <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
+        <Suspense fallback={null}><TrappleAIFloatingChat user={user} role={role} currentPath={path} /></Suspense>
       </div>
     );
   }
@@ -733,7 +613,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
         </LayoutGroup>
       </div>
       <ShellMain location={location} meta={meta} user={user} onMenu={() => setMobileOpen(true)} onOpenSearch={() => setSearchOpen(true)} collapsed={collapsed}>{children}</ShellMain>
-      <TrappleAIFloatingChat user={user} role={role} currentPath={path} />
+      <Suspense fallback={null}><TrappleAIFloatingChat user={user} role={role} currentPath={path} /></Suspense>
     </div>
   );
 }
@@ -761,7 +641,7 @@ function ShellMain({ children, location, meta, user, onMenu, onOpenSearch, colla
             exit={{ opacity: 0, y: -8, filter: "blur(2px)", transition: { duration: 0.16 } }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
-            {children}
+            <Suspense fallback={<PageFallback />}>{children}</Suspense>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -6189,12 +6069,6 @@ function Reports() {
     };
   }, []);
 
-  const counts = {
-    approved: requests.filter((r) => String(r.status).toUpperCase() === "APPROVED").length,
-    pending: requests.filter((r) => String(r.status).toUpperCase() === "PENDING").length,
-    completed: requests.filter((r) => ["COMPLETED", "BOOKED"].includes(String(r.status).toUpperCase())).length,
-  };
-
   const destinations = Array.from(
     new Set(requests.map((r) => r.toLocation).filter(Boolean))
   ).slice(0, 5);
@@ -6373,13 +6247,6 @@ function Destination({ name, count, width }: { name: string; count: string; widt
 function Support() { const faqs = [{ q: "How do I submit a travel request?", a: "Open Plan a trip, add your route, dates, project and business reason, then submit. Your employee identity is attached from the authenticated session." }, { q: "What happens after I submit?", a: "Your request moves to the assigned approver. Once approved, the Travel Desk can confirm the booking and attach ticket details." }, { q: "Can I cancel a journey?", a: "Eligible requests can be cancelled from the journey detail view. Cancellation eligibility and any fee rules come from your organization's policy." }, { q: "Where can I find my ticket?", a: "Open My journeys and select a booked trip. Your ticket number, airline and booking reference will appear as soon as the Travel Desk adds them." }]; const [open, setOpen] = useState(0); return <div className="page-stack animate-page"><PageTitle meta={pageMeta["/employee/support"]} /><section className="support-hero"><div className="support-symbol"><Headphones size={25} /></div><div><span className="card-kicker">TRAPPLE HELP CENTER</span><h2>We’re here to keep work travel simple.</h2><p>Find a quick answer below, or reach out to your internal travel desk.</p></div><button className="button button-primary" onClick={() => toast("Support contact will connect to your internal help channel.")}>Contact travel desk <ArrowUpRight size={16} /></button></section><div className="support-grid"><div className="panel faq-panel"><div className="section-title-row"><div><span className="card-kicker">COMMON QUESTIONS</span><h2 className="section-heading">Frequently asked</h2></div><CircleHelp size={18} className="panel-icon" /></div><div className="faq-list">{faqs.map((faq, index) => <div className={`faq-item ${open === index ? "open" : ""}`} key={faq.q}><button onClick={() => setOpen(open === index ? -1 : index)}><span>{faq.q}</span><ChevronDown size={17} /></button>{open === index && <p>{faq.a}</p>}</div>)}</div></div><div className="panel support-links"><span className="card-kicker">GETTING STARTED</span><h2 className="section-heading">A smoother trip starts here.</h2><div className="support-link"><span className="support-link-icon"><FileText size={16} /></span><span><strong>Travel policy</strong><small>Know the essentials before you request.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><TicketCheck size={16} /></span><span><strong>Booking help</strong><small>Understand what happens after approval.</small></span><ChevronRight size={15} /></div><div className="support-link"><span className="support-link-icon"><WalletCards size={16} /></span><span><strong>Expense guidance</strong><small>Keep receipts and records together.</small></span><ChevronRight size={15} /></div></div></div></div>; }
 
 
-function adminRequestStatus(value: unknown) {
-  const normalized = String(value || "PENDING").toUpperCase();
-  const labels: Record<string, string> = { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected", BOOKED: "Booked", COMPLETED: "Completed", CANCELLED: "Cancelled" };
-  return labels[normalized] || normalized.replaceAll("_", " ");
-}
-function adminRequestDate(value: unknown) { if (!value) return "—"; const date = new Date(String(value)); return Number.isNaN(date.getTime()) ? String(value) : new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(date); }
-function adminRequestSubmitted(request: Record<string, any>) { return request.createdAt || request.createdDate || request.submittedAt || request.submissionDate || request.requestDate || request.createdOn; }
 function AdminRequestDetails({ request, onClose }: { request: Record<string, any>; onClose: () => void }) {
   const employee = request.employee || {};
   const fields = [["Employee", employee.name || employee.username || "—"], ["Employee ID", employee.employeeId || "—"], ["Trip type", request.tripType || "—"], ["From location", request.fromLocation || "—"], ["To location", request.toLocation || "—"], ["Travel date", adminRequestDate(request.travelDate)], ["Return date", adminRequestDate(request.returnDate)], ["Project", request.projectName || "—"], ["Submitted", adminRequestDate(adminRequestSubmitted(request))], ["Approver", request.approverName || "—"], ["Approval date", adminRequestDate(request.approvalDate)]];
@@ -6578,11 +6445,6 @@ function AdminRequests() {
   );
 }
 
-function adminBookingStatus(booking: Record<string, any>) { if (booking.cancelled === true) return "Cancelled"; return adminRequestStatus(booking.status || booking.travelRequest?.status || "BOOKED"); }
-function adminBookingDetails(booking: Record<string, any>) {
-  const request = booking.travelRequest || {}; const employee = request.employee || {};
-  return [["Booking ID", booking.id], ["Travel request ID", request.id], ["Employee", employee.name], ["Employee ID", employee.employeeId], ["Trip type", request.tripType], ["From", request.fromLocation], ["To", request.toLocation], ["Travel date", adminRequestDate(request.travelDate)], ["Return date", adminRequestDate(request.returnDate)], ["Project", request.projectName], ["Booking type", booking.bookingType], ["Provider", booking.provider], ["Reference / ticket", booking.bookingReference], ["Cost", booking.cost], ["Savings", booking.savings], ["Booked at", adminRequestDate(booking.bookedAt)], ["Cancellation reason", booking.cancellationReason], ["Cancellation charge", booking.cancellationCharge]].filter(([, value]) => value !== undefined && value !== null && value !== "");
-}
 function AdminBookingDetails({ booking, onClose }: { booking: Record<string, any>; onClose: () => void }) { return <ModalPortal><div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="admin-booking-details-title"><div className="confirm-dialog admin-request-dialog"><button type="button" className="icon-button dialog-close" onClick={onClose} aria-label="Close booking details"><X size={18} /></button><div className="confirm-icon approve"><TicketCheck size={22} /></div><span className="card-kicker">BOOKING DETAILS</span><h2 id="admin-booking-details-title">Booking #{booking.id ?? "—"}</h2><p>Complete booking and linked travel-request information returned by the authenticated backend.</p><div className="admin-request-detail-grid">{adminBookingDetails(booking).map(([label, value]) => <div className="admin-request-detail" key={String(label)}><small>{String(label)}</small><strong>{String(value)}</strong></div>)}<div className="admin-request-detail"><small>Status</small><StatusBadge status={adminBookingStatus(booking) as any} /></div>{booking.notes && <div className="admin-request-detail admin-request-detail-wide"><small>Notes</small><strong>{booking.notes}</strong></div>}</div><div className="dialog-actions"><button type="button" className="button button-primary" onClick={onClose}>Close details</button></div></div></div></ModalPortal>; }
 function AdminBookings() {
   const [bookings, setBookings] = useState<Array<Record<string, any>>>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [query, setQuery] = useState(""); const [statusFilter, setStatusFilter] = useState("ALL"); const [selected, setSelected] = useState<Record<string, any> | null>(null);
@@ -6593,8 +6455,6 @@ function AdminBookings() {
 }
 
 
-function reportCount<T>(items: T[], predicate: (item: T) => boolean) { return items.filter(predicate).length; }
-function reportBarRows(values: Record<string, number>, limit = 6) { return Object.entries(values).sort(([, a], [, b]) => b - a).slice(0, limit); }
 function AdminReports() {
   const user = getStoredUser<AuthUser>();
   const [requests, setRequests] = useState<Array<Record<string, any>>>([]); const [bookings, setBookings] = useState<Array<Record<string, any>>>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [query, setQuery] = useState("");
@@ -7622,7 +7482,9 @@ function App() {
       <ThemeProvider>
         <MotionConfig reducedMotion="user">
           <Toaster position="bottom-right" />
-          <AppRouter />
+          <Suspense fallback={<PageFallback />}>
+            <AppRouter />
+          </Suspense>
         </MotionConfig>
       </ThemeProvider>
     </ErrorBoundary>

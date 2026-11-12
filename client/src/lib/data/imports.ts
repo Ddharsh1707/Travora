@@ -1,6 +1,5 @@
 import { getSupabase } from "../supabase";
 import { friendlyError } from "./travel";
-import type { ColumnMapping } from "./importParser";
 
 export type ImportBatch = {
   id: string;
@@ -48,39 +47,9 @@ export type ImportRow = {
   profile?: { full_name: string; employee_id: string } | null;
 };
 
-/** Sends mapped rows to the database, which validates them and returns a batch id. Nothing is imported yet. */
-export async function stageImport(filename: string, kind: "csv" | "xlsx", mapping: ColumnMapping, rows: Array<Record<string, string>>, createMissing = false): Promise<string> {
-  const { data, error } = await getSupabase().rpc("import_stage", {
-    p_filename: filename.slice(0, 255),
-    p_file_kind: kind,
-    p_mapping: mapping,
-    p_rows: rows,
-    p_create_missing: createMissing,
-  });
-  if (error) throw friendlyError(error, "Could not check the file.");
-  return data as string;
-}
-
 export async function getImportBatch(id: string): Promise<ImportBatch> {
   const { data, error } = await getSupabase().from("import_batches").select("*").eq("id", id).single();
   if (error) throw friendlyError(error, "Could not load the import.");
-  return data as ImportBatch;
-}
-
-export async function getImportRows(id: string): Promise<ImportRow[]> {
-  const { data, error } = await getSupabase()
-    .from("import_rows")
-    .select("*, profile:profiles(full_name, employee_id)")
-    .eq("batch_id", id)
-    .order("row_number", { ascending: true })
-    .limit(5000);
-  if (error) throw friendlyError(error, "Could not load the preview.");
-  return (data ?? []) as ImportRow[];
-}
-
-export async function commitImport(id: string, includeWarnings: boolean): Promise<ImportBatch> {
-  const { data, error } = await getSupabase().rpc("import_commit", { p_batch: id, p_include_warnings: includeWarnings });
-  if (error) throw friendlyError(error, "Could not import the rows.");
   return data as ImportBatch;
 }
 
