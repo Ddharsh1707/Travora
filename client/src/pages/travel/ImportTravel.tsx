@@ -12,6 +12,7 @@ import {
 } from "../../lib/data/imports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
 import { DownloadOriginal } from "./UploadHistory";
+import AutoUpload from "./AutoUpload";
 
 type Step = "upload" | "sheets" | "lines" | "people" | "projects" | "done";
 type Mappings = Record<string, Record<number, WbField | "">>;
@@ -36,6 +37,7 @@ function Badge({ tone, children }: { tone: string; children: ReactNode }) {
 }
 
 export default function ImportTravel({ isManager = false }: { isManager?: boolean }) {
+  const [mode, setMode] = useState<"auto" | "manual">("auto");
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<FileInfo | null>(null);
   const [mappings, setMappings] = useState<Mappings>({});
@@ -206,19 +208,28 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
     <div className="page-stack animate-page">
       <PageHeader
         eyebrow={isManager ? "DIRECTOR & TRAVEL DESK" : "BOOKINGS"}
-        title="Upload bookings or past employee records"
-        description="Upload an Excel workbook, a CSV or a PDF exactly as you have it: bulk bookings from the travel agent, the monthly travel desk sheet, or the records of employees who have left. Every sheet or PDF page is read (air, hotel, bus and train, cab, visa, forex) and every column is kept. You check what was found, confirm who each traveller is, map project names once, then import. Nothing is saved until the last step."
+        title="Upload anything"
+        description={mode === "auto"
+          ? "Drop any travel file: the travel agent's Excel, the monthly travel desk sheet, past employee records, a PDF statement, or a ticket, invoice or boarding pass (PDF or photo). The app works out what it is, reads every detail and saves it. You only see what it could not work out."
+          : "Step by step: you check what was found in each sheet, confirm who each traveller is and map project names before anything is saved."}
       />
 
-      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Upload steps">
+      <div className="flex flex-wrap gap-1" role="tablist" aria-label="Upload mode">
+        <button type="button" role="tab" aria-selected={mode === "auto"} className={`button ${mode === "auto" ? "button-primary" : "button-ghost"}`} disabled={mode === "manual" && step !== "upload"} onClick={() => setMode("auto")}>Automatic</button>
+        <button type="button" role="tab" aria-selected={mode === "manual"} className={`button ${mode === "manual" ? "button-primary" : "button-ghost"}`} onClick={() => setMode("manual")}>Review step by step</button>
+      </div>
+
+      {mode === "auto" && <AutoUpload isManager={isManager} onFinished={() => void loadHistory()} />}
+
+      {mode === "manual" && <ol className="flex flex-wrap gap-2 text-xs" aria-label="Upload steps">
         {STEPS.map((s, i) => (
           <li key={s.key} className={`meta-chip ${step === s.key ? "meta-chip-primary" : ""}`} aria-current={step === s.key ? "step" : undefined} style={{ opacity: i > stepIndex ? 0.55 : 1 }}>{i + 1}. {s.label}</li>
         ))}
-      </ol>
+      </ol>}
 
       {error && <ErrorNotice message={error} />}
 
-      {step === "upload" && (
+      {mode === "manual" && step === "upload" && (
         <>
           <div className="panel p-4 grid gap-3 md:grid-cols-2 text-sm">
             <label className="flex items-start gap-3 cursor-pointer">

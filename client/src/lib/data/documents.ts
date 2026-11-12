@@ -1,5 +1,6 @@
 import { getSupabase } from "../supabase";
 import { friendlyError } from "./travel";
+import { canAutoSave } from "../../../../supabase/functions/_shared/ticket";
 
 /**
  * Travel documents (tickets, invoices, boarding passes) in the private
@@ -244,4 +245,108 @@ export async function deleteDocument(doc: Pick<TravelDocument, "id" | "storage_p
   const { error } = await supabase.from("documents").delete().eq("id", doc.id);
   if (error) throw friendlyError(error, "Could not delete the document.");
   await supabase.storage.from(DOCUMENT_BUCKET).remove([doc.storage_path]);
+}
+
+// ---------------------------------------------------------------------------
+// Automatic analysis: scan, then save the trip straight away when the scan is
+// clear (From, To and travel date read with confidence). Anything unclear is
+// left as "needs review" for a person; nothing is guessed.
+// ---------------------------------------------------------------------------
+
+function fileToBase64(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("The file could not be read."));
+    reader.onload = () => {
+      const s = String(reader.result ?? "");
+      resolve(s.slice(s.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function invokeScanner(body: Record<string, unknown>): Promise<Extraction> {
+  const { data, error } = await getSupabase().functions.invoke("document-extract", { body });
+  if (error) {
+    let message = "The document could not be scanned.";
+    try {
+      const payload = await (error as { context?: Response }).context?.json();
+      if (payload && typeof payload.error === "string") message = payload.error;
+    } catch {
+      // keep the generic message
+    }
+    throw new Error(message);
+  }
+  return (data as { extraction: Extraction }).extraction;
+}
+
+/** Scans a file that is not uploaded yet (Travel Desk / Admin / Director). Nothing is saved. */
+export async function scanFile(file: File): Promise<Extraction> {
+  const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  const check = checkDocumentFile(file.name, file.size, head);
+  if (!check.ok) throw new Error(check.error);
+  return invokeScanner({ file: await fileToBase64(file), mimeType: check.mime, filename: file.name.slice(0, 255) });
+}
+
+/** Stores a scan made before upload on the document, as if it had been scanned there. */
+export async function saveScan(documentId: string, extraction: Extraction): Promise<void> {
+  const { error } = await getSupabase().from("documents").update({ extraction_status: "extracted", extracted_data: extraction }).eq("id", documentId);
+  if (error) throw friendlyError(error, "Could not save the scan.");
+}
+
+/** The fields document_confirm() gets from a scan. */
+export function fieldsFromScan(extraction: Extraction, fallbackType: string): ConfirmFields {
+  const f = extraction.fields;
+  return {
+    origin: f.origin ?? "",
+    destination: f.destination ?? "",
+    departure_date: f.departure_date ?? "",
+    return_date: f.return_date ?? "",
+    provider: f.provider ?? "",
+    booking_reference: f.booking_reference ?? "",
+    ticket_number: f.ticket_number ?? "",
+    amount: f.amount != null ? String(f.amount) : "",
+    currency: f.currency ?? "INR",
+    booking_type: f.travel_mode && f.travel_mode !== "other" ? f.travel_mode : "flight",
+    document_type: f.document_type ?? fallbackType,
+  };
+}
+
+/** Everything the person should look at after an automatic save. */
+export function scanNotes(extraction: Extraction): string[] {
+  const unsure = Object.entries(extraction.flags).filter(([, v]) => v === "check").map(([k]) => SCAN_LABELS[k as keyof ExtractedFields] ?? k);
+  return [...extraction.warnings, ...(unsure.length && extraction.warnings.length === 0 ? [`Check: ${unsure.join(", ")}.`] : [])];
+}
+
+const SCAN_LABELS: Partial<Record<keyof ExtractedFields, string>> = {
+  passenger_name: "passenger name", origin: "from", destination: "to", departure_date: "travel date", return_date: "return date",
+  provider: "provider", booking_reference: "PNR", ticket_number: "ticket number", amount: "amount", currency: "currency",
+};
+
+export type AutoResult =
+  | { status: "saved"; created: boolean; extraction: Extraction; notes: string[] }
+  | { status: "review"; extraction: Extraction; reason: string };
+
+/** Saves the trip when the scan is clear, otherwise leaves the document for review. */
+export async function autoSaveScan(doc: Pick<TravelDocument, "id" | "document_type">, extraction: Extraction): Promise<AutoResult> {
+  if (!canAutoSave(extraction)) {
+    const missing = (["origin", "destination", "departure_date"] as const).filter((k) => !extraction.fields[k] || extraction.flags[k] === "check").map((k) => SCAN_LABELS[k]);
+    return { status: "review", extraction, reason: `Could not read ${missing.join(", ")} clearly. Check and save it.` };
+  }
+  try {
+    const r = await confirmDocument(doc.id, fieldsFromScan(extraction, doc.document_type));
+    return { status: "saved", created: r.created, extraction, notes: scanNotes(extraction) };
+  } catch (err) {
+    return { status: "review", extraction, reason: err instanceof Error ? err.message : "Could not save the trip." };
+  }
+}
+
+/** Scans an uploaded document and saves the trip when the scan is clear. */
+export async function analyzeDocument(doc: Pick<TravelDocument, "id" | "document_type">): Promise<AutoResult> {
+  const extraction = await scanDocument(doc.id);
+  return autoSaveScan(doc, extraction);
+}
+
+export function canScan(doc: Pick<TravelDocument, "mime_type" | "extraction_status">): boolean {
+  return ["application/pdf", "image/png", "image/jpeg", "image/webp"].includes(doc.mime_type) && doc.extraction_status !== "verified";
 }

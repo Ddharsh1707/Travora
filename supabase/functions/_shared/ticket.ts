@@ -121,7 +121,7 @@ function nameTokens(v: string): Set<string> {
 /** True when the two names share at least one real word (handles "KUMAR/ARUN MR" vs "Arun Kumar"). */
 export function namesMatch(a: string, b: string): boolean {
   const ta = nameTokens(a);
-  for (const t of nameTokens(b)) if (ta.has(t)) return true;
+  for (const t of Array.from(nameTokens(b))) if (ta.has(t)) return true;
   return false;
 }
 
@@ -193,7 +193,7 @@ export function checkExtraction(raw: unknown, sourceText: string | null, employe
       const v = fields[key];
       if (v && squash(v).length >= 3 && !text.includes(squash(v))) {
         // Names are often printed SURNAME/FIRST; accept when every word is present.
-        const parts = key === "passenger_name" ? [...nameTokens(v)].map(squash) : [];
+        const parts = key === "passenger_name" ? Array.from(nameTokens(v)).map(squash) : [];
         if (parts.length && parts.every((p) => text.includes(p))) continue;
         flags[key] = "check";
         warnings.push(`${LABELS[key]} was not found in the document text.`);
@@ -216,7 +216,7 @@ export function checkExtraction(raw: unknown, sourceText: string | null, employe
     warnings.push(`The passenger name on the document (${fields.passenger_name}) does not match ${employeeName}.`);
   }
 
-  return { fields, flags, warnings: [...new Set(warnings)].slice(0, 20) };
+  return { fields, flags, warnings: Array.from(new Set(warnings)).slice(0, 20) };
 }
 
 export const LABELS: Record<TicketField, string> = {
@@ -241,4 +241,73 @@ export function sniffMime(head: Uint8Array): "application/pdf" | "image/png" | "
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
   if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
   return null;
+}
+
+/**
+ * Free models (Groq, Gemini) are asked for plain JSON instead of a strict
+ * schema, so the schema is spelled out in the instruction. Their answer is
+ * still only trusted after checkExtraction().
+ */
+export const FREE_MODEL_JSON_HINT = [
+  "Answer with ONE JSON object and nothing else, with exactly these keys:",
+  `document_type (one of ${DOCUMENT_TYPES.join(", ")}),`,
+  "passenger_name, origin, destination, provider, booking_reference, ticket_number, currency (strings or null),",
+  "departure_date, return_date (YYYY-MM-DD or null), amount (number or null, the total paid),",
+  `travel_mode (one of ${TRAVEL_MODES.join(", ")}),`,
+  "low_confidence_fields (array of the key names you were unsure about).",
+].join(" ");
+
+/** Reads the JSON object out of a model's text answer (tolerates ```json fences and text around it). */
+export function parseModelJson(text: string | null | undefined): Record<string, unknown> | null {
+  if (!text) return null;
+  const tryParse = (s: string) => {
+    try {
+      const v = JSON.parse(s);
+      return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  };
+  const direct = tryParse(text.trim());
+  if (direct) return direct;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    const v = tryParse(fenced[1].trim());
+    if (v) return v;
+  }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  return start >= 0 && end > start ? tryParse(text.slice(start, end + 1)) : null;
+}
+
+/**
+ * Finds the one employee a passenger name belongs to. Every real word of the
+ * employee's name must be on the document (titles like MR are ignored), and
+ * the answer must be unique; otherwise null so a person chooses.
+ * Handles "KUMAR/ARUN MR" for "Arun Kumar".
+ */
+export function matchPassenger<T extends { full_name: string }>(passenger: string | null | undefined, people: T[]): T | null {
+  if (!passenger) return null;
+  const onDoc = nameTokens(passenger);
+  if (onDoc.size === 0) return null;
+  const scored = people
+    .map((p) => {
+      const words = Array.from(nameTokens(p.full_name));
+      const hit = words.length > 0 && words.every((w) => onDoc.has(w));
+      return { p, hit, size: words.length };
+    })
+    .filter((x) => x.hit);
+  if (scored.length === 0) return null;
+  const best = Math.max(...scored.map((x) => x.size));
+  const top = scored.filter((x) => x.size === best);
+  return top.length === 1 ? top[0].p : null;
+}
+
+/**
+ * True when a scan is good enough to save as a trip without a person
+ * checking it first: From, To and the travel date were read and none of them
+ * was marked unsure.
+ */
+export function canAutoSave(ex: { fields: Record<string, unknown>; flags: Partial<Record<string, string>> }): boolean {
+  return REQUIRED.every((f) => !!ex.fields[f] && ex.flags[f] !== "check" && ex.flags[f] !== "missing");
 }

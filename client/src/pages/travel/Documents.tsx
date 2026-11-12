@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Eye, FileUp, ScanLine, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useLiveRefresh } from "../../lib/data/reports";
 import {
-  DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, confirmDocument, deleteDocument, getDocumentUrl, listDocuments, scanDocument, uploadDocument,
+  DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, analyzeDocument, canScan, confirmDocument, deleteDocument, getDocumentUrl, listDocuments, uploadDocument,
   type ConfirmFields, type DocumentType, type Extraction, type ExtractedFields, type FieldFlag, type TravelDocument,
 } from "../../lib/data/documents";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
@@ -49,20 +49,41 @@ export default function Documents({ profileId, canManage }: { profileId: string;
     }
   }
 
-  async function scan(doc: TravelDocument) {
+  // Reads the document and saves the trip straight away when the scan is
+  // clear; otherwise opens the check form with what was read.
+  async function scan(doc: TravelDocument, quiet = false) {
     setBusyId(doc.id);
     try {
-      const extraction = await scanDocument(doc.id);
-      const updated = { ...doc, extraction_status: "extracted" as const, extracted_data: extraction };
-      setDocs((list) => list?.map((d) => (d.id === doc.id ? updated : d)) ?? null);
-      setReviewing(updated);
+      const r = await analyzeDocument(doc);
+      if (r.status === "saved") {
+        const f = r.extraction.fields;
+        toast.success(`${r.created ? "Trip saved" : "Matched to the existing trip"}${doc.profile?.full_name ? ` for ${doc.profile.full_name}` : ""}: ${f.origin} → ${f.destination}, ${formatDate(f.departure_date)}`);
+        if (r.notes.length && !quiet) toast.message(r.notes.join(" "));
+      } else {
+        const updated = { ...doc, extraction_status: "extracted" as const, extracted_data: r.extraction };
+        setDocs((list) => list?.map((d) => (d.id === doc.id ? updated : d)) ?? null);
+        if (!quiet) setReviewing(updated);
+        else toast.message(`${doc.original_filename}: ${r.reason}`);
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "The document could not be scanned.");
-      load();
+      if (!quiet) toast.error(err instanceof Error ? err.message : "The document could not be scanned.");
     } finally {
       setBusyId(null);
+      load();
     }
   }
+
+  // Files employees uploaded themselves are read as soon as the Travel Desk
+  // opens this page, a few at a time.
+  const tried = useRef(new Set<string>());
+  useEffect(() => {
+    if (!canManage || !docs || busyId) return;
+    const next = docs.find((d) => d.extraction_status === "none" && canScan(d) && !tried.current.has(d.id));
+    if (!next || tried.current.size >= 10) return;
+    tried.current.add(next.id);
+    void scan(next, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canManage, docs, busyId]);
 
   async function remove(doc: TravelDocument) {
     if (!window.confirm(`Delete ${doc.original_filename}? This cannot be undone.`)) return;
@@ -84,11 +105,11 @@ export default function Documents({ profileId, canManage }: { profileId: string;
         eyebrow="Travel"
         title="Tickets & documents"
         description={canManage
-          ? "Upload tickets or invoices under an employee. Each file shows in that employee’s own Tickets & documents page. Scan them to save the trip details; nothing is saved as a trip until you confirm."
-          : "Upload your tickets and invoices. The Travel Desk checks them and adds the trips to your history."}
+          ? "Upload tickets, invoices or boarding passes under an employee. Each file is read automatically and the trip is saved when the details are clear; anything unclear waits here as “needs review”. Each file also shows in that employee’s own Tickets & documents page. To upload files without choosing the employee first, use Upload anything."
+          : "Upload your tickets and invoices. They are read automatically and the trips are added to your history."}
       />
 
-      <UploadPanel profileId={profileId} canManage={canManage} onUploaded={load} />
+      <UploadPanel profileId={profileId} canManage={canManage} onUploaded={(doc) => { load(); if (canManage && canScan(doc)) void scan(doc); }} />
 
       <div className="panel table-panel">
         <div className="table-toolbar flex-wrap">
@@ -125,7 +146,7 @@ export default function Documents({ profileId, canManage }: { profileId: string;
                             <button type="button" className="button button-primary ml-1" onClick={() => setReviewing(d)}>Review</button>
                           ) : (
                             <button type="button" className="button button-primary ml-1" onClick={() => scan(d)} disabled={busyId === d.id}>
-                              <ScanLine size={14} /> {busyId === d.id ? "Scanning…" : d.extraction_status === "failed" ? "Scan again" : "Scan"}
+                              <ScanLine size={14} /> {busyId === d.id ? "Reading…" : d.extraction_status === "failed" ? "Read again" : "Read & save"}
                             </button>
                           )
                         )}
@@ -155,7 +176,7 @@ export default function Documents({ profileId, canManage }: { profileId: string;
   );
 }
 
-function UploadPanel({ profileId, canManage, onUploaded }: { profileId: string; canManage: boolean; onUploaded: () => void }) {
+function UploadPanel({ profileId, canManage, onUploaded }: { profileId: string; canManage: boolean; onUploaded: (doc: TravelDocument) => void }) {
   const [employee, setEmployee] = useState<{ id: string; label: string } | null>(canManage ? null : { id: profileId, label: "" });
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<EmployeeSummary[]>([]);
@@ -176,9 +197,9 @@ function UploadPanel({ profileId, canManage, onUploaded }: { profileId: string; 
     setBusy(true);
     setError("");
     try {
-      await uploadDocument(employee.id, file, type);
-      toast.success("Document uploaded");
-      onUploaded();
+      const doc = await uploadDocument(employee.id, file, type);
+      toast.success(canManage ? "Uploaded. Reading the details…" : "Document uploaded");
+      onUploaded(doc);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The file could not be uploaded.");
     } finally {

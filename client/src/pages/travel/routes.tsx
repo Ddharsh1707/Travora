@@ -82,7 +82,7 @@ const ROUTES: TravelRoute[] = [
   // opens it. The page stays reachable from the chat's full-screen link.
   { group: "DIRECTOR", href: "/travel/assistant", label: "AI assistant", icon: <Bot size={16} />, roles: MANAGERS, hiddenFor: MANAGERS },
   // Director and Travel Desk: getting data in
-  { group: "UPLOADS & BOOKINGS", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
+  { group: "UPLOADS & BOOKINGS", href: "/travel/import", label: "Upload anything", icon: <FileSpreadsheet size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
   { group: "UPLOADS & BOOKINGS", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
   { group: "UPLOADS & BOOKINGS", href: "/travel/bulk", label: "Bulk bookings", icon: <Plane size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
   { group: "UPLOADS & BOOKINGS", href: "/travel/documents", label: "Tickets & documents", icon: <ScanLine size={16} />, roles: ["COMPANY_ADMIN", "ADMIN"] },
@@ -98,7 +98,7 @@ const ROUTES: TravelRoute[] = [
   { group: "DIRECTOR", href: "/travel/employees", label: "Employees: spend & history", icon: <UsersRound size={16} />, roles: MANAGERS, hiddenFor: MANAGERS },
   { group: "DIRECTOR", href: "/travel/reports", label: "Reports", icon: <BarChart3 size={16} />, roles: MANAGERS, hiddenFor: MANAGERS },
   // Travel desk: upload the employee travel sheet, then see its report and each employee's history
-  { group: "BOOKINGS", href: "/travel/import", label: "Upload Excel / PDF", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK"] },
+  { group: "BOOKINGS", href: "/travel/import", label: "Upload anything", icon: <FileSpreadsheet size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "BOOKINGS", href: "/travel/uploads", label: "Upload history", icon: <Archive size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "BOOKINGS", href: "/travel/employees", label: "Employee travel history", icon: <UsersRound size={16} />, roles: ["TRAVEL_DESK"] },
   { group: "MY WORKSPACE", href: "/travel/approvals", label: "Approvals", icon: <ClipboardCheck size={16} />, roles: ["APPROVER"] },
@@ -135,7 +135,7 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/approvals": { eyebrow: "Travel", title: "Travel requests" },
   "/travel/search": { eyebrow: "Travel", title: "Travel search" },
   "/travel/employees": { eyebrow: "Travel", title: "Employees" },
-  "/travel/import": { eyebrow: "Uploads", title: "Upload travel data" },
+  "/travel/import": { eyebrow: "Uploads", title: "Upload anything" },
   "/travel/documents": { eyebrow: "Travel", title: "Tickets & documents" },
   "/travel/bulk": { eyebrow: "Travel", title: "Bulk & group bookings" },
   "/travel/bi": { eyebrow: "Business Intelligence", title: "Management overview" },
@@ -217,7 +217,7 @@ export function travelRail(role: Role): RailSection[] {
         { label: "Spend & history", href: "/travel/employees" },
       ] },
       { key: "uploads", label: "Uploads", icon: <Upload size={19} />, entries: [
-        { label: "Upload Excel / PDF", href: "/travel/import" },
+        { label: "Upload anything", href: "/travel/import" },
         { label: "Upload history", href: "/travel/uploads" },
         { label: "Bulk bookings", href: "/travel/bulk" },
         { label: "Tickets & documents", href: "/travel/documents" },
