@@ -35,5 +35,14 @@ email_sent = 2
 [storage]
 file_size_limit = "10MiB"
 
+# The project signs sign-in tokens with the new ES256 keys, which the gateway's
+# legacy JWT check rejects. Each function verifies the caller itself
+# (getCaller in _shared/auth.ts asks Supabase Auth), so the gateway check is off.
 [functions.admin-users]
-verify_jwt = true
+verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = false
+
+[functions.document-extract]
+verify_jwt = false
