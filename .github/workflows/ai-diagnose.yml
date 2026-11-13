@@ -28,7 +28,16 @@ jobs:
            "tools":[{"type":"function","function":{"name":"company_overview","description":"Counts of employees and trips","parameters":{"type":"object","properties":{},"additionalProperties":false}}}]}
           J
           curl -sS https://api.groq.com/openai/v1/chat/completions -H "Authorization: Bearer $GROQ_API_KEY" -H "Content-Type: application/json" -d @body.json -w "\nHTTP %{http_code}\n" | head -c 1500
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay the assistant's Groq rounds with the real tools
+        run: |
+          cp supabase/functions/_shared/assistantTools.ts "$RUNNER_TEMP/tools.ts"
+          TOOLS_TS="$RUNNER_TEMP/tools.ts" node --experimental-strip-types .github/diagnose/groq-loop.mjs
       - name: Recent ai-assistant logs (last 2 hours)
+        continue-on-error: true
         run: |
           start=$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ); end=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           sql="select timestamp, event_message, metadata from function_logs order by timestamp desc limit 60"
