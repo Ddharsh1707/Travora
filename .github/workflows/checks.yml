@@ -54,6 +54,11 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      # Checked from a copy outside the repo: inside it, Deno sees the root package.json
+      # and expects the npm packages in node_modules instead of fetching them itself,
+      # which is not how Supabase runs these functions.
       - name: Type check Edge Functions
-        working-directory: supabase/functions
-        run: deno check */index.ts
+        run: |
+          cp -r supabase/functions "$RUNNER_TEMP/functions"
+          cd "$RUNNER_TEMP/functions"
+          deno check */index.ts
