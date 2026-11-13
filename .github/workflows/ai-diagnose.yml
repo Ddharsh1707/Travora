@@ -36,6 +36,19 @@ jobs:
         run: |
           cp supabase/functions/_shared/assistantTools.ts "$RUNNER_TEMP/tools.ts"
           TOOLS_TS="$RUNNER_TEMP/tools.ts" node --experimental-strip-types .github/diagnose/groq-loop.mjs
+      - name: Live functions and auth setup (no secrets printed)
+        continue-on-error: true
+        run: |
+          api=https://api.supabase.com/v1/projects/$REF
+          echo "== functions"; curl -sS "$api/functions" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '.[] | {slug, status, version, verify_jwt, updated_at}'
+          echo "== api key kinds"; curl -sS "$api/api-keys?reveal=false" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '.[] | {name, type}'
+          echo "== jwt signing keys"; curl -sS "$api/config/auth/signing-keys" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -c '(.keys // .)[]? | {algorithm, status}' || true
+          anon=$(curl -sS "$api/api-keys?reveal=true" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -r '[.[] | select(.name=="anon" or .type=="publishable")][0].api_key')
+          echo "::add-mask::$anon"
+          fn=https://$REF.supabase.co/functions/v1/ai-assistant
+          echo "== call with no auth";   curl -sS -X POST "$fn" -H "Content-Type: application/json" -d '{"question":"hi"}' -w "\nHTTP %{http_code}\n" | head -c 400
+          echo "== call with anon key";  curl -sS -X POST "$fn" -H "Content-Type: application/json" -H "apikey: $anon" -H "Authorization: Bearer $anon" -d '{"question":"hi"}' -w "\nHTTP %{http_code}\n" | head -c 400
+          echo "== preflight"; curl -sS -X OPTIONS "$fn" -H "Origin: https://main.d27refhdsen811.amplifyapp.com" -H "Access-Control-Request-Method: POST" -D - -o /dev/null | head -20
       - name: Recent ai-assistant logs (last 2 hours)
         continue-on-error: true
         run: |
