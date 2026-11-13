@@ -61,6 +61,7 @@ jobs:
       - name: Save the AI keys in Supabase
         if: steps.token.outputs.ready == 'true'
         run: |
+          # --yes: newer Supabase CLI versions ask for confirmation, which a GitHub run cannot answer.
           # Written to a private temp file rather than the command line, so keys never show in logs.
           env_file="$RUNNER_TEMP/function-secrets.env"
           umask 077
@@ -68,7 +69,7 @@ jobs:
           [ -n "$GROQ_API_KEY" ] && printf 'GROQ_API_KEY=%s\n' "$GROQ_API_KEY" >> "$env_file"
           [ -n "$GEMINI_API_KEY" ] && printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$env_file"
           if [ -s "$env_file" ]; then
-            supabase secrets set --env-file "$env_file" --project-ref "$PROJECT_REF"
+            supabase secrets set --env-file "$env_file" --project-ref "$PROJECT_REF" --yes
             echo "Saved: $(cut -d= -f1 "$env_file" | paste -sd, -)"
           else
             echo "No GROQ_API_KEY or GEMINI_API_KEY secret in GitHub; leaving the keys already in Supabase as they are."
@@ -87,7 +88,7 @@ jobs:
           cd "$work"
           for fn in admin-users ai-assistant document-extract; do
             echo "::group::Deploy $fn"
-            supabase functions deploy "$fn" --project-ref "$PROJECT_REF"
+            supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --yes
             echo "::endgroup::"
           done
 
