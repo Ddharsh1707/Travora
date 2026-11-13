@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ClipboardCheck, FileCheck2, FolderKanban, IndianRupee, Receipt, UsersRound } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CATEGORY_LABELS, decideExpense, getCeoDashboard, listExpenses, type CeoDashboard as Dash, type Expense } from "../../lib/data/expenses";
 import { presetRange, useLiveRefresh, type RangePreset } from "../../lib/data/reports";
 import { getSheetProjectTrips } from "../../lib/data/sheetProjects";
 import { listAllRequests, type TravelRequest } from "../../lib/data/travel";
-import { groupSheetProjects, type SheetProject } from "../../lib/projectTeamReport";
+import { groupSheetProjects, projectHref, type SheetProject } from "../../lib/projectTeamReport";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, routeLabel } from "./common";
 import { useRequestTickets } from "./RequestTickets";
 
@@ -22,7 +22,7 @@ const compact = new Intl.NumberFormat("en-IN", { notation: "compact", maximumFra
 const TOP_PROJECTS = 10;
 const short = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
-type ProjectBar = { name: string; full: string; spend: number; bookings: number; travellers: number; share: number };
+type ProjectBar = { name: string; full: string; href: string; spend: number; bookings: number; travellers: number; share: number };
 
 /** Hover card for one project bar. */
 function ProjectTip({ active, payload }: { active?: boolean; payload?: Array<{ payload: ProjectBar }> }) {
@@ -33,6 +33,7 @@ function ProjectTip({ active, payload }: { active?: boolean; payload?: Array<{ p
       <strong>{p.full}</strong>
       <span>{formatMoney(p.spend)} · {p.share}% of project spend</span>
       <span>{p.bookings} booking{p.bookings === 1 ? "" : "s"} · {p.travellers} traveller{p.travellers === 1 ? "" : "s"}</span>
+      <span className="opacity-70">Click to open the project</span>
     </div>
   );
 }
@@ -73,9 +74,10 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
   const { byRequest } = useRequestTickets(approved);
   const needTicket = useMemo(() => approved.filter((r) => !(byRequest[r.id]?.length)).sort((a, b) => a.departure_date.localeCompare(b.departure_date)), [approved, byRequest]);
 
+  const [, navigate] = useLocation();
   const projectTotal = useMemo(() => (projects ?? []).reduce((a, p) => a + p.spend, 0), [projects]);
   const bars: ProjectBar[] = useMemo(() => (projects ?? []).slice(0, TOP_PROJECTS).map((p) => ({
-    name: short(p.name), full: p.name, spend: p.spend, bookings: p.bookings, travellers: p.travellers,
+    name: short(p.name), full: p.name, href: projectHref(p.name) ?? "/travel/bi/projects", spend: p.spend, bookings: p.bookings, travellers: p.travellers,
     share: projectTotal > 0 ? Math.round((p.spend / projectTotal) * 100) : 0,
   })), [projects, projectTotal]);
 
@@ -144,15 +146,24 @@ export default function CeoDashboard({ name, profileId, isCeo = true }: { name: 
                       <BarChart data={bars} layout="vertical" margin={{ left: 4, right: 64, top: 4, bottom: 4 }} barCategoryGap={6}>
                         <CartesianGrid horizontal={false} strokeDasharray="2 4" opacity={0.35} />
                         <XAxis type="number" fontSize={11} tickFormatter={(v) => compact.format(Number(v))} axisLine={false} tickLine={false} />
-                        <YAxis type="category" dataKey="name" width={170} fontSize={11.5} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" width={170} fontSize={11.5} axisLine={false} tickLine={false}
+                          tick={(t: { x: number; y: number; index: number; payload: { value: string } }) => (
+                            <text x={t.x} y={t.y} dy={4} textAnchor="end" fontSize={11.5} fill="currentColor" className="chart-link-tick"
+                              onClick={() => bars[t.index] && navigate(bars[t.index].href)}>
+                              <title>{`Open ${bars[t.index]?.full ?? t.payload.value}`}</title>{t.payload.value}
+                            </text>
+                          )} />
                         <Tooltip content={<ProjectTip />} cursor={{ fill: "rgba(242,169,59,0.08)" }} />
-                        <Bar dataKey="spend" name="Spend" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                        <Bar dataKey="spend" name="Spend" radius={[0, 4, 4, 0]} maxBarSize={22} cursor="pointer"
+                          onClick={(_: unknown, i: number) => bars[i] && navigate(bars[i].href)}>
                           {bars.map((b, i) => <Cell key={b.full} fill={i === 0 ? "#F2A93B" : "#1BA39C"} />)}
                           <LabelList dataKey="spend" position="right" formatter={(v: unknown) => compact.format(Number(v))} className="chart-value-label" fontSize={11} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
+                  <ul className="sr-only">{bars.map((b) => <li key={b.href}><Link href={b.href}>Open {b.full}</Link></li>)}</ul>
+                  <p className="text-xs opacity-60">Click a project name or bar to see its team, trips, claims and spend.</p>
                   {(projects?.length ?? 0) > TOP_PROJECTS && <p className="text-xs opacity-60">Showing the {TOP_PROJECTS} projects with the most spend. <Link href="/travel/bi/projects" className="underline">See all {projects?.length}</Link></p>}
                 </>
               )}

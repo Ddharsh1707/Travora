@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import type { LedgerRow, ProjectDetail } from "../lib/data/bi.ts";
-import { buildProjectTeamReport, describeTeamFilters, groupSheetProjects, projectKey, type SheetTrip } from "../lib/projectTeamReport.ts";
+import { buildProjectTeamReport, describeTeamFilters, groupSheetProjects, projectDetailFromTrips, projectHref, projectKey, projectKeyFromSlug, type SheetTrip } from "../lib/projectTeamReport.ts";
 import { reportToCsv } from "../lib/reportDoc.ts";
 
 const trip = (o: Partial<LedgerRow>): LedgerRow => ({
@@ -67,5 +67,35 @@ describe("Project team report", () => {
     const doc = buildProjectTeamReport(k.detail, { projectName: k.name, filters: [] });
     assert.equal(doc.sections[0].rows.length, 2);
     assert.equal(doc.sections[1].rows.length, 4);
+  });
+
+  test("every spelling of a project links to the same project page", () => {
+    assert.equal(projectHref("Kakinada Port"), "/travel/bi/projects/p/kakinada-port");
+    assert.equal(projectHref("KAKINADA  PORT"), projectHref("kakinada-port"));
+    assert.equal(projectHref("N/A"), null);
+    assert.equal(projectHref(null), null);
+    assert.equal(projectKeyFromSlug("kakinada-port"), "kakinada port");
+    assert.equal(projectKeyFromSlug("Kakinada%20Port"), "kakinada port");
+    assert.equal(projectKeyFromSlug("%E0%A4%A"), "e0 a4 a", "a broken link does not throw");
+    assert.equal(projectKeyFromSlug("na"), null);
+  });
+
+  test("project page breakdowns: by month, route, place, provider, type and purpose", () => {
+    const t = (o: Partial<SheetTrip>): SheetTrip => ({
+      id: Math.random().toString(), employee_id: "e1", departure_date: "2026-09-02", return_date: null, origin: "hyd", destination: "del",
+      booking_type: "flight", airline_or_provider: "IndiGo", booking_reference: "P", status: "completed", project_raw: "HRRL",
+      purpose: "Audit", amount: 1000, currency: "INR", source_sheet: "AIR", profile: { full_name: "Asha Rao", employee_id: "E1", department: "Civil" }, ...o,
+    });
+    const d = projectDetailFromTrips([
+      t({}), t({ employee_id: "e2", amount: 2000 }), t({ departure_date: "2026-10-05", booking_type: "hotel", origin: null, destination: "Mumbai", airline_or_provider: "Taj", purpose: null, amount: 4000 }),
+      t({ departure_date: "2026-10-09", status: "cancelled", amount: 700 }),
+    ]);
+    assert.deepEqual(d.monthly.map((m) => [m.month, m.bookings, m.spend, m.travellers]), [["2026-09", 2, 3000, 2], ["2026-10", 2, 4000, 1]]);
+    assert.deepEqual(d.routes, [{ origin: "HYD", destination: "DEL", bookings: 3, spend: 3000 }]);
+    assert.deepEqual(d.destinations.map((x) => x.destination), ["MUMBAI", "DEL"]);
+    assert.deepEqual(d.providers.map((x) => [x.provider, x.category]), [["Taj", "hotel"], ["IndiGo", "flight"]]);
+    assert.deepEqual(d.categories.map((x) => [x.category, x.bookings, x.spend]), [["hotel", 1, 4000], ["flight", 3, 3000]]);
+    assert.deepEqual(d.purposes.map((x) => x.purpose), ["Not recorded", "Audit"]);
+    assert.equal(projectDetailFromTrips([]).kpis.bookings, 0);
   });
 });

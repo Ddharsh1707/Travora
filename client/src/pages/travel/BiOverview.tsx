@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { projectHref } from "../../lib/projectLinks";
 import { fillMonthGaps, getOverview, useBiFilters, type Overview } from "../../lib/data/bi";
 import { monthLabel } from "../../lib/data/reports";
 import BiFilterBar from "./BiFilterBar";
@@ -14,8 +15,15 @@ import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, label
  * bookings. Approvers see the same page limited to their team (the database
  * applies that), the travel desk and CEO see everyone.
  */
+/** Where a bar in "Top projects by spend" goes: that project's page, or the travel with no project. */
+function topProjectHref(p: Overview["top_projects"][number] | undefined): string | null {
+  if (!p) return null;
+  return p.project_id ? projectHref(p.name) ?? `/travel/bi/projects/${p.project_id}` : "/travel/bi/projects/unassigned";
+}
+
 export default function BiOverview({ scopeLabel }: { scopeLabel: string }) {
   const [filters, setFilters] = useBiFilters();
+  const [, navigate] = useLocation();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -102,12 +110,13 @@ export default function BiOverview({ scopeLabel }: { scopeLabel: string }) {
                   <XAxis type="number" hide />
                   <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11, fill: "var(--ink-soft)" }} />
                   <Tooltip formatter={(v: number) => formatMoney(v, cur)} />
-                  <Bar dataKey="spend" name="Spend" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="spend" name="Spend" radius={[0, 4, 4, 0]} cursor="pointer"
+                    onClick={(_: unknown, i: number) => { const h = topProjectHref(data.top_projects[i]); if (h) navigate(h); }}>
                     {data.top_projects.map((p) => <Cell key={p.project_id ?? "none"} fill={p.project_id ? "var(--blue)" : "#94a3b8"} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <p className="text-xs opacity-70">Grey is travel not linked to any project.</p>
+              <p className="text-xs opacity-70">Click a bar to open that project. Grey is travel with no project.</p>
             </Panel>
             <Panel title="By department">
               <table className="bi-table">
@@ -143,7 +152,7 @@ export default function BiOverview({ scopeLabel }: { scopeLabel: string }) {
                     <tr key={r.id}>
                       <td className="whitespace-nowrap">{formatDate(r.departure_date)}</td>
                       <td><Link href={`/travel/employees/${r.employee_id}`} className="hover:underline">{r.full_name}</Link>
-                        <div className="table-subline">{r.project_name ?? (r.project_raw ? `“${r.project_raw}” (not linked)` : "No project")}</div></td>
+                        <div className="table-subline">{projectHref(r.project_name ?? r.project_raw) ? <Link href={projectHref(r.project_name ?? r.project_raw)!} className="hover:underline">{r.project_name ?? r.project_raw}</Link> : "No project"}</div></td>
                       <td>{routeLabel(r.origin, r.destination)}<div className="table-subline">{labelFor(r.category)}{r.status === "cancelled" ? " · cancelled" : ""}</div></td>
                       <td className="text-right"><CostCell amount={r.amount} currency={r.currency} state={r.cost_state} status={r.status} /></td>
                     </tr>

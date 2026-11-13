@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { STATUS_LABEL, useBiFilters, type ProjectStatus } from "../../lib/data/bi";
 import { getSheetProjectTrips } from "../../lib/data/sheetProjects";
 import { recordReportGenerated } from "../../lib/data/travel";
-import { groupSheetProjects, type SheetProject, type SheetTrip } from "../../lib/projectTeamReport";
+import { groupSheetProjects, projectHref, type SheetProject, type SheetTrip } from "../../lib/projectTeamReport";
 import { exportToCsv } from "../../utils/exportCsv";
 import BiFilterBar from "./BiFilterBar";
 import { downloadTeamReport } from "./BiProjectDetail";
@@ -87,7 +87,7 @@ export default function BiProjects({ isCeo: _isCeo }: { isCeo: boolean }) {
       <PageHeader
         eyebrow="BUSINESS INTELLIGENCE"
         title="Project Intelligence"
-        description="Every project from the project column of the uploaded Excel sheets. Search a project to see the employees who worked under it, and download their report."
+        description="Every project from the project column of the uploaded Excel sheets. Click a project name for its full details, or the arrow to see its team here."
         actions={<button type="button" className="button button-ghost" onClick={downloadList} disabled={!rows.length}><Download size={14} /> Download list (CSV)</button>}
       />
       <BiFilterBar filters={filters} onChange={setFilters} hide={["project"]} />
@@ -132,10 +132,13 @@ export default function BiProjects({ isCeo: _isCeo }: { isCeo: boolean }) {
                         <Fragment key={p.key}>
                           <tr>
                             <td>
-                              <button type="button" className="font-semibold hover:underline inline-flex items-center gap-1 text-left" aria-expanded={isOpen}
-                                onClick={() => setOpen(isOpen ? null : p.key)}>
-                                {isOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}{p.name}
-                              </button>
+                              <span className="inline-flex items-center gap-1">
+                                <button type="button" className="icon-button" style={{ width: 22, height: 22 }} aria-expanded={isOpen}
+                                  aria-label={isOpen ? `Hide the team of ${p.name}` : `Show the team of ${p.name}`} onClick={() => setOpen(isOpen ? null : p.key)}>
+                                  {isOpen ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
+                                </button>
+                                <Link href={projectHref(p.name) ?? "/travel/bi/projects"} className="font-semibold hover:underline text-left">{p.name}</Link>
+                              </span>
                               {p.spellings.length > 1 && <div className="table-subline">Also written as: {p.spellings.slice(1, 4).join(", ")}{p.spellings.length > 4 ? "…" : ""}</div>}
                             </td>
                             <td className="text-right">{count(p.travellers)}</td>

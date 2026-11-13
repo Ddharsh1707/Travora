@@ -26,3 +26,12 @@ test("other roles keep their menus", () => {
   assert.ok(hrefs("TRAVEL_DESK").includes("/travel/employees"));
   assert.ok(!isTravelPathAllowed("EMPLOYEE", "/travel/people"));
 });
+
+test("a project page opened from a project name is for oversight roles only", () => {
+  for (const role of ["ADMIN", "COMPANY_ADMIN", "TRAVEL_DESK", "APPROVER"] as const) {
+    assert.ok(isTravelPathAllowed(role, "/travel/bi/projects/p/kakinada-port"), `${role} can open a project page`);
+  }
+  assert.ok(!isTravelPathAllowed("EMPLOYEE", "/travel/bi/projects/p/kakinada-port"));
+  assert.ok(!isTravelPathAllowed("ADMIN", "/travel/bi/projects/p/n-a"), "a blank-like name has no page");
+});
+
