@@ -472,7 +472,8 @@ type ToolRunner = (name: string, input: unknown, modelRows: number) => Promise<{
 type LoopResult = { answer: string } | { busy: true; error: unknown } | { failed: true; error: unknown };
 
 const OPENAI_COMPAT: Record<"groq" | "gemini", { url: string; model: string }> = {
-  groq: { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile" },
+  // llama-3.3-70b-versatile was shut down by Groq on 2026-08-16; gpt-oss-120b is its listed replacement.
+  groq: { url: "https://api.groq.com/openai/v1/chat/completions", model: "openai/gpt-oss-120b" },
   gemini: { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", model: "gemini-2.5-flash" },
 };
 
@@ -492,6 +493,13 @@ function providers(): Provider[] {
 
 const REFUSED = "I can't help with that one. Try asking about trips, spend, employees, requests, tickets or uploads.";
 
+/** A plain reason for the person, from the last provider error (never the key or the raw reply). */
+function failureReason(error: string): string {
+  if (/\b(401|403)\b|invalid_api_key/i.test(error)) return "The assistant could not answer: the AI service rejected the key. Check the GROQ_API_KEY secret and deploy again.";
+  if (/\b404\b|model_not_found|decommissioned/i.test(error)) return "The assistant could not answer: the AI model is no longer available. Set GROQ_MODEL to a current model.";
+  return "The assistant could not answer right now";
+}
+
 /** Groq and Gemini: OpenAI-style chat completions with function calling. */
 async function runOpenAICompat(p: Provider, system: string, history: Turn[], question: string, tools: ReturnType<typeof toolsFor>, run: ToolRunner): Promise<LoopResult> {
   const url = OPENAI_COMPAT[p.id as "groq" | "gemini"].url;
@@ -500,6 +508,8 @@ async function runOpenAICompat(p: Provider, system: string, history: Turn[], que
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const payload = JSON.stringify({
       model: p.model, messages, tools: fnTools, max_tokens: 3000, temperature: 0.1,
+      // gpt-oss models think before answering; keep that short so the free per-minute token limit lasts.
+      ...(p.id === "groq" && p.model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" } : {}),
       // On the last round, ask for words instead of more lookups.
       tool_choice: round === MAX_ROUNDS - 1 ? "none" : "auto",
     });
@@ -526,6 +536,8 @@ async function runOpenAICompat(p: Provider, system: string, history: Turn[], que
         return { busy: true, error: `${p.id} 429` };
       }
       if (res.status === 503) return { busy: true, error: `${p.id} 503` };
+      // Groq answers 413 when one request is bigger than the free per-minute token limit.
+      if (res.status === 413) return { busy: true, error: `${p.id} 413` };
       if (res.status === 400 && attempt < 2) {
         // Groq answers 400 tool_use_failed when the model wrote a broken tool call; asking again usually works.
         const text = await res.text().catch(() => "");
@@ -550,8 +562,9 @@ async function runOpenAICompat(p: Provider, system: string, history: Turn[], que
       if (choice?.finish_reason === "length") answer += "\n\n(The answer was cut short. Try a narrower question.)";
       return { answer };
     }
-    // Send the assistant turn back unchanged (Gemini needs its signatures), then one result per call.
-    messages.push(msg);
+    // Send the assistant turn back (Gemini needs its signatures; Groq's reasoning text is left out), then one result per call.
+    const { reasoning: _reasoning, ...turn } = msg;
+    messages.push(turn);
     for (const call of calls.slice(0, 8)) {
       let input: unknown = null;
       try {
@@ -697,6 +710,7 @@ Deno.serve(async (req) => {
     let answer = "";
     let provider: ProviderId | null = null;
     let lastBusy = false;
+    let lastError = "";
     for (const p of available) {
       // A retry with the backup provider starts the lookups again.
       records.length = 0;
@@ -711,12 +725,13 @@ Deno.serve(async (req) => {
         break;
       }
       lastBusy = "busy" in result;
+      lastError = result.error instanceof Error ? result.error.message : String(result.error);
       console.error("assistant provider failed", p.id, result.error instanceof Error ? result.error.message : String(result.error).slice(0, 300));
     }
     if (!provider) {
       return lastBusy
         ? fail(req, 503, "The free AI service is busy right now. Try again in a minute.")
-        : fail(req, 502, "The assistant could not answer right now");
+        : fail(req, 502, failureReason(lastError));
     }
 
     if (!answer) answer = "I could not finish looking that up. Try asking a narrower question, for example one person or one month.";

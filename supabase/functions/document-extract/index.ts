@@ -40,6 +40,8 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_TEXT_CHARS = 30_000;
 const MIN_TEXT_CHARS = 80; // below this the PDF is treated as a scan and read visually
 const MIMES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
+// llama-3.3-70b-versatile was shut down by Groq on 2026-08-16; gpt-oss-120b is its listed replacement.
+const GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
 const GROQ_IMAGE_LIMIT = 4 * 1024 * 1024; // Groq refuses base64 images above 4 MB
 
 type Mime = "application/pdf" | "image/png" | "image/jpeg" | "image/webp";
@@ -96,12 +98,16 @@ async function askGroq(p: Provider, input: Input): Promise<Answer> {
   let content: unknown;
   let model: string;
   if (input.method === "text") {
-    model = Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile";
+    model = Deno.env.get("GROQ_MODEL") || GROQ_DEFAULT_MODEL;
     content = `${docText(input.sourceText!)}\n\n${INSTRUCTION}\n${FREE_MODEL_JSON_HINT}`;
   } else {
     // Groq reads photos, not PDF files.
     if (input.mime === "application/pdf" || input.bytes.length > GROQ_IMAGE_LIMIT) throw new CannotRead("groq cannot read this file");
-    model = Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-4-scout-17b-16e-instruct";
+    // Groq shut down its free vision model (llama-4-scout, July 2026). Photos need GROQ_VISION_MODEL
+    // set to a current Groq vision model, or a Gemini/Claude key.
+    const vision = Deno.env.get("GROQ_VISION_MODEL");
+    if (!vision) throw new CannotRead("groq has no vision model set");
+    model = vision;
     content = [
       { type: "image_url", image_url: { url: `data:${input.mime};base64,${toBase64(input.bytes)}` } },
       { type: "text", text: `${INSTRUCTION}\n${FREE_MODEL_JSON_HINT}` },
