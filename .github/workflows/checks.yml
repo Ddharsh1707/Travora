@@ -1,0 +1,59 @@
+# Runs every check on each proposed change (pull request) and on every push to main.
+# Branch protection on main should require all three jobs below to pass before merging.
+# See docs/BRANCH_PROTECTION.md for the settings to switch on.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: App (types, tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version comes from "packageManager" in package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm check
+      - name: App tests
+        run: pnpm test
+      - name: Production build
+        run: pnpm build
+
+  database:
+    name: Database security (RLS tests)
+    runs-on: ubuntu-24.04 # ships with PostgreSQL 16; the script starts a throwaway copy
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply all migrations and run the RLS test suite
+        run: bash supabase/tests/run_local.sh
+
+  functions:
+    name: Edge Functions (Deno type check)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type check Edge Functions
+        working-directory: supabase/functions
+        run: deno check */index.ts
