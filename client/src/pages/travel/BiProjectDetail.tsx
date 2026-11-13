@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, FileSpreadsheet, FileText, Pencil, Search, X } from "lucide-react";
+import { ArrowLeft, ClipboardList, Download, Receipt, FileSpreadsheet, FileText, Pencil, Search, X } from "lucide-react";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Link } from "wouter";
 import {
@@ -8,7 +8,10 @@ import {
 } from "../../lib/data/bi";
 import { monthLabel } from "../../lib/data/reports";
 import { recordReportGenerated } from "../../lib/data/travel";
-import { buildProjectTeamReport, describeTeamFilters } from "../../lib/projectTeamReport";
+import { getProjectClaims, getProjectRequests, getSheetProjectTrips, type ProjectClaim } from "../../lib/data/sheetProjects";
+import type { TravelRequest } from "../../lib/data/travel";
+import { CATEGORY_LABELS } from "../../lib/data/expenses";
+import { buildProjectTeamReport, describeTeamFilters, groupSheetProjects, projectDetailFromTrips } from "../../lib/projectTeamReport";
 import { exportToCsv } from "../../utils/exportCsv";
 import BiFilterBar from "./BiFilterBar";
 import { BI_PALETTE, CostCell, DataQuality, Kpi, Panel, ShareBar, compact, count, dateRange, plural } from "./BiParts";
@@ -16,14 +19,33 @@ import { ProjectStatusPill } from "./BiProjects";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate, formatMoney, labelFor, routeLabel } from "./common";
 import ModalPortal from "../../components/ModalPortal";
 
+type SheetInfo = { name: string; spellings: string[]; claims: ProjectClaim[]; requests: TravelRequest[] };
+
+/** Loads one project named in the sheets (by its key), with its claims and requests. */
+async function loadSheetProject(key: string, filters: BiFilters): Promise<{ detail: ProjectDetail; info: SheetInfo }> {
+  const [trips, claims, requests] = await Promise.all([
+    getSheetProjectTrips(filters),
+    getProjectClaims(key, filters).catch(() => [] as ProjectClaim[]),
+    getProjectRequests(key, filters).catch(() => [] as TravelRequest[]),
+  ]);
+  const found = groupSheetProjects(trips).find((p) => p.key === key);
+  const fallback = claims[0]?.project_name ?? requests[0]?.project_name ?? key.replace(/\b\w/g, (c) => c.toUpperCase());
+  return {
+    detail: found?.detail ?? projectDetailFromTrips([]),
+    info: { name: found?.name ?? fallback.trim(), spellings: found?.spellings ?? [], claims, requests },
+  };
+}
+
 /**
- * One project (or the bookings linked to no project): who travelled, where,
- * when, and every booking behind the totals. The Director can fill in project
- * details that are not in the sheets and link bookings by hand.
+ * One project: who worked on it, where and when they travelled, and every
+ * booking behind the totals. Opened by id (a saved project, or the bookings
+ * linked to no project) or by the project name from the sheets (sheetKey),
+ * which also lists the claims and travel requests made for it.
  */
-export default function BiProjectDetail({ projectId, isCeo }: { projectId: string | null; isCeo: boolean }) {
+export default function BiProjectDetail({ projectId, sheetKey = null, isCeo }: { projectId: string | null; sheetKey?: string | null; isCeo: boolean }) {
   const [filters, setFilters] = useBiFilters();
   const [data, setData] = useState<ProjectDetail | null>(null);
+  const [sheet, setSheet] = useState<SheetInfo | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -33,11 +55,13 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
   const load = useCallback(() => {
     setLoading(true);
     setError("");
-    getProjectDetail(projectId, filters)
-      .then(setData)
+    const job = sheetKey
+      ? loadSheetProject(sheetKey, filters).then(({ detail, info }) => { setData(detail); setSheet(info); })
+      : getProjectDetail(projectId, filters).then(setData);
+    job
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load the project."))
       .finally(() => setLoading(false));
-  }, [projectId, filters]);
+  }, [projectId, sheetKey, filters]);
   useEffect(() => load(), [load]);
 
   const cur = data?.base_currency ?? "INR";
@@ -50,7 +74,9 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
   }, [data, query]);
 
   const p = data?.project ?? null;
-  const title = projectId ? p?.name ?? "Project" : "Travel not linked to a project";
+  const title = sheetKey ? sheet?.name ?? "Project" : projectId ? p?.name ?? "Project" : "Travel not linked to a project";
+  const claimTotal = useMemo(() => (sheet?.claims ?? []).reduce((s, c) => s + Number(c.counted || 0), 0), [sheet]);
+  const aliases = sheetKey ? (sheet?.spellings.length ?? 0) > 1 ? sheet!.spellings : [] : data?.aliases ?? [];
 
   async function teamReport(format: "xlsx" | "pdf") {
     if (!data) return;
@@ -82,7 +108,9 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
       <PageHeader
         eyebrow={p ? KIND_LABEL[p.kind].toUpperCase() : "PROJECT INTELLIGENCE"}
         title={title}
-        description={projectId
+        description={sheetKey
+          ? "Everything recorded under this project: the team, their trips and bookings, expense claims and travel requests."
+          : projectId
           ? details || (isCeo ? "No client, site or dates recorded yet. Use Edit details to add them." : "No client, site or dates recorded yet.")
           : "Bookings whose sheet had no project name, or a name that is not linked to a project yet."}
         actions={<>
@@ -93,17 +121,25 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
           <button type="button" className="button button-ghost" onClick={download} disabled={!data?.ledger.length}><Download size={14} /> Bookings CSV</button>
         </>}
       />
-      {data && data.aliases.length > 0 && (
-        <p className="text-xs opacity-80">Spellings in the travel sheets linked to this project: {data.aliases.map((a) => <span key={a} className="bi-tag mr-1">{a}</span>)}</p>
+      {aliases.length > 0 && (
+        <p className="text-xs opacity-80">{sheetKey ? "Written in the sheets as" : "Spellings in the travel sheets linked to this project"}: {aliases.map((a) => <span key={a} className="bi-tag mr-1">{a}</span>)}</p>
       )}
       <BiFilterBar filters={filters} onChange={setFilters} hide={["project"]} />
       {error && <ErrorNotice message={error} onRetry={load} />}
       {loading && !data && <Loading label="Loading the project…" />}
 
       {data && (data.kpis.bookings === 0 ? (
-        <Empty title="No travel for this project" description="No bookings match these filters." />
+        <Empty title="No travel for this project" description={sheetKey ? "No bookings in the uploaded sheets name this project for these filters." : "No bookings match these filters."} />
       ) : (
         <div className={`page-stack ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
+          {sheetKey && sheet && (
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <Kpi label="Total spend" value={formatMoney(data.kpis.spend + claimTotal, cur)} detail={`Travel ${formatMoney(data.kpis.spend, cur)} + claims ${formatMoney(claimTotal, cur)}`} />
+              <Kpi label="Team" value={count(data.kpis.travellers)} detail="People who travelled on it" />
+              <Kpi label="Expense claims" value={count(sheet.claims.length)} detail={sheet.claims.length ? `${formatMoney(claimTotal, cur)} counted` : "None tagged with this project"} />
+              <Kpi label="Travel requests" value={count(sheet.requests.length)} detail={`${sheet.requests.filter((r) => r.status === "pending").length} waiting`} />
+            </div>
+          )}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             <Kpi label="Travel spend" value={formatMoney(data.kpis.spend, cur)} detail={data.kpis.costed_bookings ? `${formatMoney(data.kpis.spend / data.kpis.costed_bookings, cur)} per costed booking` : "No costs recorded"} />
             <Kpi label="Bookings" value={count(data.kpis.bookings)} detail={dateRange(data.kpis.first_date, data.kpis.last_date)} />
@@ -147,7 +183,7 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="Who travelled" note="Open a name for that person's full travel history">
+            <Panel title={sheetKey ? "Team" : "Who travelled"} note="Open a name for that person's full travel history">
               <table className="bi-table">
                 <thead><tr><th>Employee</th><th className="text-right">Bookings</th><th className="text-right">Spend</th><th>Travel</th></tr></thead>
                 <tbody>
@@ -179,6 +215,8 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
               </Panel>
             </div>
           </div>
+
+          {sheetKey && sheet && <ProjectClaimsAndRequests claims={sheet.claims} requests={sheet.requests} currency={cur} />}
 
           <div className="panel table-panel">
             <div className="table-toolbar flex-wrap">
@@ -213,7 +251,54 @@ export default function BiProjectDetail({ projectId, isCeo }: { projectId: strin
           </div>
         </div>
       ))}
+      {sheetKey && sheet && data?.kpis.bookings === 0 && <ProjectClaimsAndRequests claims={sheet.claims} requests={sheet.requests} currency={cur} />}
       {editing && p && <EditProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load(); }} />}
+    </div>
+  );
+}
+
+const REQUEST_STATUS: Record<string, string> = { pending: "Waiting", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled", booked: "Booked", completed: "Completed" };
+
+/** Claims and travel requests tagged with the project. */
+function ProjectClaimsAndRequests({ claims, requests, currency }: { claims: ProjectClaim[]; requests: TravelRequest[]; currency: string }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Panel title="Expense claims" note="Claims employees tagged with this project">
+        {claims.length === 0 ? <p className="text-sm opacity-70 inline-flex items-center gap-2"><Receipt size={14} aria-hidden /> No claims for this project.</p> : (
+          <table className="bi-table">
+            <thead><tr><th>Date</th><th>Employee</th><th>Claim</th><th className="text-right">Amount</th></tr></thead>
+            <tbody>
+              {claims.slice(0, 50).map((c) => (
+                <tr key={c.id}>
+                  <td className="whitespace-nowrap">{formatDate(c.spend_date)}</td>
+                  <td><Link href={`/travel/employees/${c.employee_id}`} className="hover:underline">{c.employee_name}</Link><div className="table-subline">{c.employee_code}</div></td>
+                  <td>{CATEGORY_LABELS[c.category as keyof typeof CATEGORY_LABELS] ?? labelFor(c.category)}<div className="table-subline">{c.description ?? ""}{c.status ? ` · ${c.status}` : ""}</div></td>
+                  <td className="text-right whitespace-nowrap">{c.amount == null ? "—" : formatMoney(Number(c.amount), c.currency || currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {claims.length > 50 && <p className="text-xs opacity-70 mt-2">Showing the latest 50 of {claims.length}. <Link href="/travel/expenses/all" className="underline">See all expenses</Link></p>}
+      </Panel>
+      <Panel title="Travel requests" note="Requests with this project as the Project / site">
+        {requests.length === 0 ? <p className="text-sm opacity-70 inline-flex items-center gap-2"><ClipboardList size={14} aria-hidden /> No travel requests for this project.</p> : (
+          <table className="bi-table">
+            <thead><tr><th>Travel date</th><th>Employee</th><th>Trip</th><th>Status</th></tr></thead>
+            <tbody>
+              {requests.slice(0, 50).map((r) => (
+                <tr key={r.id}>
+                  <td className="whitespace-nowrap">{formatDate(r.departure_date)}</td>
+                  <td><Link href={`/travel/employees/${r.employee_id}`} className="hover:underline">{r.employee?.full_name ?? "Employee"}</Link><div className="table-subline">{r.employee?.employee_id ?? ""}</div></td>
+                  <td>{routeLabel(r.origin, r.destination)}<div className="table-subline">{labelFor(r.travel_type)}{r.estimated_cost != null ? ` · est. ${formatMoney(Number(r.estimated_cost), r.currency || currency)}` : ""}</div></td>
+                  <td>{REQUEST_STATUS[r.status] ?? r.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="text-xs opacity-70 mt-2"><Link href="/travel/approvals" className="underline">Open the requests desk</Link></p>
+      </Panel>
     </div>
   );
 }

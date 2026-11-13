@@ -230,3 +230,5 @@
 /* The phone drawer and its shade sit above the top bar. */
 .rail-shell .rail-drawer { z-index: 1100 !important; }
 .rail-shell .sidebar-overlay.visible { z-index: 1099 !important; }
+.chart-link-tick { cursor: pointer; }
+.chart-link-tick:hover { text-decoration: underline; fill: var(--saffron, #F2A93B); }

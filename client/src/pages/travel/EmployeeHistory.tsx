@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { EmployeeDocumentsPanel } from "./EmployeeDocuments";
 import { Link } from "wouter";
+import { projectHref } from "../../lib/projectLinks";
 import { ArrowLeft, ChevronDown, ChevronRight, Download, FileSpreadsheet, MapPin, Plus } from "lucide-react";
 import { exportWorkbook } from "../../utils/exportXlsx";
 import { CATEGORY_LABELS } from "../../lib/data/expenses";
@@ -271,7 +272,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
                         <td>{formatDate(r.departure_date)}{r.return_date && <div className="table-subline">back {formatDate(r.return_date)}</div>}</td>
                         <td>{routeLabel(r.origin, r.destination)}<div className="table-subline">{labelFor(r.booking_type)}{r.route && r.route !== `${r.origin}-${r.destination}` ? ` · ${r.route}` : ""}</div></td>
                         <td>{r.airline_or_provider ?? "—"}<div className="table-subline">{r.booking_reference ?? ""}{r.ticket_number ? ` · ${r.ticket_number}` : ""}</div></td>
-                        <td className="max-w-[200px] truncate" title={r.purpose ?? ""}>{r.project?.name ?? r.project_raw ?? "—"}<div className="table-subline truncate">{r.purpose ?? ""}</div></td>
+                        <td className="max-w-[200px] truncate" title={r.purpose ?? ""}><ProjectName name={r.project?.name ?? r.project_raw} link={canManage} /><div className="table-subline truncate">{r.purpose ?? ""}</div></td>
                         <td className="text-right">{formatMoney(r.amount, r.currency)}{(r.cost_lines?.length ?? 0) > 1 && <div className="table-subline">{r.cost_lines?.length} charges</div>}</td>
                         <td><StatusPill status={r.status} /></td>
                         {canManage && <td><button type="button" className="table-action" onClick={() => setEditing(asRecord(r))}>Edit</button></td>}
@@ -352,7 +353,7 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
                   <tr key={c.id} className={Number(c.counted) === 0 ? "opacity-60" : ""}>
                     <td>{formatDate(c.spend_date)}</td>
                     <td>{c.description || c.category}<div className="table-subline">{CATEGORY_LABELS[c.category as keyof typeof CATEGORY_LABELS] ?? c.category} · {c.entered_by}</div></td>
-                    <td>{c.project_name ?? "—"}</td>
+                    <td><ProjectName name={c.project_name} link={canManage} /></td>
                     <td className="text-right">{c.amount === null ? "—" : formatMoney(c.amount, c.currency)}</td>
                     <td>{c.status}</td>
                   </tr>
@@ -373,4 +374,11 @@ export default function EmployeeHistory({ employeeId, canManage, showBack, canGi
       )}
     </div>
   );
+}
+
+/** A project name; for the travel desk it opens that project's page. */
+function ProjectName({ name, link }: { name: string | null | undefined; link: boolean }) {
+  const href = link ? projectHref(name) : null;
+  if (!name) return <>—</>;
+  return href ? <Link href={href} className="hover:underline">{name}</Link> : <>{name}</>;
 }

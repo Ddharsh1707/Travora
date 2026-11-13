@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Download, FileSpreadsheet, Paperclip, Search } from "lucide-react";
 import { Link } from "wouter";
+import { projectHref } from "../../lib/projectLinks";
 import { CATEGORY_LABELS, EXPENSE_CATEGORIES } from "../../lib/data/expenses";
 import { listPeopleOptions, listProjects, type PersonOption, type Project } from "../../lib/data/imports";
 import { useLiveRefresh } from "../../lib/data/reports";
@@ -163,7 +164,7 @@ export default function AllSpend() {
                         {r.import_batch_id && <> · <Link href={`/travel/uploads/${r.import_batch_id}`} className="underline">upload report</Link></>}
                       </div>
                     </td>
-                    <td>{r.project_name ?? "—"}</td>
+                    <td>{projectHref(r.project_name) ? <Link href={projectHref(r.project_name)!} className="hover:underline">{r.project_name}</Link> : r.project_name ?? "—"}</td>
                     <td className="text-right font-semibold">{r.amount === null ? <span className="opacity-60">not recorded</span> : formatMoney(r.amount, r.currency)}</td>
                     <td><span className="text-sm">{r.status}</span><div className="table-subline">{SOURCE_LABEL[r.source]}</div></td>
                   </tr>

@@ -1,5 +1,8 @@
 import type { BiFilters, LedgerRow, ProjectDetail } from "./data/bi";
 import { formatDay, intText, moneyText, type Cell, type ReportDoc } from "./reportDoc";
+import { projectKey } from "./projectLinks";
+
+export { projectKey, projectHref, projectKeyFromSlug } from "./projectLinks";
 
 /**
  * The per-project team report: everyone who travelled on one project, with
@@ -135,13 +138,6 @@ export type SheetProject = {
   detail: ProjectDetail;
 };
 
-/** "Kakinada  Port", "KAKINADA-PORT" -> "kakinada port". Empty or N/A -> null. */
-export function projectKey(name: string | null | undefined): string | null {
-  const k = (name ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-  if (!k || ["na", "n a", "nil", "nill", "none", "null", "no", "tbd", "tba", "0", "not applicable"].includes(k)) return null;
-  return k;
-}
-
 const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
 
 export function groupSheetProjects(trips: SheetTrip[], currency = "INR"): SheetProject[] {
@@ -192,8 +188,35 @@ export function projectDetailFromTrips(list: SheetTrip[], currency = "INR"): Pro
     source_sheet: t.source_sheet, cost_lines: 1,
   }));
   const costed = list.filter((t) => t.status !== "cancelled" && t.currency === currency && num(t.amount) != null);
+  // Breakdowns for the project page: month, route, place, provider, type, purpose.
+  type Tally = { bookings: number; spend: number; people: Set<string> };
+  const tally = (keyOf: (t: SheetTrip) => string | null) => {
+    const m = new Map<string, Tally>();
+    for (const t of list) {
+      const k = keyOf(t);
+      if (k == null) continue;
+      const x = m.get(k) ?? { bookings: 0, spend: 0, people: new Set<string>() };
+      x.bookings += 1;
+      x.spend = Math.round((x.spend + spendOf(t)) * 100) / 100;
+      x.people.add(t.employee_id);
+      m.set(k, x);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1].spend - a[1].spend || b[1].bookings - a[1].bookings || a[0].localeCompare(b[0]));
+  };
+  const SEP = "\u0000";
+  const monthly = tally((t) => (t.departure_date ? t.departure_date.slice(0, 7) : null))
+    .map(([month, x]) => ({ month, bookings: x.bookings, spend: x.spend, travellers: x.people.size }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  const routes = tally((t) => (place(t.origin) && place(t.destination) ? `${place(t.origin)}${SEP}${place(t.destination)}` : null)).slice(0, 10)
+    .map(([k, x]) => { const [origin, destination] = k.split(SEP); return { origin, destination, bookings: x.bookings, spend: x.spend }; });
+  const destinations = tally((t) => place(t.destination) || null).slice(0, 10)
+    .map(([destination, x]) => ({ destination, bookings: x.bookings, spend: x.spend }));
+  const providers = tally((t) => (tidy(t.airline_or_provider ?? "") ? `${tidy(t.airline_or_provider ?? "")}${SEP}${t.booking_type}` : null)).slice(0, 10)
+    .map(([k, x]) => { const [provider, category] = k.split(SEP); return { provider, category, bookings: x.bookings, spend: x.spend }; });
+  const categories = tally((t) => t.booking_type || "other").map(([category, x]) => ({ category, bookings: x.bookings, spend: x.spend }));
+  const purposes = tally((t) => tidy(t.purpose ?? "") || "Not recorded").slice(0, 8).map(([purpose, x]) => ({ purpose, bookings: x.bookings, spend: x.spend }));
   return {
-    base_currency: currency, project: null, aliases: [], other_currencies: [], monthly: [], routes: [], destinations: [], providers: [], categories: [], purposes: [],
+    base_currency: currency, project: null, aliases: [], other_currencies: [], monthly, routes, destinations, providers, categories, purposes,
     kpis: {
       bookings: list.length, travellers: people.size,
       spend: Math.round(list.reduce((s, t) => s + spendOf(t), 0) * 100) / 100,

@@ -2,6 +2,7 @@ import { lazy, type ReactNode } from "react";
 import { Archive, BarChart3, CircleHelp, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
+import { projectKeyFromSlug } from "../../lib/projectLinks";
 
 // Each screen is its own chunk, downloaded the first time it is opened.
 const TravelSearch = lazy(() => import("./TravelSearch"));
@@ -258,6 +259,8 @@ export function isTravelPathAllowed(role: Role, path: string): boolean {
   if (employeeMatch) return OVERSIGHT.includes(role) && UUID.test(employeeMatch[1]);
   const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
   if (uploadMatch) return STAFF.includes(role) && UUID.test(uploadMatch[1]);
+  const sheetProjectMatch = path.match(/^\/travel\/bi\/projects\/p\/([^/]+)$/);
+  if (sheetProjectMatch) return OVERSIGHT.includes(role) && projectKeyFromSlug(sheetProjectMatch[1]) !== null;
   const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
   if (projectMatch) return OVERSIGHT.includes(role) && (projectMatch[1] === "unassigned" || UUID.test(projectMatch[1]));
   return ROUTES.some((r) => r.href === path && r.roles.includes(role));
@@ -279,6 +282,11 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
   // The Travel Desk (COMPANY_ADMIN) has every permission the Director (ADMIN) has.
   const isManager = MANAGERS.includes(user.role);
   const isCeo = isManager;
+  const sheetProjectMatch = path.match(/^\/travel\/bi\/projects\/p\/([^/]+)$/);
+  if (sheetProjectMatch) {
+    const key = projectKeyFromSlug(sheetProjectMatch[1]);
+    return key && OVERSIGHT.includes(user.role) ? <BiProjectDetail key={`p:${key}`} projectId={null} sheetKey={key} isCeo={isCeo} /> : null;
+  }
   const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
   if (projectMatch && (projectMatch[1] === "unassigned" || UUID.test(projectMatch[1]))) {
     const id = projectMatch[1] === "unassigned" ? null : projectMatch[1];
