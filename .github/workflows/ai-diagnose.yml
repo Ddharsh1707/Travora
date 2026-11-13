@@ -3,7 +3,7 @@
 name: AI diagnose
 on:
   push:
-    branches: [claude/ai-diagnose-14kund]
+    branches: [claude/project-thread-14kund]
   workflow_dispatch:
 permissions:
   contents: read
