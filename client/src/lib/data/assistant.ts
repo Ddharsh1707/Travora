@@ -126,6 +126,8 @@ export async function ask(question: string, conversationId: string | null): Prom
     try {
       const body = await (error as { context?: Response }).context?.json();
       if (body && typeof body.error === "string") message = body.error;
+      // The Supabase gateway answers with { code, message } before the function runs.
+      else if (body && typeof body.message === "string") message = `${message} (${body.message})`;
     } catch {
       // keep the generic message
     }
