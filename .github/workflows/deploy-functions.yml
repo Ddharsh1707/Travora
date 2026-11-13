@@ -9,6 +9,7 @@
 #   GROQ_API_KEY           optional. Saved into Supabase as the AI assistant's key (console.groq.com/keys)
 #   GEMINI_API_KEY         optional. Backup AI key, used only if Groq is busy
 #   SUPABASE_PROJECT_REF   optional. Defaults to the live project below
+# Repository variable (optional): ALLOWED_ORIGINS, the websites allowed to call the functions.
 # Keys are only ever passed through GitHub's encrypted secrets; none are stored in this repo.
 # See docs/DEPLOY_FUNCTIONS.md for the click-by-click setup.
 name: Deploy Supabase functions
@@ -40,6 +41,9 @@ jobs:
       PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF || vars.SUPABASE_PROJECT_REF || 'lbxqiifssfgpfqgdvbmh' }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Websites allowed to call the functions from a browser (CORS). Without this secret the
+      # browser blocks every call. Override with the ALLOWED_ORIGINS repository variable.
+      ALLOWED_ORIGINS: ${{ vars.ALLOWED_ORIGINS || 'https://main.d27refhdsen811.amplifyapp.com,https://travora-ashy.vercel.app,http://localhost:3000' }}
     steps:
       - name: Check the Supabase token is set
         id: token
@@ -59,7 +63,7 @@ jobs:
         with:
           version: latest
 
-      - name: Save the AI keys in Supabase
+      - name: Save the AI keys and allowed websites in Supabase
         if: steps.token.outputs.ready == 'true'
         run: |
           # --yes: newer Supabase CLI versions ask for confirmation, which a GitHub run cannot answer.
@@ -69,6 +73,7 @@ jobs:
           : > "$env_file"
           [ -n "$GROQ_API_KEY" ] && printf 'GROQ_API_KEY=%s\n' "$GROQ_API_KEY" >> "$env_file"
           [ -n "$GEMINI_API_KEY" ] && printf 'GEMINI_API_KEY=%s\n' "$GEMINI_API_KEY" >> "$env_file"
+          [ -n "$ALLOWED_ORIGINS" ] && printf 'ALLOWED_ORIGINS=%s\n' "$ALLOWED_ORIGINS" >> "$env_file"
           if [ -s "$env_file" ]; then
             supabase secrets set --env-file "$env_file" --project-ref "$PROJECT_REF" --yes
             echo "Saved: $(cut -d= -f1 "$env_file" | paste -sd, -)"
@@ -102,5 +107,6 @@ jobs:
             echo "- admin-users, ai-assistant, document-extract"
             [ -n "$GROQ_API_KEY" ] && echo "- Groq key saved in Supabase"
             [ -n "$GEMINI_API_KEY" ] && echo "- Gemini backup key saved in Supabase"
+            echo "- Allowed websites: $ALLOWED_ORIGINS"
             true
           } >> "$GITHUB_STEP_SUMMARY"
