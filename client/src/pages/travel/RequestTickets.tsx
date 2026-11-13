@@ -5,6 +5,7 @@ import {
   DOCUMENT_TYPE_LABELS, getDocumentUrl, listDocuments, uploadDocument,
   type DocumentType, type TravelDocument,
 } from "../../lib/data/documents";
+import { analyzeInBackground } from "./analyzeToast";
 import { useLiveRefresh } from "../../lib/data/reports";
 import type { TravelRequest } from "../../lib/data/travel";
 import { formatDate } from "./common";
@@ -77,7 +78,8 @@ export function RequestTickets({ request, docs, canUpload, onUploaded }: {
     if (!file) return;
     setBusy(true);
     try {
-      await uploadDocument(request.employee_id, file, type, null, request.id);
+      const doc = await uploadDocument(request.employee_id, file, type, null, request.id);
+      analyzeInBackground(doc, request.employee?.full_name, onUploaded);
       toast.success(`Ticket uploaded. ${request.employee?.full_name ?? "The employee"} can see it now.`);
       onUploaded?.();
     } catch (err) {

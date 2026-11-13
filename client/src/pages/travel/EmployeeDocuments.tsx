@@ -5,6 +5,7 @@ import {
   DOCUMENT_TYPE_LABELS, listDocuments, uploadDocument,
   type DocumentType, type TravelDocument,
 } from "../../lib/data/documents";
+import { analyzeInBackground } from "./analyzeToast";
 import { useLiveRefresh } from "../../lib/data/reports";
 import { Empty, ErrorNotice, Loading, PageHeader, formatDate } from "./common";
 import { openDocument } from "./RequestTickets";
@@ -50,7 +51,8 @@ export function EmployeeDocumentsPanel({ employeeId, canUpload, employeeName }: 
     if (!file) return;
     setBusy(true);
     try {
-      await uploadDocument(employeeId, file, type);
+      const doc = await uploadDocument(employeeId, file, type);
+      analyzeInBackground(doc, employeeName, load);
       toast.success(`Saved. ${employeeName ?? "The employee"} can see it in their portal.`);
       load();
     } catch (err) {

@@ -37,11 +37,13 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
   const [columns, setColumns] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
 
   async function onFile(f: File | undefined) {
     if (!f) return;
     setError("");
     setLines([]);
+    setSent(false);
     const check = checkImportFile(f.name, f.size, new Uint8Array(await f.slice(0, 8).arrayBuffer()));
     if (!check.ok) { setError(check.error); return; }
     setBusy(true);
@@ -57,9 +59,13 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
       if (!found) { setError("Could not find a Date column and an Amount column in any sheet. Download the template to see the layout."); return; }
       if (found.lines.length === 0) { setError("The sheet has a header but no expense rows."); return; }
       if (found.lines.length > MAX_EXPENSE_ROWS) { setError(`The sheet has more than ${MAX_EXPENSE_ROWS} rows. Split it into smaller files.`); return; }
-      setFile({ blob: f, kind: check.kind, sheet: sheetName });
+      const info = { blob: f, kind: check.kind, sheet: sheetName };
+      setFile(info);
       setLines(found.lines);
       setColumns(Object.values(found.columns).map((c) => EXPENSE_FIELD_LABELS[c]));
+      // Everything readable is sent straight away; rows with problems stay listed to fix in the sheet.
+      const ok = found.lines.filter((l) => l.status === "ok");
+      if (ok.length) await save(info, ok, found.lines.length > ok.length);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not read the file.");
     } finally {
@@ -70,18 +76,19 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
   const ready = lines.filter((l) => l.status === "ok");
   const total = ready.reduce((t, l) => t + (l.amount ?? 0), 0);
 
-  async function save() {
-    if (!file || !ready.length) return;
+  async function save(info = file, rows = ready, keepOpen = false) {
+    if (!info || !rows.length) return;
     setBusy(true);
     setError("");
     try {
-      const doc = await uploadSpreadsheetDocument(profileId, file.blob, file.kind);
-      const n = await createExpensesFromUpload(profileId, doc.id, ready.map((l) => ({
+      const doc = await uploadSpreadsheetDocument(profileId, info.blob, info.kind);
+      const n = await createExpensesFromUpload(profileId, doc.id, rows.map((l) => ({
         expense_date: l.expense_date, category: l.category, description: l.description, amount: l.amount ?? 0,
         payment_method: l.payment_method, project_id: l.project_id, origin: l.origin || null, destination: l.destination || null,
       })));
-      toast.success(`${n} expense(s) sent for review`);
-      onSaved();
+      toast.success(`${n} expense(s) read from the sheet and sent for review`);
+      setSent(true);
+      if (keepOpen) setError(""); else onSaved();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the expenses.");
     } finally {
@@ -97,7 +104,7 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
         <h2 id="upload-title">Upload your expenses from Excel</h2>
         <p className="text-sm opacity-80 mt-2">
           Use a .xlsx or .csv file with a <strong>Date</strong> and an <strong>Amount</strong> column. Category, Description, Paid by,
-          Project, From and To are read too when present. You'll see every row before anything is saved.
+          Project, From and To are read too when present. Every readable row is sent for review as soon as you choose the file; rows with problems are listed so you can fix them in the sheet.
         </p>
         <div className="flex flex-wrap gap-2 mt-3">
           <label className="button button-primary cursor-pointer">
@@ -147,9 +154,13 @@ export default function ExpenseUploadDialog({ profileId, projects, existing, onC
         )}
         <div className="dialog-actions">
           <button type="button" className="button button-ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="button button-primary" onClick={save} disabled={busy || !ready.length}>
-            {busy && lines.length ? "Saving…" : `Submit ${ready.length || ""} expense(s)`}
-          </button>
+          {sent ? (
+            <button type="button" className="button button-primary" onClick={onSaved}>Done</button>
+          ) : (
+            <button type="button" className="button button-primary" onClick={() => void save()} disabled={busy || !ready.length}>
+              {busy && lines.length ? "Saving…" : `Submit ${ready.length || ""} expense(s)`}
+            </button>
+          )}
         </div>
       </div>
     </div></ModalPortal>
