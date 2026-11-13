@@ -108,6 +108,9 @@ supabase db push
 supabase functions deploy ai-assistant
 ```
 
+No terminal? Add the key as a GitHub secret and run the "Deploy Supabase
+functions" workflow instead; see `docs/DEPLOY_FUNCTIONS.md`.
+
 The assistant works with a free AI key. Set at least one (server-side only,
 never `VITE_`); the first one set is used and the others are a backup:
 
