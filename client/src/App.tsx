@@ -36,6 +36,7 @@ function lazyNamed<K extends string, P>(load: () => Promise<Record<K, ComponentT
 const Expenses = lazyNamed(() => import("./pages/Expenses"), "Expenses");
 const Profile = lazyNamed(() => import("./pages/Profile"), "Profile");
 const UserManagement = lazyNamed(() => import("./pages/UserManagement"), "UserManagement");
+const SetNewPassword = lazyNamed(() => import("./components/SetNewPassword"), "SetNewPassword");
 const ActivateAccount = lazyNamed(() => import("./pages/ActivateAccount"), "ActivateAccount");
 const ExcelImport = lazyNamed(() => import("./pages/ExcelImport"), "ExcelImport");
 const TravelSpendReports = lazyNamed(() => import("./pages/TravelSpendReports"), "TravelSpendReports");
@@ -7484,6 +7485,7 @@ function App() {
           <Toaster position="bottom-right" />
           <Suspense fallback={<PageFallback />}>
             <AppRouter />
+            {isSupabaseEnabled && <SetNewPassword />}
           </Suspense>
         </MotionConfig>
       </ThemeProvider>
