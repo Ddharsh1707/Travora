@@ -1,5 +1,5 @@
 # Runs every check on each proposed change (pull request) and on every push to main.
-# Branch protection on main should require all three jobs below to pass before merging.
+# Branch protection on main should require all four jobs below to pass before merging.
 # See docs/BRANCH_PROTECTION.md for the settings to switch on.
 name: Checks
 
@@ -64,3 +64,15 @@ jobs:
           cp -r supabase/functions "$RUNNER_TEMP/functions"
           cd "$RUNNER_TEMP/functions"
           deno check */index.ts
+
+  migrations:
+    name: Migrations (no edits to applied files, new files sort last)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check migration files against the base branch
+        run: bash scripts/check-migrations.sh "origin/${{ github.base_ref }}"

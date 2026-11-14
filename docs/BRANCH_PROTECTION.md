@@ -23,10 +23,11 @@ pick a check as "required" after it has run at least once.
    - **Require a pull request before merging** (set required approvals to `0` if you work alone,
      or `1` if a second person should review)
    - **Require status checks to pass**, then tick **Require branches to be up to date before merging**,
-     click **Add checks** and add all three:
+     click **Add checks** and add all four:
      - `App (types, tests, build)`
      - `Database security (RLS tests)`
      - `Edge Functions (Deno type check)`
+     - `Migrations (no edits to applied files, new files sort last)`
 7. Click **Create**.
 
 ## Also worth doing
@@ -37,5 +38,5 @@ pick a check as "required" after it has run at least once.
 
 ## How to tell it works
 
-Open any pull request. At the bottom you will see the three checks running. The **Merge** button stays
-grey until all three are green, and `git push --force` to main is refused.
+Open any pull request. At the bottom you will see the four checks running. The **Merge** button stays
+grey until all four are green, and `git push --force` to main is refused.
