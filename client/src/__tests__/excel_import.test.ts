@@ -240,7 +240,10 @@ describe("Excel Import & Travel History Frontend Contract Tests", () => {
       parseCost,
       isSummaryRow,
     } = await import("../lib/spreadsheetParser.ts");
-    const XLSX = await import("xlsx");
+    const { default: writeXlsxFile } = await import("write-excel-file/node");
+    // read-excel-file is the browser build; give Node the browser's XML parser.
+    const { DOMParser } = await import("@xmldom/xmldom");
+    (globalThis as { DOMParser?: unknown }).DOMParser ??= DOMParser;
 
     test("normalizePassengerName handles airline notation, commas, and honorifics", () => {
       assert.equal(normalizePassengerName("DANGETI/SURESH BABU MR"), "Suresh Babu Dangeti");
@@ -291,10 +294,8 @@ describe("Excel Import & Travel History Frontend Contract Tests", () => {
         ["TOTAL", "", "", "", "", "", "14300"], // Row 4: Summary row
       ];
 
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Air Ticketing");
-      const wbBuffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+      const buf = await writeXlsxFile(wsData, { sheet: "Air Ticketing" }).toBuffer();
+      const wbBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
 
       const parsed = await parseSpreadsheetClient(wbBuffer);
 
@@ -326,3 +327,44 @@ describe("Excel Import & Travel History Frontend Contract Tests", () => {
   });
 });
 
+
+describe("Spreadsheet reading is safe", async () => {
+  const { parseSpreadsheetClient, parseExcelDate } = await import("../lib/spreadsheetParser.ts");
+  const { default: writeXlsxFile } = await import("write-excel-file/node");
+  const { DOMParser } = await import("@xmldom/xmldom");
+  (globalThis as { DOMParser?: unknown }).DOMParser ??= DOMParser;
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const root = path.resolve(import.meta.dirname, "../../..");
+  const toAb = (b: Buffer) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
+
+  test("the vulnerable SheetJS 0.18 'xlsx' package is gone", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+    assert.equal(pkg.dependencies?.xlsx, undefined);
+    assert.equal(pkg.devDependencies?.xlsx, undefined);
+  });
+
+  test("real Excel date cells and Excel serial numbers become yyyy-mm-dd", async () => {
+    assert.equal(parseExcelDate(46266), "2026-09-01");
+    const buf = await writeXlsxFile([
+      ["Date", "Pax Name", "Sector", "Net Amount"],
+      [{ value: new Date(Date.UTC(2026, 8, 3)), type: Date, format: "dd-mmm-yy" }, "RAO/BINA MS", "MAA-DEL", { value: 5200, type: Number }],
+    ], { sheet: "Sep" }).toBuffer();
+    const parsed = await parseSpreadsheetClient(toAb(buf));
+    assert.equal(parsed.records.length, 1);
+    assert.equal(parsed.records[0].travelDate, "2026-09-03");
+    assert.equal(parsed.records[0].cost, 5200);
+  });
+
+  test("CSV files are read too", async () => {
+    const csv = "Date,Pax Name,Sector,Net Amount\n04 Sep 26,\"KUKREJA, ANIL\",BOM-BLR,7500\n";
+    const parsed = await parseSpreadsheetClient(toAb(Buffer.from(csv)));
+    assert.equal(parsed.records.length, 1);
+    assert.equal(parsed.records[0].rawEmployeeName, "Anil Kukreja");
+  });
+
+  test("a damaged or fake .xlsx gives a clear message instead of breaking the page", async () => {
+    const fake = Buffer.concat([Buffer.from("PK\u0003\u0004"), Buffer.from("not really a zip".repeat(10))]);
+    await assert.rejects(parseSpreadsheetClient(toAb(fake)), /could not be read as an Excel workbook/);
+  });
+});

@@ -21,9 +21,15 @@ export function downloadCsv(doc: ReportDoc) {
 const MONEY_FORMAT = "#,##0";
 
 export async function downloadExcel(doc: ReportDoc) {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.utils.book_new();
+  const { default: writeXlsxFile } = await import("write-excel-file/browser");
   const used = new Set<string>();
+  type Cell = { value?: string | number; type?: StringConstructor | NumberConstructor; format?: string; fontWeight?: "bold" } | null;
+  // Every value is written as plain text or a number, never as a formula.
+  const cell = (v: string | number | null | undefined, money = false, bold = false): Cell => {
+    if (v == null || v === "") return null;
+    if (typeof v === "number") return { value: v, type: Number, ...(money ? { format: MONEY_FORMAT } : {}), ...(bold ? { fontWeight: "bold" as const } : {}) };
+    return { value: String(v), type: String, ...(bold ? { fontWeight: "bold" as const } : {}) };
+  };
 
   const about: (string | number)[][] = [
     [doc.title], [doc.subtitle], [],
@@ -36,27 +42,28 @@ export async function downloadExcel(doc: ReportDoc) {
     [], ["Data completeness"], ...doc.completeness.map((m) => [m]),
     [], ["Sheets in this file"], ...doc.sections.map((s) => [s.title, s.note ?? ""]),
   ];
-  const aboutSheet = XLSX.utils.aoa_to_sheet(about);
-  aboutSheet["!cols"] = [{ wch: 34 }, { wch: 90 }];
-  XLSX.utils.book_append_sheet(wb, aboutSheet, sheetName("About this report", used));
+  const sheets = [{
+    sheet: sheetName("About this report", used),
+    data: about.map((r, i) => r.map((v) => cell(v, false, i === 0))),
+    columns: [{ width: 34 }, { width: 90 }],
+  }];
 
   for (const s of doc.sections) {
-    const rows: (string | number | null)[][] = [s.columns.map((c) => c.label), ...s.rows, ...(s.total ? [s.total] : [])];
-    const ws = XLSX.utils.aoa_to_sheet(rows.map((r) => r.map((v) => (v == null ? "" : v))));
-    s.columns.forEach((c, ci) => {
-      if (c.kind !== "money") return;
-      for (let ri = 1; ri < rows.length; ri++) {
-        const cell = ws[XLSX.utils.encode_cell({ r: ri, c: ci })];
-        if (cell && cell.t === "n") cell.z = MONEY_FORMAT;
-      }
-    });
-    ws["!cols"] = s.columns.map((c, ci) => ({ wch: Math.min(48, Math.max(c.label.length + 2, ...rows.slice(1).map((r) => String(r[ci] ?? "").length + 2))) }));
-    ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(0, s.rows.length), c: s.columns.length - 1 } }) };
-    XLSX.utils.book_append_sheet(wb, ws, sheetName(s.title, used));
+    const rows: (string | number | null)[][] = [...s.rows, ...(s.total ? [s.total] : [])];
+    sheets.push({
+      sheet: sheetName(s.title, used),
+      data: [
+        s.columns.map((c) => cell(c.label, false, true)),
+        ...rows.map((r) => s.columns.map((c, ci) => cell(r[ci], c.kind === "money"))),
+      ],
+      columns: s.columns.map((c, ci) => ({ width: Math.min(48, Math.max(c.label.length + 2, ...rows.map((r) => String(r[ci] ?? "").length + 2))) })),
+      stickyRowsCount: 1,
+    } as (typeof sheets)[number]);
   }
-  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
-  save(new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${doc.fileName}.xlsx`);
+  const blob = await writeXlsxFile(sheets).toBlob();
+  save(blob, `${doc.fileName}.xlsx`);
 }
+
 
 const INK: [number, number, number] = [23, 37, 61];
 const SAFFRON: [number, number, number] = [234, 118, 0];
