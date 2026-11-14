@@ -2,12 +2,19 @@ import test from "node:test";
 import assert from "node:assert";
 import fs from "node:fs";
 import path from "node:path";
-import { __test__ } from "../lib/supabase.ts";
+import { AUTH_PROVIDER, __test__, isSupabaseEnabled } from "../lib/supabase.ts";
 import { passwordProblems, passwordStrength, profileToAuthUser, validateSignUp } from "../lib/supabaseAuth.ts";
 
 const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
 
 test("Supabase browser client safety", async (t) => {
+  await t.test("uses Supabase when VITE_AUTH_PROVIDER is not set, never the retired backend", () => {
+    assert.strictEqual(AUTH_PROVIDER, "supabase");
+    assert.strictEqual(isSupabaseEnabled, true);
+    const src = fs.readFileSync(path.resolve(process.cwd(), "client/src/lib/supabase.ts"), "utf-8");
+    assert.match(src, /VITE_AUTH_PROVIDER === "legacy" \? "legacy" : "supabase"/, "legacy mode must be asked for by name");
+  });
+
   await t.test("refuses service-role / secret keys", () => {
     assert.strictEqual(__test__.looksLikeServiceRoleKey(`${b64({ alg: "HS256" })}.${b64({ role: "service_role" })}.sig`), true);
     assert.strictEqual(__test__.looksLikeServiceRoleKey("sb_secret_abc123"), true);

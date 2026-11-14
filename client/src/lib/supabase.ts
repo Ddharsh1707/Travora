@@ -18,7 +18,9 @@ export type AuthProvider = "legacy" | "supabase";
 
 const env = ((typeof import.meta !== "undefined" && import.meta.env) || {}) as Record<string, string | undefined>;
 
-export const AUTH_PROVIDER: AuthProvider = env.VITE_AUTH_PROVIDER === "supabase" ? "supabase" : "legacy";
+// Supabase unless "legacy" is asked for by name, so a missing or mistyped
+// hosting setting can never quietly send the live site to the retired backend.
+export const AUTH_PROVIDER: AuthProvider = env.VITE_AUTH_PROVIDER === "legacy" ? "legacy" : "supabase";
 
 /** Strips spaces and wrapping quotes that hosting dashboards sometimes keep. */
 function cleanValue(value: string | undefined): string {
