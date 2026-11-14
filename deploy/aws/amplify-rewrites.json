@@ -1,11 +1,5 @@
 [
   {
-    "source": "/api/<*>",
-    "target": "https://trapple.onrender.com/api/<*>",
-    "status": "200",
-    "condition": null
-  },
-  {
     "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|webmanifest|xml)$)([^.]+$)/>",
     "target": "/index.html",
     "status": "200",
