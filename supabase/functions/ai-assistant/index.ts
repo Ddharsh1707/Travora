@@ -507,7 +507,7 @@ function failureReason(error: string): string {
 }
 
 /** Groq and Gemini: OpenAI-style chat completions with function calling. */
-async function runOpenAICompat(p: Provider, system: string, history: Turn[], question: string, tools: ReturnType<typeof toolsFor>, run: ToolRunner): Promise<LoopResult> {
+async function runOpenAICompat(p: Provider, system: string, history: Turn[], question: string, tools: ReturnType<typeof toolsFor>, run: ToolRunner, canWait = true): Promise<LoopResult> {
   const url = OPENAI_COMPAT[p.id as "groq" | "gemini"].url;
   const fnTools = tools.map(toOpenAITool);
   const messages: Record<string, unknown>[] = [{ role: "system", content: system }, ...history, { role: "user", content: question }];
@@ -532,9 +532,10 @@ async function runOpenAICompat(p: Provider, system: string, history: Turn[], que
         return { failed: true, error: err };
       }
       if (res.status === 429) {
-        // Free tiers limit tokens per minute. Wait if the provider says it is a short wait.
+        // Free tiers limit tokens per minute. With a backup model left, switch to it at once
+        // instead of waiting; on the last one, wait if the provider says it is a short wait.
         const wait = Number(res.headers.get("retry-after") ?? "");
-        if (attempt < 2 && Number.isFinite(wait) && wait > 0 && wait <= 20) {
+        if (canWait && attempt < 2 && Number.isFinite(wait) && wait > 0 && wait <= 20) {
           await res.body?.cancel();
           await new Promise((r) => setTimeout(r, wait * 1000));
           continue;
@@ -717,20 +718,21 @@ Deno.serve(async (req) => {
     let provider: ProviderId | null = null;
     let lastBusy = false;
     let lastError = "";
-    for (const p of available) {
+    for (const [i, p] of available.entries()) {
       // A retry with the backup provider starts the lookups again.
       records.length = 0;
       recordRows = 0;
       used.length = 0;
       const result = p.id === "anthropic"
         ? await runAnthropic(p, system, history, question, tools, run)
-        : await runOpenAICompat(p, system, history, question, tools, run);
+        : await runOpenAICompat(p, system, history, question, tools, run, i === available.length - 1);
       if ("answer" in result) {
         answer = result.answer;
         provider = p.id;
         break;
       }
-      lastBusy = "busy" in result;
+      // Busy anywhere means "try again soon", even if a later backup failed for another reason.
+      lastBusy = lastBusy || "busy" in result;
       lastError = result.error instanceof Error ? result.error.message : String(result.error);
       console.error("assistant provider failed", p.id, result.error instanceof Error ? result.error.message : String(result.error).slice(0, 300));
     }
