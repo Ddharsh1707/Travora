@@ -4,7 +4,7 @@
 
 It replaces spreadsheets and email threads with one web app. Every permission is enforced in the database, and AI helps with reading tickets and answering questions about travel data.
 
-- **Live site:** https://travora-ashy.vercel.app (Vercel). An AWS Amplify copy is also set up (see [Deployment](#deployment)).
+- **Live site:** https://main.d27refhdsen811.amplifyapp.com (AWS Amplify Hosting, built from `main`).
 - **Backend:** Supabase (PostgreSQL, Auth, Storage, Edge Functions).
 
 ---
@@ -87,8 +87,7 @@ flowchart TB
     end
 
     subgraph Hosting
-        V[Vercel<br/>travora-ashy.vercel.app]
-        AM[AWS Amplify<br/>optional copy]
+        AM[AWS Amplify Hosting<br/>main.d27refhdsen811.amplifyapp.com]
     end
 
     subgraph Supabase
@@ -108,8 +107,7 @@ flowchart TB
         ANT[Anthropic Claude<br/>optional]
     end
 
-    V -->|serves static files| UI
-    AM -.-> UI
+    AM -->|serves static files| UI
     UI -->|anon key + user session| AUTH
     UI -->|queries as the signed-in user| DB
     UI -->|signed URLs| ST
@@ -231,12 +229,12 @@ For the very first Director account, run `supabase/bootstrap_first_admin.sql` in
 
 | Part | Where | How it gets there |
 | --- | --- | --- |
-| **Website** | **Vercel**: https://travora-ashy.vercel.app | Vercel builds `main` automatically. `vercel.json` sets the output folder (`dist/public`), strict security headers (CSP, HSTS, frame-deny) and the SPA rewrite. |
-| Website (alternative) | **AWS Amplify** | `amplify.yml`, `customHttp.yml` and `deploy/aws/amplify-rewrites.json`. Step-by-step guide: [`docs/DEPLOY_AWS.md`](docs/DEPLOY_AWS.md). |
+| **Website** | **AWS Amplify Hosting**: https://main.d27refhdsen811.amplifyapp.com | Amplify builds `main` automatically on every push. `amplify.yml` is the build (Node 22, pnpm, `vite build` → `dist/public`), `customHttp.yml` sets strict security headers (CSP, HSTS, frame-deny), and `deploy/aws/amplify-rewrites.json` holds the SPA routing rules pasted into the Amplify console. Setup guide: [`docs/DEPLOY_AWS.md`](docs/DEPLOY_AWS.md). |
+| Website (old) | Vercel: travora-ashy.vercel.app | The earlier host. `vercel.json` is still in the repo and the Vercel address is still allowed in CORS and auth redirects, but it is not the live site. |
 | **Database** | **Supabase** (hosted PostgreSQL) | `supabase db push` from `supabase/migrations/`. |
 | **Edge Functions** | **Supabase** | Deployed automatically by `.github/workflows/deploy-functions.yml` whenever `supabase/functions/**` or `supabase/config.toml` changes on `main`, or by hand from the GitHub Actions tab. Guide: [`docs/DEPLOY_FUNCTIONS.md`](docs/DEPLOY_FUNCTIONS.md). |
 
-**Hosting environment variables** (Vercel / Amplify, baked in at build time, so redeploy after changing them):
+**Hosting environment variables** (set in the Amplify console under App settings → Environment variables; baked in at build time, so click **Redeploy this version** after changing them):
 
 - `VITE_AUTH_PROVIDER=supabase`
 - `VITE_SUPABASE_URL`
@@ -284,7 +282,7 @@ Full details are in [`docs/SECURITY.md`](docs/SECURITY.md).
 The project began as a Spring Boot API with a single large React file. Both are still in the repo:
 
 - `backend/`: Java 21, Spring Boot, Spring Security with JWT, JPA and PostgreSQL. `docker-compose.yml` runs it locally with Postgres.
-- `client/src/App.tsx` and `client/src/lib/api.ts`: the original UI and API client, used when `VITE_AUTH_PROVIDER=legacy`. In that mode it calls `https://trapple.onrender.com`, which is also the target of the `/api` rewrite in `vercel.json`.
+- `client/src/App.tsx` and `client/src/lib/api.ts`: the original UI and API client, used when `VITE_AUTH_PROVIDER=legacy`. In that mode it calls `https://trapple.onrender.com`, which is also the target of the `/api` rewrite in the Amplify rules and `vercel.json`.
 
 The live site runs in **Supabase mode** and does not need the Spring Boot server. The audit reports at the repo root (`TRAVORA_PRODUCTION_AUDIT.md`, `TRAVORA_BACKEND_HOSTING_REVIEW.md`, `SECURITY_AUDIT_PHASE14.md`) describe this legacy prototype from before the move to Supabase. To retire it, follow "Retiring the legacy Spring Boot backend" in `docs/SECURITY.md`.
 
