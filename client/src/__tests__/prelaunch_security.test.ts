@@ -133,6 +133,11 @@ describe("Website security headers", () => {
     assert.match(csp, /object-src 'none'/);
     assert.match(csp, /img-src 'self' data: blob: https:\/\/\*\.supabase\.co;/, "pictures only from the site and Supabase");
   });
+  test("the retired Render backend is no longer allowed or proxied", () => {
+    const csp = amplify.match(/Content-Security-Policy\s*\n\s*value: "([^"]+)"/)?.[1] ?? "";
+    assert.ok(!/onrender\.com/.test(csp), "customHttp.yml connect-src must not allow onrender.com");
+    assert.ok(!/onrender\.com/.test(read("deploy/aws/amplify-rewrites.json")), "Amplify rules must not proxy to onrender.com");
+  });
   test("HSTS, nosniff, no framing and a referrer policy are sent", () => {
     for (const h of ["Strict-Transport-Security", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"]) {
       assert.ok(amplify.includes(h), h);

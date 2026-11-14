@@ -46,6 +46,8 @@ describe("Deployed security headers (vercel.json)", () => {
   test("no wildcard network access", () => {
     assert.ok(!/(^|\s)(https?:|\*)(\s|$)/.test(directive("connect-src")), directive("connect-src"));
     assert.ok(!/(^|\s)https:(\s|$)/.test(directive("img-src")), directive("img-src"));
+    assert.ok(!/onrender\.com/.test(directive("connect-src")), "the retired Render backend is not allowed");
+    assert.ok(!JSON.stringify(cfg.rewrites ?? []).includes("onrender.com"), "no rewrite proxies to the retired Render backend");
   });
   test("framing, plugins and base tags are blocked", () => {
     assert.match(csp, /frame-ancestors 'none'/);

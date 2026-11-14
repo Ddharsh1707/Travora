@@ -113,8 +113,12 @@ unused). From now on every push to `main` deploys to AWS automatically.
 ## About the old Spring Boot backend
 
 With `VITE_AUTH_PROVIDER=supabase` the site talks to Supabase directly and does
-not need the Spring Boot server. The `/api` rule in step 5 still forwards to
-`https://trapple.onrender.com` so the old "legacy" mode keeps working during the
-switch. When you are happy with Supabase, follow "Retiring the legacy Spring
-Boot backend" in `docs/SECURITY.md`, and remove the `/api` rule from Amplify and
-`https://trapple.onrender.com` from `customHttp.yml`.
+not need the Spring Boot server. The old server at `https://trapple.onrender.com`
+no longer answers, so the `/api` rule that forwarded to it has been removed from
+`deploy/aws/amplify-rewrites.json`, and its address has been removed from the
+security headers in `customHttp.yml`.
+
+If your Amplify app still has an `/api/<*>` rule under **Hosting → Rewrites and
+redirects**, delete it: the rules in the console are not updated from the repo.
+See "Retiring the legacy Spring Boot backend" in `docs/SECURITY.md` for the
+remaining clean-up.
