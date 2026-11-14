@@ -37,6 +37,7 @@ export const WB_FIELDS = [
   { key: "project", label: "Project" },
   { key: "purpose", label: "Purpose" },
   { key: "consultant", label: "Travel desk consultant" },
+  { key: "contractor", label: "Contractor / labour supplier" },
   { key: "approved_by", label: "Approved by (HOD)" },
   { key: "remarks", label: "Remarks" },
 ] as const;
@@ -66,6 +67,7 @@ const ALIASES: Record<WbField, string[]> = {
   project: ["project", "projects", "project code", "project name", "project id", "job number", "job no", "cost centre", "cost center"],
   purpose: ["purpose of visit", "purpose", "reason", "purpose of travel"],
   consultant: ["consultant name", "consultant", "travel desk"],
+  contractor: ["contractor", "contractor name", "labour contractor", "labor contractor", "labour supplier", "labor supplier", "sub contractor", "subcontractor", "manpower agency", "manpower supplier", "manpower contractor"],
   approved_by: ["hod approval", "approved by", "approver", "approval", "hod"],
   remarks: ["remarks", "remark", "notes", "comments", "comment"],
 };
@@ -441,6 +443,7 @@ export type UploadLine = {
   provider: string; booking_reference: string; ticket_number: string;
   amount: string; currency: string; line_type: string; amount_state: string; group_key: string; record_status: string;
   project: string; purpose: string; consultant: string; approved_by: string; requisition_channel: string; payment_mode: string;
+  contractor: string;
   notes: string[];
   raw: Record<string, string>;
 };
@@ -602,6 +605,7 @@ export function buildLines(sheet: SheetInput, plan: SheetPlan, mapping?: Record<
       project: text(get(row, "project")),
       purpose: text(get(row, "purpose")),
       consultant: text(get(row, "consultant")),
+      contractor: text(get(row, "contractor")),
       approved_by: text(get(row, "approved_by")),
       requisition_channel: text(get(row, "requisition_channel")),
       payment_mode: text(get(row, "payment_mode")),

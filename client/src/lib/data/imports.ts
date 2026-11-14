@@ -161,6 +161,31 @@ export type NameReview = {
   decision: "pending" | "link" | "create" | "skip";
   profile_id: string | null;
   suggested?: { full_name: string; employee_id: string; department: string | null } | null;
+  /** Possible matches (same name, matching initials, one name inside the other). Suggestions only. */
+  candidates?: NameCandidate[];
+  /** For "Add as a new person": what kind of worker they are (unknown when not chosen). */
+  workforce_type?: WorkforceType | null;
+  /** Contractor or labour supplier named in the sheet, or chosen on the People step. */
+  contractor_name?: string | null;
+};
+
+export type WorkforceType = "permanent_employee" | "temporary_worker" | "contract_worker" | "outsourced_worker" | "unknown";
+
+export const WORKFORCE_TYPE_LABELS: Record<WorkforceType, string> = {
+  permanent_employee: "Permanent employee",
+  temporary_worker: "Temporary worker",
+  contract_worker: "Contract worker",
+  outsourced_worker: "Outsourced worker",
+  unknown: "Unknown / not classified",
+};
+
+export type NameCandidate = {
+  profile_id: string;
+  full_name: string;
+  employee_id: string;
+  workforce_type: WorkforceType;
+  active: boolean;
+  reason: string;
 };
 
 export type UploadProject = { alias_key: string; label: string; rows: number; amount: number; project_id: string | null; project_name: string | null; project_kind: string | null };
@@ -198,15 +223,41 @@ export async function getNameReviews(id: string): Promise<NameReview[]> {
   return (data ?? []) as NameReview[];
 }
 
-export async function decideNames(id: string, decisions: Array<{ name_key: string; decision: NameReview["decision"]; profile_id?: string | null }>): Promise<void> {
+export type NameDecision = {
+  name_key: string;
+  decision: NameReview["decision"];
+  profile_id?: string | null;
+  workforce_type?: WorkforceType | null;
+  contractor?: string | null;
+};
+
+/** What decideNames sends for one People step line: worker type and contractor only for new people. */
+export function nameDecisionFor(r: Pick<NameReview, "name_key" | "decision" | "profile_id" | "workforce_type" | "contractor_name">): NameDecision {
+  if (r.decision === "link") return { name_key: r.name_key, decision: "link", profile_id: r.profile_id };
+  if (r.decision === "create") {
+    const contractor = (r.contractor_name ?? "").replace(/\s+/g, " ").trim();
+    return { name_key: r.name_key, decision: "create", workforce_type: r.workforce_type ?? "unknown", contractor: contractor ? contractor.slice(0, 200) : null };
+  }
+  return { name_key: r.name_key, decision: r.decision };
+}
+
+export async function decideNames(id: string, decisions: NameDecision[]): Promise<void> {
   const { error } = await getSupabase().rpc("name_match_decide", { p_batch: id, p_decisions: decisions });
   if (error) throw friendlyError(error, "Could not save the people decisions.");
 }
 
 export async function listPeopleOptions(): Promise<PersonOption[]> {
-  const { data, error } = await getSupabase().from("profiles").select("id, full_name, employee_id, department").eq("active", true).order("full_name").limit(5000);
+  // People merged into someone else are left out: link to who they became.
+  const { data, error } = await getSupabase().from("profiles").select("id, full_name, employee_id, department").eq("active", true).is("merged_into", null).order("full_name").limit(5000);
   if (error) throw friendlyError(error, "Could not load employees.");
   return (data ?? []) as PersonOption[];
+}
+
+/** Contractor names already on file, for the People step's suggestions. */
+export async function listContractorNames(): Promise<string[]> {
+  const { data, error } = await getSupabase().from("contractors").select("name").order("name").limit(2000);
+  if (error) return [];
+  return (data ?? []).map((c) => String((c as { name: string }).name));
 }
 
 export async function getUploadProjects(id: string): Promise<UploadProject[]> {

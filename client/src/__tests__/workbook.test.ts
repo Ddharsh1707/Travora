@@ -249,3 +249,22 @@ test("merged cells are read from the xlsx file itself", () => {
   assert.deepStrictEqual(m["CAB"], []);
   assert.deepStrictEqual(readMerges(new Uint8Array([1, 2, 3])), {}, "a broken file gives no merges instead of failing");
 });
+
+test("contractor / labour supplier column is read for temporary workers", () => {
+  const sheet: SheetInput = {
+    name: "SITE TRAVEL",
+    merges: [],
+    rows: [
+      ["Passenger Name", "Travel Date", "From", "To", "PNR", "Cost", "Labour Contractor", "Travel Agent"],
+      ["RAMU LABOUR", D(2026, 9, 3), "HYD", "VSKP", "TRN111", 900, "Sri Sai Labour Services", "Yatra"],
+      ["SOMU HELPER", D(2026, 9, 4), "HYD", "VSKP", "TRN112", 0, "", "Yatra"],
+    ],
+  };
+  const plan = analyzeSheet(sheet);
+  const byHeader = Object.fromEntries(plan.columns.map((c) => [c.header, c.field]));
+  assert.strictEqual(byHeader["Labour Contractor"], "contractor");
+  assert.strictEqual(byHeader["Travel Agent"], "vendor", "the travel agent is not mistaken for a labour contractor");
+  const { lines } = buildLines(sheet, plan);
+  assert.strictEqual(lines[0].contractor, "Sri Sai Labour Services");
+  assert.strictEqual(lines[1].contractor, "", "a blank contractor stays blank; nothing is guessed");
+});
