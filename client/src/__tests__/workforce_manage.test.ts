@@ -49,3 +49,41 @@ describe("Temporary workforce: analytics filters", async () => {
     assert.deepEqual(cleanAnalyticsFilters({ project: "9d000000-0000-0000-0000-000000000001" }), { project: "9d000000-0000-0000-0000-000000000001" });
   });
 });
+
+describe("Temporary workforce: bulk changes", async () => {
+  const { applyToWorkers } = await import("../lib/data/workforce.ts");
+  const person = (id: string, over: Record<string, unknown> = {}) =>
+    ({ id, full_name: `P ${id}`, workforce_type: "unknown", verification_status: "imported_unverified", has_login: false, ...over }) as Parameters<typeof applyToWorkers>[0][number];
+
+  test("sets the kind and verifies each person, through the checked functions", async () => {
+    const calls: string[] = [];
+    const api = { setType: async (id: string, t: string) => { calls.push(`type:${id}:${t}`); }, verify: async (id: string) => { calls.push(`verify:${id}`); } };
+    const r = await applyToWorkers([person("a"), person("b")], { workforce_type: "permanent_employee", verify: true }, api);
+    assert.deepEqual(r, { changed: 2, failed: [] });
+    assert.deepEqual(calls, ["type:a:permanent_employee", "verify:a", "type:b:permanent_employee", "verify:b"]);
+  });
+
+  test("skips what is already so, and keeps going when one person is refused", async () => {
+    const calls: string[] = [];
+    const api = {
+      setType: async (id: string) => { if (id === "b") throw new Error("You cannot change this person's record"); calls.push(`type:${id}`); },
+      verify: async (id: string) => { calls.push(`verify:${id}`); },
+    };
+    const r = await applyToWorkers([
+      person("a", { workforce_type: "permanent_employee", verification_status: "verified" }),
+      person("b"),
+      person("c"),
+    ], { workforce_type: "permanent_employee", verify: true }, api);
+    assert.equal(r.changed, 1);
+    assert.deepEqual(r.failed.map((f) => [f.id, f.reason]), [["b", "You cannot change this person's record"]]);
+    assert.deepEqual(calls, ["type:c", "verify:c"], "nothing is sent for a person who is already set");
+  });
+
+  test("someone with a login is never made anything but permanent", async () => {
+    let sent = false;
+    const api = { setType: async () => { sent = true; }, verify: async () => undefined };
+    const r = await applyToWorkers([person("a", { workforce_type: "permanent_employee", has_login: true })], { workforce_type: "temporary_worker" }, api);
+    assert.equal(sent, false);
+    assert.equal(r.failed.length, 1);
+  });
+});

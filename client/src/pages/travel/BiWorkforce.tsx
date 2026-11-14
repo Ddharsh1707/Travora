@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
+import { toast } from "sonner";
 import { Download, Search } from "lucide-react";
 import {
-  VERIFICATION_LABELS, WORKFORCE_TYPE_LABELS, listWorkers,
+  VERIFICATION_LABELS, WORKFORCE_TYPE_LABELS, applyToWorkers, listWorkers,
   type VerificationStatus, type WorkerFilters, type WorkerRow, type WorkforceType,
 } from "../../lib/data/workforce";
 import { exportToCsv } from "../../utils/exportCsv";
@@ -36,6 +37,11 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
   const [overview, setOverview] = useState<WorkerRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Bulk changes (Travel Desk and Director).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkType, setBulkType] = useState<WorkforceType>("permanent_employee");
+  const [bulkVerify, setBulkVerify] = useState(true);
+  const [bulkProgress, setBulkProgress] = useState<string>("");
 
   // The headline numbers always cover everyone who is not a permanent employee.
   const loadOverview = useCallback(() => {
@@ -49,7 +55,7 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
     setLoading(true);
     setError("");
     listWorkers(filters, PAGE, page * PAGE)
-      .then((r) => { setRows(r.rows); setTotal(r.total); })
+      .then((r) => { setRows(r.rows); setTotal(r.total); setSelected(new Set()); })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not load the workers."))
       .finally(() => setLoading(false));
   }, [filters, page]);
@@ -74,6 +80,28 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
   }, [overview]);
 
   const set = (patch: Partial<WorkerFilters>) => { setPage(0); setFilters((f) => ({ ...f, ...patch })); };
+
+  const selectable = canManage ? rows.filter((w) => !w.merged_into) : [];
+  const allSelected = selectable.length > 0 && selectable.every((w) => selected.has(w.id));
+  const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  async function applyBulk() {
+    const people = rows.filter((w) => selected.has(w.id));
+    if (!people.length) return;
+    const what = `${WORKFORCE_TYPE_LABELS[bulkType].toLowerCase()}${bulkVerify ? " and mark them verified" : ""}`;
+    if (!window.confirm(`Set ${plural(people.length, "person", "people")} as ${what}? Each change is kept in the audit log and can be changed again on the person's page.`)) return;
+    setBulkProgress(`0 of ${people.length}`);
+    try {
+      const r = await applyToWorkers(people, { workforce_type: bulkType, verify: bulkVerify }, undefined, (d, t) => setBulkProgress(`${d} of ${t}`));
+      if (r.changed) toast.success(`${plural(r.changed, "person", "people")} updated`);
+      if (r.failed.length) toast.error(`${plural(r.failed.length, "person", "people")} not changed: ${r.failed.slice(0, 3).map((f) => `${f.name} (${f.reason})`).join("; ")}${r.failed.length > 3 ? "…" : ""}`);
+      if (!r.changed && !r.failed.length) toast.message("Nothing to change: they were already set.");
+    } finally {
+      setBulkProgress("");
+      load();
+      loadOverview();
+    }
+  }
 
   function download() {
     exportToCsv("temporary_workforce",
@@ -136,6 +164,21 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
           </label>
         </div>
 
+        {canManage && selected.size > 0 && (
+          <div className="table-toolbar flex-wrap gap-2" role="region" aria-label="Change selected people">
+            <strong className="text-sm">{plural(selected.size, "person", "people")} selected</strong>
+            <label className="toolbar-filters" style={{ flex: "0 0 auto" }}>
+              <select aria-label="Kind of worker for the selected people" value={bulkType} onChange={(e) => setBulkType(e.target.value as WorkforceType)} disabled={!!bulkProgress}>
+                {(Object.keys(WORKFORCE_TYPE_LABELS) as WorkforceType[]).map((t) => <option key={t} value={t}>Set as: {WORKFORCE_TYPE_LABELS[t]}</option>)}
+              </select>
+            </label>
+            <label className="text-xs flex items-center gap-2">
+              <input type="checkbox" checked={bulkVerify} onChange={(e) => setBulkVerify(e.target.checked)} disabled={!!bulkProgress} /> Also mark verified
+            </label>
+            <button type="button" className="button button-primary" onClick={() => void applyBulk()} disabled={!!bulkProgress}>{bulkProgress ? `Updating… ${bulkProgress}` : "Apply"}</button>
+            <button type="button" className="button button-ghost" onClick={() => setSelected(new Set())} disabled={!!bulkProgress}>Clear</button>
+          </div>
+        )}
         {error && <ErrorNotice message={error} onRetry={load} />}
         {loading && !rows.length && <Loading label="Loading workers…" />}
         {!loading && !error && rows.length === 0 && (
@@ -144,10 +187,11 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
         {rows.length > 0 && (
           <div className={`responsive-table ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
             <table>
-              <thead><tr><th>Worker</th><th>Kind</th><th>Contractor</th><th>Project</th><th>Travel</th><th className="text-right">Trips</th><th className="text-right">Spend</th><th>Status</th></tr></thead>
+              <thead><tr>{canManage && <th><input type="checkbox" aria-label="Select everyone on this page" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(selectable.map((w) => w.id)))} /></th>}<th>Worker</th><th>Kind</th><th>Contractor</th><th>Project</th><th>Travel</th><th className="text-right">Trips</th><th className="text-right">Spend</th><th>Status</th></tr></thead>
               <tbody>
                 {rows.map((w) => (
                   <tr key={w.id}>
+                    {canManage && <td>{!w.merged_into && <input type="checkbox" aria-label={`Select ${w.full_name}`} checked={selected.has(w.id)} onChange={() => toggle(w.id)} />}</td>}
                     <td>
                       <Link href={`/travel/workforce/${w.id}`} className="font-semibold hover:underline">{w.full_name}</Link>
                       <div className="table-subline">{[w.employee_id, !w.active && "inactive", w.alias_count > 0 && plural(w.alias_count, "other spelling")].filter(Boolean).join(" · ")}</div>
