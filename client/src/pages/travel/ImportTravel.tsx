@@ -13,6 +13,7 @@ import {
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
 import { DownloadOriginal } from "./UploadHistory";
 import AutoUpload from "./AutoUpload";
+import { NEW_PEOPLE_LABELS, presetPeople, type NewPeopleMode } from "../../lib/data/autoUpload";
 
 type Step = "upload" | "sheets" | "lines" | "people" | "projects" | "done";
 type Mappings = Record<string, Record<number, WbField | "">>;
@@ -45,6 +46,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [createMissing, setCreateMissing] = useState(true);
   const [pastEmployees, setPastEmployees] = useState(false);
+  const [newPeople, setNewPeople] = useState<NewPeopleMode>(isManager ? "temporary_worker" : "ask");
   const [currency, setCurrency] = useState("INR");
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [rows, setRows] = useState<WorkbookRow[]>([]);
@@ -117,7 +119,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
     setError("");
     try {
       const [rv, ppl, cn] = await Promise.all([getNameReviews(batch.id), listPeopleOptions(), listContractorNames()]);
-      setReviews(rv);
+      setReviews(presetPeople(rv, createMissing, isManager ? newPeople : "ask"));
       setPeople(ppl);
       setContractorNames(cn);
       setStep("people");
@@ -240,6 +242,16 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
                 <span className="block text-xs opacity-70 mt-0.5">You still confirm every person on the People step. New people get an ID like NEW-1A2B3C4D and no login.</span>
               </span>
             </label>
+            {isManager && createMissing && (
+              <label className="flex items-start gap-3">
+                <span className="flex-1"><strong>Travellers who are not in the app yet</strong>
+                  <span className="block text-xs opacity-70 mt-0.5">Fills in the People step for you; you can still change any line there. People already in the app are always matched.</span>
+                </span>
+                <select aria-label="Travellers who are not in the app yet" value={newPeople} onChange={(e) => setNewPeople(e.target.value as NewPeopleMode)}>
+                  {(Object.keys(NEW_PEOPLE_LABELS) as NewPeopleMode[]).map((m) => <option key={m} value={m}>{NEW_PEOPLE_LABELS[m]}</option>)}
+                </select>
+              </label>
+            )}
             {isManager && createMissing && (
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" className="mt-1" checked={pastEmployees} onChange={(e) => setPastEmployees(e.target.checked)} />

@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { canAutoSave, checkExtraction, matchPassenger, parseModelJson } from "../../../supabase/functions/_shared/ticket.ts";
-import { autoDecisions, findProject, routeFor } from "../lib/data/autoUpload.ts";
+import { autoDecisions, findProject, presetPeople, routeFor } from "../lib/data/autoUpload.ts";
 import { fieldsFromScan, type Extraction } from "../lib/data/documents.ts";
 import type { NameReview } from "../lib/data/imports.ts";
 
@@ -95,14 +95,50 @@ describe("Workbook decisions made automatically", () => {
     const out = autoDecisions([review({ name_key: "a", suggested_profile_id: "p1" }), review({ name_key: "b" })], true);
     assert.deepEqual(out, [
       { name_key: "a", decision: "link", profile_id: "p1" },
-      { name_key: "b", decision: "create", profile_id: null },
+      { name_key: "b", decision: "create", profile_id: null, workforce_type: "unknown" },
     ]);
     assert.equal(autoDecisions([review({ name_key: "b" })], false)[0].decision, "skip");
   });
-  test("someone who may already be on file is never added automatically", () => {
+  test("'ask me': someone who may already be on file is never added automatically", () => {
     const candidate = { profile_id: "p2", full_name: "Ravi Kumar", employee_id: "E2", workforce_type: "permanent_employee" as const, active: true, reason: "Initials match" };
     assert.deepEqual(autoDecisions([review({ name_key: "KUMAR R", candidates: [candidate] })], true)[0], { name_key: "KUMAR R", decision: "pending", profile_id: null });
     assert.equal(autoDecisions([review({ name_key: "x", candidates: [] })], true)[0].decision, "create", "no possible match: added as before");
+  });
+  test("'add to temporary workforce': matches are linked, everyone else is a temporary worker", () => {
+    const candidate = { profile_id: "p2", full_name: "Ravi Kumar", employee_id: "E2", workforce_type: "permanent_employee" as const, active: true, reason: "Initials match" };
+    const out = autoDecisions([
+      review({ name_key: "a", suggested_profile_id: "p1" }),
+      review({ name_key: "b" }),
+      review({ name_key: "KUMAR R", candidates: [candidate] }),
+    ], true, "temporary_worker");
+    assert.deepEqual(out, [
+      { name_key: "a", decision: "link", profile_id: "p1" },
+      { name_key: "b", decision: "create", profile_id: null, workforce_type: "temporary_worker" },
+      { name_key: "KUMAR R", decision: "create", profile_id: null, workforce_type: "temporary_worker" },
+    ], "a near-name is added too; the database marks it Possible duplicate");
+  });
+  test("'add as permanent employees': everyone not found is a permanent employee; matches are still linked", () => {
+    const out = autoDecisions([review({ name_key: "a", suggested_profile_id: "p1" }), review({ name_key: "b" })], true, "permanent_employee");
+    assert.deepEqual(out.map((d) => [d.decision, d.workforce_type ?? null]), [["link", null], ["create", "permanent_employee"]]);
+  });
+  test("with adding switched off, nobody is added whatever the choice", () => {
+    for (const mode of ["temporary_worker", "permanent_employee", "ask"] as const) {
+      assert.equal(autoDecisions([review({ name_key: "b" })], false, mode)[0].decision, "skip", mode);
+    }
+  });
+  test("step by step: the People step is filled in from the choice and can still be changed", () => {
+    const candidate = { profile_id: "p2", full_name: "Ravi Kumar", employee_id: "E2", workforce_type: "permanent_employee" as const, active: true, reason: "Initials match" };
+    const rows = [
+      review({ name_key: "a", decision: "link", profile_id: "p1", suggested_profile_id: "p1" }),
+      review({ name_key: "b", decision: "create" }),
+      review({ name_key: "KUMAR R", decision: "pending", candidates: [candidate] }),
+    ];
+    const out = presetPeople(rows, true, "permanent_employee");
+    assert.deepEqual(out.map((r) => [r.name_key, r.decision, r.workforce_type ?? null]), [
+      ["a", "link", null], ["b", "create", "permanent_employee"], ["KUMAR R", "create", "permanent_employee"],
+    ]);
+    assert.strictEqual(presetPeople(rows, true, "ask"), rows, "'ask me' leaves the People step as it was");
+    assert.strictEqual(presetPeople(rows, false, "temporary_worker"), rows, "nothing is preset when adding is switched off");
   });
   test("an earlier link is kept", () => {
     assert.deepEqual(autoDecisions([review({ decision: "link", profile_id: "p9", suggested_profile_id: "p1" })], true)[0], { name_key: "k", decision: "link", profile_id: "p9" });
