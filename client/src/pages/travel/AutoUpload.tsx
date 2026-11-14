@@ -3,7 +3,7 @@ import { AlertTriangle, BarChart3, CheckCircle2, FileSpreadsheet, FileText, Imag
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { readUploadFile } from "../../lib/data/readUploadFile";
-import { NoBookingsFound, autoImportSheets, autoTicket, fileTicket, readPdfSheets, routeFor, type AutoOptions, type FileRoute, type FiledTicket } from "../../lib/data/autoUpload";
+import { NEW_PEOPLE_LABELS, NoBookingsFound, autoImportSheets, autoTicket, fileTicket, readPdfSheets, routeFor, type AutoOptions, type FileRoute, type FiledTicket, type NewPeopleMode } from "../../lib/data/autoUpload";
 import { listPeopleOptions, type PersonOption } from "../../lib/data/imports";
 import type { Extraction } from "../../lib/data/documents";
 import { formatDate, formatMoney } from "./common";
@@ -47,6 +47,7 @@ export default function AutoUpload({ isManager, onFinished }: { isManager: boole
   const [items, setItems] = useState<Item[]>([]);
   const [createMissing, setCreateMissing] = useState(true);
   const [pastEmployees, setPastEmployees] = useState(false);
+  const [newPeople, setNewPeople] = useState<NewPeopleMode>(isManager ? "temporary_worker" : "ask");
   const [currency, setCurrency] = useState("INR");
   const [drag, setDrag] = useState(false);
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -82,14 +83,14 @@ export default function AutoUpload({ isManager, onFinished }: { isManager: boole
   }
 
   async function processSheet(item: Item, kind: "csv" | "xlsx" | "pdf", sheets?: Awaited<ReturnType<typeof readUploadFile>>) {
-    const opts: AutoOptions = { createMissing, currency, pastEmployees, isManager };
+    const opts: AutoOptions = { createMissing, currency, pastEmployees, isManager, newPeople };
     patch(item.id, { stage: "Reading every sheet" });
     const read = sheets ?? (await readUploadFile(item.file, kind));
     const r = await autoImportSheets(item.file, kind, read, opts, (stage) => patch(item.id, { stage }));
     const b = r.batch;
     const lines = [
       `${b.imported_rows} of ${b.total_rows} lines saved`,
-      `Travellers: ${r.linked} matched to employees${r.added ? `, ${r.added} added as new people` : ""}`,
+      `Travellers: ${r.linked} matched to people already in the app${r.added ? `, ${r.added} added ${r.addedAs === "permanent_employee" ? "as permanent employees" : r.addedAs === "temporary_worker" ? "to the temporary workforce" : "as new people (kind of worker unknown)"}` : ""}`,
       ...(r.projectsLinked || r.projectsCreated ? [`Projects: ${r.projectsLinked} matched${r.projectsCreated ? `, ${r.projectsCreated} new` : ""}`] : []),
     ];
     patch(item.id, { state: "done", stage: "", title: "Imported", lines, notes: r.notes, reportId: b.id });
@@ -166,6 +167,17 @@ export default function AutoUpload({ isManager, onFinished }: { isManager: boole
         <span className="button button-primary"><Upload size={15} /> Choose files</span>
         <input type="file" multiple className="sr-only" accept={ACCEPT} onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
       </label>
+
+      {isManager && createMissing && (
+        <div className="panel p-4 text-sm flex flex-wrap items-center gap-3">
+          <span className="flex-1 min-w-[16rem]"><strong className="inline-flex items-center gap-1"><UserPlus size={14} /> Travellers who are not in the app yet</strong>
+            <span className="block text-xs opacity-70 mt-0.5">People already in the app (same ID, same name or a saved spelling) are always matched, never added twice. {newPeople === "ask" ? "New people are added as “kind unknown”; names close to someone on file wait for you." : "Names close to someone on file are added too and marked “Possible duplicate” to check later."}</span>
+          </span>
+          <select aria-label="Travellers who are not in the app yet" value={newPeople} onChange={(e) => setNewPeople(e.target.value as NewPeopleMode)} disabled={busy}>
+            {(Object.keys(NEW_PEOPLE_LABELS) as NewPeopleMode[]).map((m) => <option key={m} value={m}>{NEW_PEOPLE_LABELS[m]}</option>)}
+          </select>
+        </div>
+      )}
 
       <details className="panel p-4 text-sm">
         <summary className="cursor-pointer font-semibold">Upload settings</summary>

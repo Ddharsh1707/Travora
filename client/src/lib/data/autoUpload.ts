@@ -3,7 +3,7 @@ import { analyzeWorkbook, sheetSummaryForDb, type SheetInput } from "./workbook"
 import { readUploadFile } from "./readUploadFile";
 import {
   commitWorkbook, createProject, decideNames, getNameReviews, getUploadProjects, listProjects, markNewPeopleLeft, setProjectAlias, stageWorkbook, storeImportFile,
-  type ImportBatch, type NameReview, type PersonOption, type Project,
+  type ImportBatch, type NameDecision, type NameReview, type PersonOption, type Project,
 } from "./imports";
 import {
   DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, autoSaveScan, checkDocumentFile, saveScan, scanFile, uploadDocument,
@@ -45,16 +45,49 @@ export function routeFor(name: string, size: number, head: Uint8Array): { ok: tr
 const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /**
- * Link to the suggested employee; otherwise add as new, or leave out when adding is switched off.
- * Someone who may already be on file under a slightly different name ("R Kumar" / "Ravi Kumar")
- * is never added automatically: they stay undecided, so their lines wait for a person.
+ * What to do with travellers who are not in the app yet (Travel Desk and Director):
+ *  - "temporary_worker": add them to the temporary workforce;
+ *  - "permanent_employee": add them as permanent employees;
+ *  - "ask": add them as Unknown, and leave anyone who may already be on file for a person to decide.
+ * People already in the app (same ID, same name or a saved spelling) are always linked, never added again.
  */
-export function autoDecisions(reviews: NameReview[], createMissing: boolean) {
+export type NewPeopleMode = "temporary_worker" | "permanent_employee" | "ask";
+
+export const NEW_PEOPLE_LABELS: Record<NewPeopleMode, string> = {
+  temporary_worker: "Add to temporary workforce",
+  permanent_employee: "Add as permanent employees",
+  ask: "Ask me for each person",
+};
+
+/**
+ * Link to the suggested person; otherwise add as new, or leave out when adding is switched off.
+ * Someone who may already be on file under a slightly different name ("R Kumar" / "Ravi Kumar"):
+ *  - in "ask" mode, stays undecided, so their lines wait for a person;
+ *  - in the automatic modes, is added like everyone else. The database marks them
+ *    "Possible duplicate", so they can be checked or merged later.
+ */
+export function autoDecisions(reviews: NameReview[], createMissing: boolean, mode: NewPeopleMode = "ask"): NameDecision[] {
+  const create = (key: string): NameDecision => ({ name_key: key, decision: "create", profile_id: null, workforce_type: mode === "ask" ? "unknown" : mode });
   return reviews.map((r) => {
-    if (r.decision === "link" && r.profile_id) return { name_key: r.name_key, decision: "link" as const, profile_id: r.profile_id };
-    if (r.suggested_profile_id) return { name_key: r.name_key, decision: "link" as const, profile_id: r.suggested_profile_id };
-    if ((r.candidates?.length ?? 0) > 0) return { name_key: r.name_key, decision: "pending" as const, profile_id: null };
-    return { name_key: r.name_key, decision: createMissing ? ("create" as const) : ("skip" as const), profile_id: null };
+    if (r.decision === "link" && r.profile_id) return { name_key: r.name_key, decision: "link", profile_id: r.profile_id };
+    if (r.suggested_profile_id) return { name_key: r.name_key, decision: "link", profile_id: r.suggested_profile_id };
+    const nearName = (r.candidates?.length ?? 0) > 0;
+    if (!createMissing) return { name_key: r.name_key, decision: nearName ? "pending" : "skip", profile_id: null };
+    if (nearName && mode === "ask") return { name_key: r.name_key, decision: "pending", profile_id: null };
+    return create(r.name_key);
+  });
+}
+
+/**
+ * The People step, filled in from the upload choice. Every line can still be changed by hand
+ * before saving; nothing here touches people who were matched.
+ */
+export function presetPeople(reviews: NameReview[], createMissing: boolean, mode: NewPeopleMode): NameReview[] {
+  if (!createMissing || mode === "ask") return reviews;
+  return reviews.map((r) => {
+    if (r.decision === "create") return { ...r, workforce_type: mode };
+    if (r.decision === "pending" && !r.suggested_profile_id && (r.candidates?.length ?? 0) > 0) return { ...r, decision: "create", profile_id: null, workforce_type: mode };
+    return r;
   });
 }
 
@@ -70,6 +103,9 @@ export type SheetResult = {
   batch: ImportBatch;
   linked: number;
   added: number;
+  /** Added although they may already be on file: marked "Possible duplicate". */
+  flagged: number;
+  addedAs: NewPeopleMode;
   left: number;
   projectsLinked: number;
   projectsCreated: number;
@@ -78,7 +114,7 @@ export type SheetResult = {
 
 export class NoBookingsFound extends Error {}
 
-export type AutoOptions = { createMissing: boolean; currency: string; pastEmployees: boolean; isManager: boolean };
+export type AutoOptions = { createMissing: boolean; currency: string; pastEmployees: boolean; isManager: boolean; newPeople?: NewPeopleMode };
 
 /** Reads, checks and imports a workbook / CSV / table PDF in one go. */
 export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf", sheets: SheetInput[], opts: AutoOptions, onStage: (s: string) => void): Promise<SheetResult> {
@@ -94,7 +130,11 @@ export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf",
 
   onStage("Matching travellers to employees");
   const reviews = await getNameReviews(id);
-  const decisions = autoDecisions(reviews, opts.createMissing);
+  // Only the Travel Desk and the Director say what kind of worker new people are.
+  const mode: NewPeopleMode = opts.isManager ? opts.newPeople ?? "ask" : "ask";
+  const decisions = autoDecisions(reviews, opts.createMissing, mode);
+  const nearNames = new Set(reviews.filter((r) => !r.suggested_profile_id && (r.candidates?.length ?? 0) > 0).map((r) => r.name_key));
+  const flagged = decisions.filter((d) => d.decision === "create" && nearNames.has(d.name_key)).length;
   if (decisions.length) await decideNames(id, decisions);
   const linked = decisions.filter((d) => d.decision === "link").length;
   const added = decisions.filter((d) => d.decision === "create").length;
@@ -131,7 +171,8 @@ export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf",
   if (batch.duplicate_rows) notes.push(`${batch.duplicate_rows} line${batch.duplicate_rows === 1 ? " was" : "s were"} already imported earlier.`);
   if (left) notes.push(`${left} traveller${left === 1 ? "" : "s"} not found among employees were left out.`);
   if (unsure) notes.push(`${unsure} traveller${unsure === 1 ? " looks" : "s look"} like someone already on file under a slightly different name, so their lines were left out. Upload the file step by step to decide who they are.`);
-  return { batch, linked, added, left, projectsLinked, projectsCreated, notes };
+  if (flagged) notes.push(`${flagged} new ${flagged === 1 ? "person looks" : "people look"} like someone already on file under a slightly different name. They were added and marked "Possible duplicate": check or merge them on the Temporary Workforce page.`);
+  return { batch, linked, added, flagged, addedAs: mode, left, projectsLinked, projectsCreated, notes };
 }
 
 export type FiledTicket = AutoResult & { employee: PersonOption; documentId: string };
