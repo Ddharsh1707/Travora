@@ -9,7 +9,8 @@
 //   GEMINI_API_KEY     Google AI Studio free tier (Google may use free-tier data)
 //   ANTHROPIC_API_KEY  Claude (paid)
 // AI_PROVIDER = groq | gemini | anthropic picks the first one to try.
-// GROQ_MODEL, GEMINI_MODEL, ANTHROPIC_MODEL change the model.
+// GROQ_MODEL, GEMINI_MODEL, ANTHROPIC_MODEL change the model. GROQ_BACKUP_MODEL (default
+// openai/gpt-oss-20b, "none" to turn off) is tried when the first Groq model is busy.
 //
 // Security:
 //  * The model never sees SQL, keys or the database. It can only ask for one of
@@ -37,7 +38,8 @@ const ANTHROPIC_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-opus-5-5";
 /** Rows read per lookup. All of them go to the download buttons. */
 const MAX_ROWS = 999; // Supabase returns at most 1000 rows, so 999 + 1 still tells us if there were more.
 /** Rows of each list the model reads. Free models have small token limits. */
-const MODEL_ROWS = { anthropic: 50, openai: 20 };
+// Free tiers allow about 8,000 tokens a minute, so free models read fewer rows per list.
+const MODEL_ROWS = { anthropic: 50, openai: 10 };
 /** Most rows sent back to the browser for one answer. */
 const MAX_RECORD_ROWS = 3000;
 const MAX_QUESTION = 2000;
@@ -485,6 +487,10 @@ function providers(): Provider[] {
     if (key) all.push({ id, key, model: Deno.env.get(modelName) || fallback });
   };
   add("groq", "GROQ_API_KEY", "GROQ_MODEL", OPENAI_COMPAT.groq.model);
+  // Groq's free limits are per model, so a second, smaller model is the backup when the first is busy.
+  const backup = Deno.env.get("GROQ_BACKUP_MODEL") || "openai/gpt-oss-20b";
+  const key = Deno.env.get("GROQ_API_KEY");
+  if (key && backup !== all[all.length - 1]?.model && backup.toLowerCase() !== "none") all.push({ id: "groq", key, model: backup });
   add("gemini", "GEMINI_API_KEY", "GEMINI_MODEL", OPENAI_COMPAT.gemini.model);
   add("anthropic", "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL", ANTHROPIC_MODEL);
   const first = (Deno.env.get("AI_PROVIDER") ?? "").toLowerCase();
