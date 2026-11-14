@@ -120,3 +120,48 @@ describe("Ticket extraction checks", () => {
     assert.ok(!namesMatch("Mr. Rao", "Arun Kumar"));
   });
 });
+
+// An IRCTC-style e-ticket with four passengers (made-up names, same layout as a real ERS).
+const GROUP_TEXT = "Electronic Reservation Slip (ERS) Boarding From CHENNAI BEACH (MSB) Departure* 18:20 30-Nov-2026 To SECUNDERABAD JN (SC) "
+  + "PNR 4701139913 Passenger Details: # Name Age Gender Food Choice Booking Status Current Status "
+  + "1 Asha V K 19 F No Food CNF/B4/3/UB CNF/B4/3/UB 2 Ravi Teja 19 M No Food CNF/B4/2/MB CNF/B4/2/MB "
+  + "3 Meena V E 19 F No Food CNF/B4/5/MB CNF/B4/5/MB 4 Kiran Dev 20 M No Food CNF/B4/6/UB CNF/B4/6/UB Total Fare: Rs. 4838/-";
+
+describe("Tickets with several passengers", () => {
+  const base = { document_type: "train_ticket", origin: "CHENNAI BEACH (MSB)", destination: "SECUNDERABAD JN (SC)", departure_date: "2026-11-30",
+    return_date: null, provider: "Indian Railways", booking_reference: "4701139913", ticket_number: null, amount: 4838, currency: "INR", travel_mode: "train", low_confidence_fields: [] };
+
+  test("the model is asked for every passenger", () => {
+    assert.ok((EXTRACTION_SCHEMA.required as readonly string[]).includes("passengers"));
+  });
+
+  test("all four passengers are kept, and nobody is 'the' passenger", () => {
+    const r = checkExtraction({ ...base, passenger_name: null, passengers: ["Asha V K", "Ravi Teja", "Meena V E", "Kiran Dev"] }, GROUP_TEXT, null);
+    assert.deepEqual(r.fields.passengers, ["Asha V K", "Ravi Teja", "Meena V E", "Kiran Dev"]);
+    assert.equal(r.fields.passenger_name, null);
+    assert.ok(r.warnings.some((w) => /4 passengers/.test(w)));
+  });
+
+  test("a name that is not printed on the ticket is dropped; repeats are dropped", () => {
+    const r = checkExtraction({ ...base, passenger_name: null, passengers: ["Asha V K", "Invented Person", "ASHA V K", "Ravi Teja"] }, GROUP_TEXT, null);
+    assert.deepEqual(r.fields.passengers, ["Asha V K", "Ravi Teja"]);
+  });
+
+  test("one passenger: the usual single-person ticket", () => {
+    const r = checkExtraction({ ...base, passenger_name: null, passengers: ["Ravi Teja"] }, GROUP_TEXT, null);
+    assert.equal(r.fields.passenger_name, "Ravi Teja");
+    assert.deepEqual(r.fields.passengers, ["Ravi Teja"]);
+  });
+
+  test("an older answer with only passenger_name still works", () => {
+    const r = checkExtraction({ ...base, passenger_name: "Kiran Dev" }, GROUP_TEXT, null);
+    assert.equal(r.fields.passenger_name, "Kiran Dev");
+    assert.deepEqual(r.fields.passengers, ["Kiran Dev"]);
+  });
+
+  test("a photo (no text to check against) keeps the names, at most nine", () => {
+    const many = Array.from({ length: 12 }, (_, i) => `Person Number${String.fromCharCode(65 + i)}`);
+    const r = checkExtraction({ ...base, passenger_name: null, passengers: many }, null, null);
+    assert.equal(r.fields.passengers.length, 9);
+  });
+});

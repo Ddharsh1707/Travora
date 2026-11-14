@@ -84,6 +84,27 @@ person's kind or status.
 Uploading the same file again imports nothing twice: every line carries a
 fingerprint, and a line already on file is reported as "Already imported".
 
+### Tickets with several passengers
+
+A ticket can name several people, for example a train ticket for four. Upload it
+on **Upload anything**:
+
+- The scanner lists **every passenger** printed on the ticket. A name that is not
+  printed on it is dropped.
+- Each passenger already in the app is matched. Anyone else follows the same
+  **"Travellers who are not in the app yet"** choice as sheets. With "Ask me", or
+  for the booking assistant, the upload asks who each passenger is
+  (a person, "Add as new", or "Leave out of this booking").
+- The ticket is saved as a **group booking** under its PNR: **one trip per
+  passenger**, with the fare **split across them** so the total is counted once
+  (for example ₹4,838 for four people is ₹1,209.50 each; any paisa left over goes
+  to the first person). You can change each person's share on **Bulk bookings**.
+- The ticket file is kept once, under the first passenger, and linked to their
+  trip.
+
+A group ticket needs a PNR, a route and a travel date. Without them, the upload
+asks which one person the ticket belongs to, as before.
+
 ---
 
 ## 3. Looking after workers (Travel Desk and Director)
@@ -172,6 +193,7 @@ against totals worked out by hand.
 | 2 | `20261115120000_workforce_import.sql` | People step: saved spellings, possible matches, kind of worker and contractor on "create", alias memory on commit |
 | 3 | `20261115140000_workforce_manage.sql` | `workforce_list`, `workforce_detail`, `workforce_set_type`, `workforce_verify`, `workforce_alias_add` / `_remove`, `workforce_set_contractor`, `workforce_set_project`, `workforce_merge`, `workforce_unmerge`; `private.trip_money()` |
 | 5 | `20261115160000_workforce_analytics.sql` | `workforce_analytics(filters)` |
+| — | `20261115180000_ticket_passengers.sql` | `workforce_add_person(name, kind, contractor)` for passengers on a group ticket |
 
 - **Access:** reading needs `private.can_view_workforce()` (travel desk, Travel
   Desk, Director); changing needs `private.can_manage_workforce()` (Travel Desk,

@@ -32,6 +32,8 @@ export type FieldFlag = "ok" | "check" | "missing";
 export type ExtractedFields = {
   document_type?: DocumentType;
   passenger_name: string | null;
+  /** Every passenger printed on the document; a group ticket has several (older scans: missing). */
+  passengers?: string[];
   origin: string | null;
   destination: string | null;
   departure_date: string | null;

@@ -3,7 +3,8 @@ import { AlertTriangle, BarChart3, CheckCircle2, FileSpreadsheet, FileText, Imag
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { readUploadFile } from "../../lib/data/readUploadFile";
-import { NEW_PEOPLE_LABELS, NoBookingsFound, autoImportSheets, autoTicket, fileTicket, readPdfSheets, routeFor, type AutoOptions, type FileRoute, type FiledTicket, type NewPeopleMode } from "../../lib/data/autoUpload";
+import { NEW_PEOPLE_LABELS, NoBookingsFound, autoImportSheets, autoTicket, fileTicket, planReady, readPdfSheets, routeFor, saveGroupTicket, type AutoOptions, type FileRoute, type FiledTicket, type GroupResult, type NewPeopleMode, type PassengerPlan } from "../../lib/data/autoUpload";
+import { WORKFORCE_TYPE_LABELS } from "../../lib/data/imports";
 import { listPeopleOptions, type PersonOption } from "../../lib/data/imports";
 import type { Extraction } from "../../lib/data/documents";
 import { formatDate, formatMoney } from "./common";
@@ -12,13 +13,15 @@ type Item = {
   id: string;
   file: File;
   route: FileRoute | null;
-  state: "waiting" | "working" | "done" | "review" | "who" | "error";
+  state: "waiting" | "working" | "done" | "review" | "who" | "group" | "error";
   stage: string;
   title?: string;
   lines?: string[];
   notes?: string[];
   reportId?: string;
   extraction?: Extraction;
+  /** A ticket with several passengers: who each one is (or "leave out"). */
+  group?: Array<PassengerPlan & { leaveOut?: boolean }>;
 };
 
 const ACCEPT = ".xlsx,.csv,.pdf,.png,.jpg,.jpeg,.webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/pdf,image/png,image/jpeg,image/webp";
@@ -27,7 +30,7 @@ function FileIcon({ item }: { item: Item }) {
   if (item.state === "working" || item.state === "waiting") return <Loader2 size={18} className={item.state === "working" ? "animate-spin" : "opacity-40"} />;
   if (item.state === "done") return <CheckCircle2 size={18} className="text-green-600" />;
   if (item.state === "error") return <XCircle size={18} className="text-red-600" />;
-  if (item.state === "who" || item.state === "review") return <AlertTriangle size={18} className="text-amber-600" />;
+  if (item.state === "who" || item.state === "review" || item.state === "group") return <AlertTriangle size={18} className="text-amber-600" />;
   return item.route === "ticket" ? <ImageIcon size={18} /> : item.route === "pdf" ? <FileText size={18} /> : <FileSpreadsheet size={18} />;
 }
 
@@ -66,12 +69,52 @@ export default function AutoUpload({ isManager, onFinished }: { isManager: boole
   useEffect(() => { void loadPeople().catch(() => undefined); }, []);
 
   async function processTicket(item: Item) {
-    const r = await autoTicket(item.file, await loadPeople(), (stage) => patch(item.id, { stage }));
+    const r = await autoTicket(item.file, await loadPeople(), (stage) => patch(item.id, { stage }), { mode: newPeople, isManager });
+    if (r.status === "group") {
+      // Every passenger matched or to be added: save at once. Otherwise ask who they are.
+      if (planReady(r.plan)) return saveGroup({ ...item, extraction: r.extraction }, r.plan);
+      patch(item.id, { state: "group", stage: "", extraction: r.extraction, group: r.plan, title: `Read the ticket: ${r.plan.length} passengers. Who are they?`, lines: [tripLine(r.extraction)] });
+      return;
+    }
     if (r.status === "who") {
       patch(item.id, { state: "who", stage: "", extraction: r.extraction, title: "Read the document, but whose is it?", lines: [tripLine(r.extraction), r.extraction.fields.passenger_name ? `Passenger: ${r.extraction.fields.passenger_name} (no single employee with this name)` : "No passenger name on the document"] });
       return;
     }
     showTicket(item.id, r);
+  }
+
+  async function saveGroup(item: Item, plan: Array<PassengerPlan & { leaveOut?: boolean }>) {
+    if (!item.extraction) return;
+    patch(item.id, { state: "working", stage: "Saving the group booking" });
+    try {
+      const r: GroupResult = await saveGroupTicket(item.file, item.extraction, plan, (stage) => patch(item.id, { stage }));
+      const cur = item.extraction.fields.currency ?? "INR";
+      const amounts = new Set(r.people.map((p) => p.amount));
+      patch(item.id, {
+        state: "done", stage: "", group: undefined,
+        title: `Saved for ${r.people.length} passengers as a group booking`,
+        lines: [
+          tripLine(item.extraction),
+          r.people.map((p) => `${p.person.full_name}${p.added ? " (new)" : ""}`).join(", "),
+          amounts.size === 1 && r.people[0].amount != null ? `${formatMoney(r.people[0].amount, cur)} each, ${formatMoney(item.extraction.fields.amount, cur)} in total` : "Fare split across the passengers",
+        ],
+        notes: r.notes,
+      });
+      if (r.people.some((p) => p.added)) void loadPeople(true).catch(() => undefined);
+    } catch (err) {
+      patch(item.id, { state: "group", stage: "", group: plan, notes: [err instanceof Error ? err.message : "Could not save the group booking."] });
+    }
+  }
+
+  function setPassenger(item: Item, index: number, value: string) {
+    const plan = (item.group ?? []).map((p, i) => {
+      if (i !== index) return p;
+      if (value === "leave") return { ...p, person: null, add: null, leaveOut: true };
+      if (value.startsWith("add:")) return { ...p, person: null, add: value.slice(4) as PassengerPlan["add"], leaveOut: false };
+      const person = peopleList.find((x) => x.id === value) ?? null;
+      return { ...p, person, add: null, leaveOut: false };
+    });
+    patch(item.id, { group: plan });
   }
 
   function showTicket(id: string, r: FiledTicket) {
@@ -223,6 +266,29 @@ export default function AutoUpload({ isManager, onFinished }: { isManager: boole
                   {item.title && <span className="text-sm font-semibold">{item.title}</span>}
                   {item.lines?.map((l) => <span key={l} className="text-sm">{l}</span>)}
                   {item.notes?.map((n) => <span key={n} className="text-xs opacity-80 flex gap-1"><AlertTriangle size={12} className="text-amber-600 shrink-0 mt-0.5" /> {n}</span>)}
+                  {item.state === "group" && item.group && (
+                    <div className="mt-2 grid gap-2 max-w-2xl">
+                      {item.group.map((p, i) => (
+                        <label key={`${p.name}-${i}`} className="field">
+                          <span>{p.name}</span>
+                          <select value={p.leaveOut ? "leave" : p.person ? p.person.id : p.add ? `add:${p.add}` : ""} onChange={(e) => setPassenger(item, i, e.target.value)}>
+                            <option value="">Choose who this is…</option>
+                            {peopleList.map((x) => <option key={x.id} value={x.id}>{x.full_name} · {x.employee_id}</option>)}
+                            {(isManager ? (["temporary_worker", "contract_worker", "outsourced_worker", "permanent_employee", "unknown"] as const) : (["unknown"] as const)).map((t) => (
+                              <option key={t} value={`add:${t}`}>Add as new: {WORKFORCE_TYPE_LABELS[t]}</option>
+                            ))}
+                            <option value="leave">Leave out of this booking</option>
+                          </select>
+                        </label>
+                      ))}
+                      <div>
+                        <button type="button" className="button button-primary" disabled={!planReady(item.group)} onClick={() => void saveGroup(item, item.group!)}>
+                          Save for {item.group.filter((p) => !p.leaveOut).length} passengers
+                        </button>
+                        <span className="text-xs opacity-70 ml-2">One trip each, the fare split across them, as a group booking.</span>
+                      </div>
+                    </div>
+                  )}
                   {item.state === "who" && (
                     <label className="field max-w-md mt-1">
                       <span>Whose is it?</span>

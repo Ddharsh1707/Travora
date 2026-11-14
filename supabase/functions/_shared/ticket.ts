@@ -34,10 +34,15 @@ const nullableString = { type: ["string", "null"] };
 export const EXTRACTION_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: [...TICKET_FIELDS, "document_type", "low_confidence_fields"],
+  required: [...TICKET_FIELDS, "document_type", "passengers", "low_confidence_fields"],
   properties: {
     document_type: { type: "string", enum: [...DOCUMENT_TYPES] },
-    passenger_name: nullableString,
+    passenger_name: { type: ["string", "null"], description: "The passenger's name when the document has exactly one passenger; null when it has several" },
+    passengers: {
+      type: "array",
+      items: { type: "string" },
+      description: "Every passenger name on the document, exactly as printed, in the printed order. Empty when there is none.",
+    },
     origin: nullableString,
     destination: nullableString,
     departure_date: { type: ["string", "null"], description: "YYYY-MM-DD" },
@@ -69,6 +74,8 @@ export type Flag = "ok" | "check" | "missing";
 export type TicketFields = {
   document_type: (typeof DOCUMENT_TYPES)[number];
   passenger_name: string | null;
+  /** Every passenger printed on the document (a group ticket has several). Only names found in the text are kept. */
+  passengers: string[];
   origin: string | null;
   destination: string | null;
   departure_date: string | null;
@@ -88,6 +95,9 @@ export type CheckedExtraction = {
 };
 
 const REQUIRED: TicketField[] = ["origin", "destination", "departure_date"];
+
+/** Most tickets carry at most 6 (rail) or 9 (air) passengers. */
+export const MAX_PASSENGERS = 9;
 
 function cleanString(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
@@ -142,6 +152,7 @@ export function checkExtraction(raw: unknown, sourceText: string | null, employe
   const fields: TicketFields = {
     document_type: docType,
     passenger_name: cleanString(r.passenger_name, 120),
+    passengers: [],
     origin: cleanString(r.origin, 120),
     destination: cleanString(r.destination, 120),
     departure_date: cleanString(r.departure_date, 10),
@@ -155,6 +166,31 @@ export function checkExtraction(raw: unknown, sourceText: string | null, employe
     currency: cleanString(r.currency, 8)?.toUpperCase() ?? null,
     travel_mode: mode,
   };
+
+  // Every passenger: cleaned, de-duplicated, and (when the document has text) only
+  // names that are printed on it, so a made-up name never becomes a trip.
+  const seen = new Set<string>();
+  const text = sourceText ? squash(sourceText) : null;
+  for (const v of Array.isArray(r.passengers) ? r.passengers : []) {
+    const name = cleanString(v, 120);
+    if (!name || squash(name).length < 2) continue;
+    const key = squash(name);
+    if (seen.has(key)) continue;
+    if (text && !text.includes(key)) {
+      const parts = Array.from(nameTokens(name)).map(squash);
+      if (!parts.length || !parts.every((p) => text.includes(p))) continue;
+    }
+    seen.add(key);
+    fields.passengers.push(name);
+    if (fields.passengers.length >= MAX_PASSENGERS) break;
+  }
+  if (fields.passengers.length === 0 && fields.passenger_name) fields.passengers = [fields.passenger_name];
+  if (fields.passengers.length === 1 && !fields.passenger_name) fields.passenger_name = fields.passengers[0];
+  if (fields.passengers.length > 1) {
+    // A group ticket: nobody is "the" passenger; each one gets their own trip.
+    fields.passenger_name = null;
+    warnings.push(`${fields.passengers.length} passengers on this ticket (${fields.passengers.join(", ")}). Upload it on "Upload anything" to save a trip for each of them, with the fare split.`);
+  }
 
   if (r.amount !== null && r.amount !== undefined && fields.amount === null) {
     flags.amount = "check";
@@ -251,7 +287,8 @@ export function sniffMime(head: Uint8Array): "application/pdf" | "image/png" | "
 export const FREE_MODEL_JSON_HINT = [
   "Answer with ONE JSON object and nothing else, with exactly these keys:",
   `document_type (one of ${DOCUMENT_TYPES.join(", ")}),`,
-  "passenger_name, origin, destination, provider, booking_reference, ticket_number, currency (strings or null),",
+  "passenger_name (the passenger when there is exactly one, else null), origin, destination, provider, booking_reference, ticket_number, currency (strings or null),",
+  "passengers (array of every passenger name exactly as printed; [] when none),",
   "departure_date, return_date (YYYY-MM-DD or null), amount (number or null, the total paid),",
   `travel_mode (one of ${TRAVEL_MODES.join(", ")}),`,
   "low_confidence_fields (array of the key names you were unsure about).",

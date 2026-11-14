@@ -199,4 +199,44 @@ reset role;
 select wi.ok(exists (select 1 from public.audit_logs where action = 'name_match_decided'),
   'People step decisions are written to the audit log');
 
+-- ---------------------------------------------------------------------------
+-- Tickets with several passengers: adding a passenger (workforce_add_person)
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+select wi.login('7e000000-0000-0000-0000-0000000000d1');
+select wi.throws($$select public.workforce_add_person('Tara Singh', 'temporary_worker')$$,
+  'ticket: the booking assistant cannot say what kind of worker someone is');
+create temp table wi_tara as select public.workforce_add_person('Tara Singh') as id;
+grant select on wi_tara to authenticated;
+
+select wi.login('7e000000-0000-0000-0000-0000000000c1');
+select wi.ok(public.workforce_add_person('MR. RAVI KUMAR', 'temporary_worker') = '7d000000-0000-0000-0000-000000000101',
+  'ticket: a passenger already in the app is returned, not added again (and not reclassified)');
+select wi.ok(public.workforce_add_person('Mahi Gupta') = '7d000000-0000-0000-0000-000000000105',
+  'ticket: a saved spelling finds the person');
+select wi.throws($$select public.workforce_add_person('Anil Rao')$$,
+  'ticket: two people with the same name: a person must choose');
+select wi.throws($$select public.workforce_add_person('  ')$$, 'ticket: an empty name is refused');
+create temp table wi_ravik as select public.workforce_add_person('Ravi K', 'temporary_worker', 'Sri Sai Labour') as id;
+grant select on wi_ravik to authenticated;
+create temp table wi_perm as select public.workforce_add_person('Nikhil Varma', 'permanent_employee', 'Some Agency') as id;
+grant select on wi_perm to authenticated;
+
+reset role;
+select wi.ok((select workforce_type = 'unknown' and verification_status = 'imported_unverified' and source = 'import'
+                     and user_id is null and employee_id like 'NEW-%'
+                from public.profiles where id = (select id from wi_tara)),
+  'ticket: a new passenger is unknown, unverified, from an upload, with no login');
+select wi.ok((select workforce_type = 'temporary_worker' and verification_status = 'possible_duplicate'
+                     and contractor_id = (select id from public.contractors where name = 'Sri Sai Labour')
+                from public.profiles where id = (select id from wi_ravik)),
+  'ticket: "Ravi K" is added as asked but marked as a possible duplicate of Ravi Kumar');
+select wi.ok((select workforce_type = 'permanent_employee' and contractor_id is null
+                from public.profiles where id = (select id from wi_perm)),
+  'ticket: a permanent employee gets no contractor');
+select wi.ok((select workforce_type from public.profiles where id = '7d000000-0000-0000-0000-000000000101') = 'permanent_employee',
+  'ticket: the existing person was not changed');
+select wi.ok((select count(*) from public.audit_logs where action = 'workforce_person_added') = 3,
+  'ticket: each added passenger is in the audit log');
+
 rollback;
