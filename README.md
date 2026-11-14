@@ -38,6 +38,7 @@ It replaces spreadsheets and email threads with one web app. Every permission is
 | **BI dashboards** | Overview, projects (with drill-down), travel, employees, finance, insights and downloadable reports. A travel map is built from a seeded airport, railway station and city dataset. |
 | **AI assistant** | A floating chat that answers questions such as "how much did project X spend in October?". It can only call fixed, permission-checked queries and can produce downloadable reports. |
 | **People management** | Create or invite employees, give them logins, reset passwords, mark people as left, and delete or reset data (Director and Travel Desk only). |
+| **Temporary workforce** | Temporary, contract and outsourced workers who appear in uploads. The People step suggests possible matches without guessing, new people get a kind of worker and a contractor, and the Travel Desk can verify, classify and merge records (with undo). Spend analytics by kind of worker, contractor, project, month and region. See `docs/WORKFORCE.md`. |
 
 ---
 
@@ -128,7 +129,7 @@ flowchart TB
 
 ### Database (`supabase/migrations/`)
 
-There are 28 ordered SQL migrations. The main tables are:
+There are 33 ordered SQL migrations. The main tables are:
 
 | Table | Purpose |
 | --- | --- |
@@ -143,8 +144,9 @@ There are 28 ordered SQL migrations. The main tables are:
 | `companies`, `projects`, `project_aliases`, `cost_lines` | Project and cost data for BI. |
 | `locations`, `location_aliases` | Airports, railway stations and cities with coordinates (seeded by `scripts/locations/make_seed.py`). |
 | `ai_conversations`, `ai_messages` | Assistant chat history. |
+| `contractors`, `person_aliases`, `identity_merges` | Temporary workforce: labour suppliers, saved name spellings and merge history (`docs/WORKFORCE.md`). |
 
-Changes that matter go through **SQL functions**, for example `decide_travel_request`, `document_confirm`, `bulk_save`, `import_stage_v2` / `import_commit_v2`, `decide_expense` and the `bi_*` / `ceo_dashboard` report functions. These functions check permissions and validate input again, so a plain API call cannot skip a rule.
+Changes that matter go through **SQL functions**, for example `decide_travel_request`, `document_confirm`, `bulk_save`, `import_stage_v2` / `import_commit_v2`, `decide_expense`, the `workforce_*` functions and the `bi_*` / `ceo_dashboard` report functions. These functions check permissions and validate input again, so a plain API call cannot skip a rule.
 
 ### Edge Functions (`supabase/functions/`)
 
@@ -297,6 +299,7 @@ The live site runs in **Supabase mode** and does not need the Spring Boot server
 | [`docs/DEPLOY_FUNCTIONS.md`](docs/DEPLOY_FUNCTIONS.md) | Connecting the AI keys and deploying functions from GitHub |
 | [`docs/DEPLOY_AWS.md`](docs/DEPLOY_AWS.md) | Hosting the site on AWS Amplify |
 | [`docs/SIGNUP.md`](docs/SIGNUP.md) | Self sign-up and allowed email domains |
+| [`docs/WORKFORCE.md`](docs/WORKFORCE.md) | Temporary, contract and outsourced workers: uploads, merging, and how the figures are worked out |
 | [`docs/BRANCH_PROTECTION.md`](docs/BRANCH_PROTECTION.md) | Protecting `main` |
 | [`scripts/locations/README.md`](scripts/locations/README.md) | Where the map coordinates come from |
 

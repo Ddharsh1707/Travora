@@ -69,7 +69,7 @@ do, but every read and write is checked again by RLS or by a database function.
 | Command | What it covers |
 | --- | --- |
 | `pnpm test` | Import parsing, ticket checks, bulk booking rules, report ranges, assistant tool validation, HTML escaping, security headers, dev-only build plugins |
-| `pnpm test:rls` | 211 database checks: every role against every table and function, storage rules, rate limits, audit immutability, and catalogue-wide checks (RLS on, invoker views, pinned search paths, nothing open to signed-out visitors) |
+| `pnpm test:rls` | 846 database checks: every role against every table and function, storage rules, rate limits, audit immutability, and catalogue-wide checks (RLS on, invoker views, pinned search paths, nothing open to signed-out visitors) |
 | `pnpm check` | TypeScript |
 
 Run `pnpm test:rls` against a disposable Supabase branch database before each
