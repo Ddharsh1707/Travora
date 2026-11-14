@@ -1,8 +1,24 @@
-import * as XLSX from "xlsx";
 import type { ImportedRecordResponse, EmployeeRecord } from "./api";
 
-const xlsx: any = XLSX;
-const ssfLib: any = (xlsx as Record<string, any>).SSF || (xlsx as Record<string, any>)["default"]?.SSF;
+// Spreadsheets are read with read-excel-file (.xlsx) and Papa Parse (.csv).
+// The old "xlsx" (SheetJS 0.18) package was removed: it has known flaws where a
+// booby-trapped workbook can tamper with the page (prototype pollution) or
+// freeze it (ReDoS), and the fixed versions are not published on npm.
+
+/** Excel serial day number (1 = 1900-01-01) to yyyy-mm-dd. */
+function excelSerialToIso(serial: number): string | null {
+  // Day 0 is 1899-12-30 once Excel's leap-year-1900 bug is taken into account.
+  const ms = Date.UTC(1899, 11, 30) + Math.floor(serial) * 86_400_000;
+  const d = new Date(ms);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/** A cell as the text Excel would show for it (dates as yyyy-mm-dd). */
+function cellToText(v: unknown): string {
+  if (v == null) return "";
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
+  return String(v);
+}
 
 export interface ClientParsedSpreadsheet {
   sheetNames: string[];
@@ -143,18 +159,8 @@ export function parseExcelDate(val: any): string | null {
 
   // Handle Excel serial date numbers
   if (typeof val === "number" && val > 20000 && val < 90000) {
-    try {
-      const ssf = ssfLib || xlsx.SSF;
-      if (ssf?.parse_date_code) {
-        const parsed = ssf.parse_date_code(val);
-        if (parsed && parsed.y && parsed.m && parsed.d) {
-          const yyyy = String(parsed.y).padStart(4, "0");
-          const mm = String(parsed.m).padStart(2, "0");
-          const dd = String(parsed.d).padStart(2, "0");
-          return `${yyyy}-${mm}-${dd}`;
-        }
-      }
-    } catch {}
+    const iso = excelSerialToIso(val);
+    if (iso) return iso;
   }
 
   const s = String(val).trim();
@@ -502,33 +508,37 @@ export async function parseSpreadsheetClient(
     arrayBuffer = await fileOrBuffer.arrayBuffer();
   }
 
-  const readFn = xlsx.read || (xlsx as any).default?.read;
-  const workbook = readFn(arrayBuffer, {
-    type: "array",
-    cellDates: true,
-    cellNF: false,
-    cellText: true,
-  });
-
-  const sheetNames = workbook.SheetNames || [];
-  if (sheetNames.length === 0) {
-    throw new Error("The uploaded spreadsheet contains no sheets.");
+  const isCsv = fileOrBuffer instanceof File ? /\.csv$/i.test(fileOrBuffer.name) : looksLikeCsv(arrayBuffer);
+  let sheetNames: string[];
+  let activeSheet: string;
+  let rawRows: string[][];
+  if (isCsv) {
+    const Papa = (await import("papaparse")).default;
+    const parsed = Papa.parse<string[]>(new TextDecoder().decode(arrayBuffer).replace(/^\uFEFF/, ""), { skipEmptyLines: "greedy" });
+    sheetNames = ["Sheet1"];
+    activeSheet = "Sheet1";
+    rawRows = parsed.data.map((r) => r.map(cellToText));
+  } else {
+    const { default: readXlsxFile, readSheetNames } = await import("read-excel-file");
+    try {
+      sheetNames = await readSheetNames(arrayBuffer);
+    } catch {
+      throw new Error("This file could not be read as an Excel workbook. Save it as .xlsx (or .csv) and try again.");
+    }
+    if (sheetNames.length === 0) {
+      throw new Error("The uploaded spreadsheet contains no sheets.");
+    }
+    activeSheet = options?.sheet && sheetNames.includes(options.sheet) ? options.sheet : sheetNames[0];
+    let rows: unknown[][];
+    try {
+      rows = (await readXlsxFile(arrayBuffer, { sheet: activeSheet })) as unknown[][];
+    } catch {
+      throw new Error(`Sheet "${activeSheet}" could not be read.`);
+    }
+    rawRows = rows
+      .map((r) => r.map(cellToText))
+      .filter((r) => r.some((c) => c.trim() !== ""));
   }
-
-  const activeSheet = options?.sheet && sheetNames.includes(options.sheet) ? options.sheet : sheetNames[0];
-  const worksheet = workbook.Sheets[activeSheet];
-  if (!worksheet) {
-    throw new Error(`Sheet "${activeSheet}" could not be read.`);
-  }
-
-  // Convert raw sheet data into 2D array of strings
-  const utils = xlsx.utils || (xlsx as any).default?.utils;
-  const rawRows: string[][] = utils.sheet_to_json(worksheet, {
-    header: 1,
-    defval: "",
-    raw: false,
-    blankrows: false,
-  }) as string[][];
 
   if (!rawRows || rawRows.length === 0) {
     throw new Error("Spreadsheet is completely empty.");
@@ -800,4 +810,10 @@ export async function parseSpreadsheetClient(
     validRows: validCount,
     errorRows: errorCount,
   };
+}
+
+/** True when the bytes are not a zip (every .xlsx is a zip starting with "PK"). */
+function looksLikeCsv(buf: ArrayBuffer): boolean {
+  const b = new Uint8Array(buf.slice(0, 2));
+  return !(b[0] === 0x50 && b[1] === 0x4b);
 }

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { escapeHtml } from "../lib/safeHtml";
+import { sanitizeCsvCell } from "../utils/exportCsv";
 import { FileSpreadsheet, FileText, Download, Search, Filter, DollarSign, TrendingUp, TicketCheck, Plane, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { adminRequestDate } from "../utils/formatters";
@@ -253,11 +254,8 @@ export function ReportExtractionSuite({
       const timestamp = now.toISOString().replace(/T/, " ").replace(/\..+/, "");
       const dateTag = now.toISOString().slice(0, 10);
 
-      const escapeCSV = (val: unknown) => {
-        if (val === null || val === undefined) return '""';
-        const str = String(val).replace(/"/g, '""');
-        return `"${str}"`;
-      };
+      // Quotes every cell and stops spreadsheet formulas (=, +, -, @) planted in names or notes.
+      const escapeCSV = sanitizeCsvCell;
 
       // Header and KPI Summary Rows
       const lines: string[] = [];
@@ -598,7 +596,7 @@ export function ReportExtractionSuite({
             <div class="sign-box">
               <div class="sign-line">
                 <strong>Prepared & Extracted By</strong><br />
-                ${getUserDisplayName(currentUser)}<br />
+                ${escapeHtml(getUserDisplayName(currentUser))}<br />
                 <span style="font-size: 9px; color: #94a3b8;">${reportDate}</span>
               </div>
               <div class="sign-line">

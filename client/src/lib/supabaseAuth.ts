@@ -122,9 +122,67 @@ export function onSupabaseSignedOut(callback: () => void): () => void {
 }
 
 export async function supabaseSendPasswordReset(email: string): Promise<void> {
-  const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+  // ?reset=1 tells the app to ask for a new password when the link is opened.
+  const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/login?reset=1` : undefined;
   // Always resolve, so the UI cannot be used to discover which emails exist.
   await getSupabase().auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo }).catch(() => undefined);
+}
+
+/**
+ * Details of a password-reset or invite email link, read once at start-up,
+ * before the Supabase client clears them from the address bar.
+ *   reset email:  /login?reset=1&code=...            (PKCE, same browser)
+ *   invite email: /login#access_token=...&type=invite (tokens in the hash)
+ */
+const LINK = (() => {
+  if (typeof window === "undefined") return { opened: false, access: null as string | null, refresh: null as string | null };
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const type = hash.get("type") ?? "";
+  const fromHash = ["recovery", "invite"].includes(type);
+  return {
+    opened: search.get("reset") === "1" || fromHash,
+    access: fromHash ? hash.get("access_token") : null,
+    refresh: fromHash ? hash.get("refresh_token") : null,
+  };
+})();
+export const OPENED_FROM_PASSWORD_LINK: boolean = LINK.opened;
+
+/** Waits until the email link has been turned into a signed-in session. */
+export async function supabaseHasLinkSession(): Promise<boolean> {
+  const client = getSupabase();
+  if (LINK.access && LINK.refresh) {
+    // The app uses the PKCE flow, which does not read tokens from the hash itself.
+    const { data, error } = await client.auth.setSession({ access_token: LINK.access, refresh_token: LINK.refresh });
+    if (typeof window !== "undefined") window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    return !error && !!data.session;
+  }
+  const { data } = await client.auth.getSession();
+  if (data.session) return true;
+  return await new Promise<boolean>((resolve) => {
+    const timer = window.setTimeout(() => { sub.data.subscription.unsubscribe(); resolve(false); }, 8000);
+    const sub = client.auth.onAuthStateChange((event, session) => {
+      if (session && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN")) {
+        window.clearTimeout(timer);
+        sub.data.subscription.unsubscribe();
+        resolve(true);
+      }
+    });
+  });
+}
+
+/** Sets the signed-in user's new password, then signs out so they sign in with it. */
+export async function supabaseSetNewPassword(password: string): Promise<string | null> {
+  const problems = passwordProblems(password);
+  if (problems.length) return `The password needs ${problems.join(", ")}.`;
+  const { error } = await getSupabase().auth.updateUser({ password });
+  if (error) {
+    if (/same|different from the old/i.test(error.message)) return "Choose a password you have not used before.";
+    if (/session|expired|jwt/i.test(error.message)) return "This link has expired. Ask for a new reset email.";
+    return error.message;
+  }
+  await getSupabase().auth.signOut().catch(() => undefined);
+  return null;
 }
 
 /* ------------------------------------------------------------------------- */

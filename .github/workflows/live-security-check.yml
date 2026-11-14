@@ -1,0 +1,41 @@
+# Checks the PUBLIC website the way an outsider would: no password, no keys,
+# read-only requests only (nothing is signed up, sent, uploaded or changed).
+# Runs every Monday, after every functions deploy, and by hand:
+#   Actions > Live security check > Run workflow.
+# The report is on the run's Summary page. A red run means a check failed.
+# See docs/SECURITY_TESTING.md.
+name: Live security check
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: Website to check (leave empty for the live site)
+        required: false
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_run:
+    workflows: ["Deploy Supabase functions"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-security-check
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: Live security check (outsider view)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the live site, database, files, sign-in and functions
+        env:
+          LIVE_SITE_URL: ${{ inputs.site || vars.LIVE_SITE_URL || 'https://main.d27refhdsen811.amplifyapp.com' }}
+        run: node scripts/security/live-check.mjs

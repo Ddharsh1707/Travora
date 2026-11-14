@@ -35,6 +35,8 @@ jobs:
         run: pnpm test
       - name: Production build
         run: pnpm build
+      - name: Known-vulnerable packages (fails on critical)
+        run: pnpm audit --prod --audit-level critical
 
   database:
     name: Database security (RLS tests)
