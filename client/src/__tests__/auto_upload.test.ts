@@ -152,3 +152,48 @@ describe("Workbook decisions made automatically", () => {
     assert.equal(findProject("  ", projects), null);
   });
 });
+
+describe("Tickets with several passengers", async () => {
+  const { planGroupTicket, planReady, splitAmount, isGroupTicket } = await import("../lib/data/autoUpload.ts");
+  const people = [
+    { id: "p1", full_name: "Ravi Teja", employee_id: "E1", department: null },
+    { id: "p2", full_name: "Kiran Dev", employee_id: "E2", department: null },
+  ];
+  const ex = (over: Record<string, unknown> = {}) => ({
+    method: "text", model: "x", extracted_at: "", flags: {}, warnings: [],
+    fields: { passenger_name: null, passengers: ["Asha V K", "Ravi Teja", "Kiran Dev"], origin: "MAS", destination: "SC", departure_date: "2026-11-30",
+      return_date: null, provider: "Indian Railways", booking_reference: "4701139913", ticket_number: null, amount: 4838, currency: "INR", travel_mode: "train", ...over },
+  }) as never;
+
+  test("a group ticket needs 2+ passengers, a PNR, a route and a date", () => {
+    assert.equal(isGroupTicket(ex()), true);
+    assert.equal(isGroupTicket(ex({ passengers: ["Ravi Teja"] })), false, "one passenger: the usual flow");
+    assert.equal(isGroupTicket(ex({ booking_reference: null })), false, "no PNR: choose one person instead");
+    assert.equal(isGroupTicket(ex({ departure_date: null })), false);
+  });
+
+  test("passengers in the app are matched; others follow the upload choice", () => {
+    const temp = planGroupTicket(["Asha V K", "Ravi Teja", "Kiran Dev"], people, "temporary_worker", true);
+    assert.deepEqual(temp.map((p) => [p.name, p.person?.id ?? null, p.add]), [["Asha V K", null, "temporary_worker"], ["Ravi Teja", "p1", null], ["Kiran Dev", "p2", null]]);
+    assert.equal(planReady(temp), true, "nothing to ask: saved at once");
+    const ask = planGroupTicket(["Asha V K", "Ravi Teja"], people, "ask", true);
+    assert.deepEqual(ask[0], { name: "Asha V K", person: null, add: null });
+    assert.equal(planReady(ask), false, "'ask me': a person chooses first");
+    const desk = planGroupTicket(["Asha V K"], people, "permanent_employee", false);
+    assert.equal(desk[0].add, null, "the booking assistant never adds a kind of worker automatically");
+  });
+
+  test("leaving someone out is a decision; leaving everyone out is not a booking", () => {
+    const plan = planGroupTicket(["Asha V K", "Ravi Teja"], people, "ask", true);
+    assert.equal(planReady([{ ...plan[0], leaveOut: true }, plan[1]]), true);
+    assert.equal(planReady(plan.map((p) => ({ ...p, leaveOut: true }))), false);
+  });
+
+  test("the fare is split so the shares add up exactly to the total", () => {
+    assert.deepEqual(splitAmount(4838, 4), [1209.5, 1209.5, 1209.5, 1209.5]);
+    assert.deepEqual(splitAmount(100, 3), [33.34, 33.33, 33.33]);
+    const s = splitAmount(4838.35, 4) as number[];
+    assert.equal(Math.round(s.reduce((a, b) => a + b, 0) * 100), 483835, "never more or less than the ticket total");
+    assert.deepEqual(splitAmount(null, 2), [null, null], "no fare on the ticket: no amounts invented");
+  });
+});

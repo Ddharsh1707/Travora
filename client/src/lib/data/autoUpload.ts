@@ -6,10 +6,14 @@ import {
   type ImportBatch, type NameDecision, type NameReview, type PersonOption, type Project,
 } from "./imports";
 import {
-  DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, autoSaveScan, checkDocumentFile, saveScan, scanFile, uploadDocument,
+  DOCUMENT_TYPE_LABELS, MAX_DOCUMENT_BYTES, autoSaveScan, checkDocumentFile, confirmDocument, fieldsFromScan, saveScan, scanFile, uploadDocument,
   type AutoResult, type DocumentType, type Extraction,
 } from "./documents";
 import { matchPassenger } from "../../../../supabase/functions/_shared/ticket";
+import { saveBulkBooking } from "./bulk";
+import { getSupabase } from "../supabase";
+import { friendlyError } from "./travel";
+import type { WorkforceType } from "./imports";
 
 /**
  * "Upload anything": one drop zone for every kind of file. The app works out
@@ -176,7 +180,109 @@ export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf",
 }
 
 export type FiledTicket = AutoResult & { employee: PersonOption; documentId: string };
-export type TicketResult = { status: "who"; extraction: Extraction } | FiledTicket;
+export type TicketResult = { status: "who"; extraction: Extraction } | { status: "group"; extraction: Extraction; plan: PassengerPlan[] } | FiledTicket;
+
+// ---------------------------------------------------------------------------
+// Tickets with several passengers (a train ticket for four people): one trip
+// per passenger, saved as a group booking under the ticket's PNR, with the
+// fare split across them so it is never counted more than once.
+// ---------------------------------------------------------------------------
+
+/** For each passenger: a person already in the app, someone to add, or a choice for a person to make. */
+export type PassengerPlan = { name: string; person: PersonOption | null; add: WorkforceType | null };
+
+/** A group ticket that can be saved as a group booking: 2+ passengers, a PNR, a route and a date. */
+export function isGroupTicket(ex: Extraction): boolean {
+  const f = ex.fields;
+  return (f.passengers?.length ?? 0) >= 2 && !!f.booking_reference && !!f.origin && !!f.destination && !!f.departure_date;
+}
+
+/**
+ * Matches every passenger to a person already in the app. Someone not found is
+ * added as the chosen kind of worker (Travel Desk and Director, automatic
+ * choices only); otherwise they are left for a person to choose (add: null, person: null).
+ */
+export function planGroupTicket(passengers: string[], people: PersonOption[], mode: NewPeopleMode, isManager: boolean): PassengerPlan[] {
+  return passengers.map((name) => {
+    const person = matchPassenger(name, people);
+    if (person) return { name, person, add: null };
+    if (isManager && mode !== "ask") return { name, person: null, add: mode };
+    return { name, person: null, add: null };
+  });
+}
+
+/** True when every passenger is either matched, to be added, or deliberately left out. */
+export function planReady(plan: Array<PassengerPlan & { leaveOut?: boolean }>): boolean {
+  return plan.some((p) => !p.leaveOut) && plan.every((p) => p.leaveOut || p.person || p.add);
+}
+
+/** Splits a total into n shares that add up exactly (in paise); the first share takes any remainder. */
+export function splitAmount(total: number | null | undefined, n: number): Array<number | null> {
+  if (n <= 0) return [];
+  if (total == null || !Number.isFinite(total)) return Array(n).fill(null);
+  const cents = Math.round(total * 100);
+  const each = Math.floor(cents / n);
+  const shares = Array(n).fill(each);
+  shares[0] += cents - each * n;
+  return shares.map((c) => c / 100);
+}
+
+export type GroupResult = { bookingId: string; people: Array<{ name: string; person: PersonOption; added: boolean; amount: number | null }>; documentId: string | null; notes: string[] };
+
+async function addPerson(name: string, type: WorkforceType): Promise<string> {
+  const { data, error } = await getSupabase().rpc("workforce_add_person", { p_name: name, p_type: type, p_contractor: null });
+  if (error) throw friendlyError(error, `Could not add ${name}.`);
+  return data as string;
+}
+
+/** Saves a group ticket: the people, one group booking (a trip each), and the file under the first passenger. */
+export async function saveGroupTicket(file: File, extraction: Extraction, plan: Array<PassengerPlan & { leaveOut?: boolean }>, onStage: (s: string) => void): Promise<GroupResult> {
+  const f = extraction.fields;
+  const notes: string[] = [];
+  const chosen = plan.filter((p) => !p.leaveOut);
+  if (!chosen.length) throw new Error("Choose at least one passenger.");
+
+  onStage("Adding passengers");
+  const people: Array<{ name: string; person: PersonOption; added: boolean }> = [];
+  for (const p of chosen) {
+    if (p.person) { people.push({ name: p.name, person: p.person, added: false }); continue; }
+    if (!p.add) throw new Error(`Choose who ${p.name} is.`);
+    const id = await addPerson(p.name, p.add);
+    people.push({ name: p.name, person: { id, full_name: p.name, employee_id: "", department: null }, added: true });
+  }
+  // Two names that turned out to be the same person travel once.
+  const unique = people.filter((x, i) => people.findIndex((y) => y.person.id === x.person.id) === i);
+  if (unique.length < people.length) notes.push("Two passenger names belong to the same person; they were saved once.");
+
+  const shares = splitAmount(f.amount, unique.length);
+  onStage(`Saving ${unique.length} trips`);
+  const bookingId = await saveBulkBooking(null, {
+    title: `${f.provider ?? "Ticket"} ${f.origin} → ${f.destination}`.slice(0, 200),
+    group_reference: f.booking_reference ?? "",
+    origin: f.origin ?? "",
+    destination: f.destination ?? "",
+    departure_date: f.departure_date ?? "",
+    return_date: f.return_date ?? undefined,
+    booking_type: f.travel_mode && f.travel_mode !== "other" ? f.travel_mode : "other",
+    provider: f.provider ?? undefined,
+    total_cost: f.amount != null ? String(f.amount) : undefined,
+    currency: f.currency ?? "INR",
+    notes: `From the ticket ${file.name}`.slice(0, 4000),
+  }, unique.map((x, i) => ({ employee_id: x.person.id, amount: shares[i] != null ? String(shares[i]) : undefined })));
+
+  // The ticket itself is kept once, under the first passenger, and linked to their trip in the group.
+  onStage("Saving the ticket");
+  let documentId: string | null = null;
+  try {
+    const doc = await uploadDocument(unique[0].person.id, file, docTypeOf(extraction));
+    documentId = doc.id;
+    await saveScan(doc.id, extraction);
+    await confirmDocument(doc.id, fieldsFromScan(extraction, doc.document_type));
+  } catch {
+    notes.push("The trips were saved, but the ticket file could not be stored. Upload it again on Tickets & documents if you need it.");
+  }
+  return { bookingId, people: unique.map((x, i) => ({ ...x, amount: shares[i] })), documentId, notes };
+}
 
 function docTypeOf(extraction: Extraction): DocumentType {
   const t = extraction.fields.document_type;
@@ -192,10 +298,13 @@ export async function fileTicket(file: File, extraction: Extraction, employee: P
 }
 
 /** Scans a ticket / invoice / photo, finds whose it is and saves it. */
-export async function autoTicket(file: File, people: PersonOption[], onStage: (s: string) => void): Promise<TicketResult> {
+export async function autoTicket(file: File, people: PersonOption[], onStage: (s: string) => void, group: { mode: NewPeopleMode; isManager: boolean } = { mode: "ask", isManager: false }): Promise<TicketResult> {
   if (file.size > MAX_DOCUMENT_BYTES) throw new Error("The file is larger than 10 MB.");
   onStage("Reading the document");
   const extraction = await scanFile(file);
+  if (isGroupTicket(extraction)) {
+    return { status: "group", extraction, plan: planGroupTicket(extraction.fields.passengers ?? [], people, group.mode, group.isManager) };
+  }
   const employee = matchPassenger(extraction.fields.passenger_name, people);
   if (!employee) return { status: "who", extraction };
   onStage(`Saving for ${employee.full_name}`);

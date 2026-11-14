@@ -41,6 +41,7 @@ done
 "${PSQL[@]}" -f "$HERE/../migrations/20261115120000_workforce_import.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261115140000_workforce_manage.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261115160000_workforce_analytics.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261115180000_ticket_passengers.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"
