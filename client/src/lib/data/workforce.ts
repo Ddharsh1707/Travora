@@ -206,3 +206,42 @@ export async function getWorkforceAnalytics(filters: AnalyticsFilters = {}): Pro
   if (error) throw friendlyError(error, "Could not load the workforce analytics.");
   return data as WorkforceAnalytics;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk changes (Travel Desk and Director): the same checked function per
+// person, one after another, so every change is permission-checked and
+// audited on its own. One refusal does not stop the others.
+// ---------------------------------------------------------------------------
+export type BulkChange = { workforce_type?: WorkforceType; verify?: boolean };
+export type BulkResult = { changed: number; failed: Array<{ id: string; name: string; reason: string }> };
+
+export async function applyToWorkers(
+  people: Array<Pick<WorkerRow, "id" | "full_name" | "workforce_type" | "verification_status" | "has_login">>,
+  change: BulkChange,
+  api: { setType: (id: string, t: WorkforceType) => Promise<unknown>; verify: (id: string) => Promise<unknown> } = { setType: setWorkerType, verify: verifyWorker },
+  onProgress?: (done: number, total: number) => void,
+): Promise<BulkResult> {
+  const result: BulkResult = { changed: 0, failed: [] };
+  let done = 0;
+  for (const p of people) {
+    try {
+      let touched = false;
+      if (change.workforce_type && change.workforce_type !== p.workforce_type) {
+        if (p.has_login && change.workforce_type !== "permanent_employee") {
+          throw new Error("Has a login, so stays a permanent employee");
+        }
+        await api.setType(p.id, change.workforce_type);
+        touched = true;
+      }
+      if (change.verify && p.verification_status !== "verified") {
+        await api.verify(p.id);
+        touched = true;
+      }
+      if (touched) result.changed++;
+    } catch (err) {
+      result.failed.push({ id: p.id, name: p.full_name, reason: err instanceof Error ? err.message : "Not changed" });
+    }
+    onProgress?.(++done, people.length);
+  }
+  return result;
+}
