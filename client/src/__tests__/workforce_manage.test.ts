@@ -40,3 +40,12 @@ describe("Temporary workforce: what people type", () => {
     assert.deepEqual(Object.keys(VERIFICATION_LABELS).sort(), ["imported_unverified", "merged", "possible_duplicate", "verified"]);
   });
 });
+
+describe("Temporary workforce: analytics filters", async () => {
+  const { cleanAnalyticsFilters } = await import("../lib/data/workforce.ts");
+  test("only real dates and ids are sent, and a reversed range is put the right way round", () => {
+    assert.deepEqual(cleanAnalyticsFilters({ from: "2026-10-31", to: "2026-10-01" }), { from: "2026-10-01", to: "2026-10-31" });
+    assert.deepEqual(cleanAnalyticsFilters({ from: "31/10/2026", project: "x", contractor: "none" }), { contractor: "none" });
+    assert.deepEqual(cleanAnalyticsFilters({ project: "9d000000-0000-0000-0000-000000000001" }), { project: "9d000000-0000-0000-0000-000000000001" });
+  });
+});

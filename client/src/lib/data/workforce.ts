@@ -157,3 +157,52 @@ export const unmergeWorkers = (mergeId: string) => call("workforce_unmerge", { p
 /** Inactive / active uses the existing people action. */
 export const setWorkerActive = (id: string, active: boolean) =>
   call("admin_set_active", { p_profile_id: id, p_active: active }, "Could not change whether this worker is active.");
+
+// ---------------------------------------------------------------------------
+// Analytics (20261115160000_workforce_analytics.sql). Money is in the base
+// currency only; other currencies come back apart and are never added.
+// ---------------------------------------------------------------------------
+export type WorkforceGroup = "permanent" | "non_permanent";
+export type WorkforceRegion = "domestic" | "international" | "unclassified";
+
+export type WorkforceAnalytics = {
+  base_currency: string;
+  home_country: string;
+  by_type: Array<{
+    workforce_type: WorkforceType; people: number; travellers: number; trips: number; cancelled_trips: number;
+    gross: number; credits: number; net: number; missing_cost_lines: number; zero_fare_lines: number;
+    avg_net_per_traveller: number | null; avg_ticket_fare: number | null; fares_averaged: number;
+  }>;
+  comparison: Array<{ group: WorkforceGroup; travellers: number; trips: number; gross: number; credits: number; net: number; share_pct: number | null; avg_ticket_fare: number | null }>;
+  contractors: Array<{ contractor_id: string | null; name: string; workers: number; travellers: number; trips: number; gross: number; credits: number; net: number; missing_cost_lines: number }>;
+  projects: Array<{
+    project_id: string | null; name: string; non_permanent_workers: number; non_permanent_trips: number; non_permanent_net: number;
+    permanent_travellers: number; permanent_trips: number; permanent_net: number; non_permanent_share_pct: number | null;
+  }>;
+  monthly: Array<{ month: string; permanent_net: number; permanent_trips: number; non_permanent_net: number; non_permanent_trips: number; non_permanent_travellers: number }>;
+  quarterly: Array<{ quarter: string; permanent_net: number; non_permanent_net: number; permanent_trips: number; non_permanent_trips: number }>;
+  regions: Array<{ group: WorkforceGroup; region: WorkforceRegion; trips: number; net: number }>;
+  other_currencies: Array<{ currency: string; group: WorkforceGroup; trips: number; net: number }>;
+  quality: { trips: number; cancelled_trips: number; missing_cost_lines: number; zero_fare_lines: number; unclassified_trips: number; unassigned_project_trips: number; unknown_type_people: number };
+};
+
+export type AnalyticsFilters = { from?: string; to?: string; project?: string | "none"; contractor?: string | "none" };
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Only valid dates and ids are sent. */
+export function cleanAnalyticsFilters(f: AnalyticsFilters): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (f.from && ISO_DATE.test(f.from)) out.from = f.from;
+  if (f.to && ISO_DATE.test(f.to)) out.to = f.to;
+  if (out.from && out.to && out.from > out.to) [out.from, out.to] = [out.to, out.from];
+  if (f.project === "none" || (f.project && UUID.test(f.project))) out.project = f.project;
+  if (f.contractor === "none" || (f.contractor && UUID.test(f.contractor))) out.contractor = f.contractor;
+  return out;
+}
+
+export async function getWorkforceAnalytics(filters: AnalyticsFilters = {}): Promise<WorkforceAnalytics> {
+  const { data, error } = await getSupabase().rpc("workforce_analytics", { p_filters: cleanAnalyticsFilters(filters) });
+  if (error) throw friendlyError(error, "Could not load the workforce analytics.");
+  return data as WorkforceAnalytics;
+}

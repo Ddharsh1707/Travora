@@ -7,6 +7,7 @@ import {
 } from "../../lib/data/workforce";
 import { exportToCsv } from "../../utils/exportCsv";
 import { Kpi, count, dateRange, plural } from "./BiParts";
+import WorkforceAnalyticsPanel from "./WorkforceAnalyticsPanel";
 import { Empty, ErrorNotice, Loading, PageHeader, formatMoney } from "./common";
 
 const PAGE = 200;
@@ -103,6 +104,8 @@ export default function BiWorkforce({ canManage }: { canManage: boolean }) {
       {overview && overview.length > 0 && (
         <p className="text-xs opacity-70">{plural(kpis.withProject, "worker")} linked to a project · {plural(kpis.withContractor, "worker")} with a contractor. Projects and contractors are only ever set from the sheet or by a person, never guessed.</p>
       )}
+
+      <WorkforceAnalyticsPanel />
 
       <div className="panel table-panel">
         <div className="table-toolbar flex-wrap gap-2">
