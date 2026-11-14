@@ -146,8 +146,15 @@ task board, and this file holds the rules. Follow this routine for every task:
    The shared hot spots are `client/src/App.tsx`, `pages/travel/routes.tsx`, the
    CSS files and `supabase/functions/_shared/`. Touch them only by adding lines.
 6. **Finish:** rebase on the newest `origin/main`, run the checks in section 4,
-   update "Files touched", and mark the PR ready for review
-   (`POST /repos/Ddharsh1707/travora/pulls/<n>/ccr/ready_for_review`). A person merges it.
+   update "Files touched", and mark the PR ready with `gh pr ready <n>`.
+   Then turn on auto-merge with `gh pr merge <n> --auto --squash`. GitHub merges
+   the PR by itself once all four required checks in the `Protect main` ruleset
+   pass. No human approval is needed for an ordinary PR. If `main` moves first,
+   update the branch (rebase on `origin/main` and push again); auto-merge stays on.
+   **Leave auto-merge off and ask the person to merge** when the PR adds a database
+   migration, changes an Edge Function, or changes RLS, auth or anything under
+   `.github/`. Edge Functions deploy straight to the live project on merge, and
+   migrations are applied to the live database by hand.
 7. **Never push straight to `main`**, never force-push someone else's branch, and
    never revert, rewrite or "clean up" someone else's recent work.
 
