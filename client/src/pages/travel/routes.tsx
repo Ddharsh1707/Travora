@@ -1,5 +1,5 @@
 import { lazy, type ReactNode } from "react";
-import { Archive, BarChart3, CircleHelp, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UsersRound } from "lucide-react";
+import { Archive, BarChart3, CircleHelp, HardHat, Home as HomeIcon, LineChart, Upload, Bot, FileDown, FolderKanban, Gauge, Globe2, IndianRupee, UserSearch, ClipboardCheck, FileSpreadsheet, FileText, History, LayoutDashboard, Plane, Receipt, ScanLine, Search, UsersRound } from "lucide-react";
 import type { AuthUser, Role } from "../../lib/api";
 import type { SupabaseAuthUser } from "../../lib/supabaseAuth";
 import { projectKeyFromSlug } from "../../lib/projectLinks";
@@ -32,6 +32,8 @@ const BiFinance = lazy(() => import("./BiFinance"));
 const UploadHistory = lazy(() => import("./UploadHistory"));
 const BiReports = lazy(() => import("./BiReports"));
 const EmployeeDocuments = lazy(() => import("./EmployeeDocuments"));
+const BiWorkforce = lazy(() => import("./BiWorkforce"));
+const WorkforceDetail = lazy(() => import("./WorkforceDetail"));
 
 /**
  * Supabase-backed travel screens (Phase 2). These routes only exist when
@@ -93,6 +95,8 @@ const ROUTES: TravelRoute[] = [
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/travel", label: "Travel Intelligence", icon: <Globe2 size={16} />, roles: OVERSIGHT },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/employees", label: "Employee Intelligence", icon: <UserSearch size={16} />, roles: OVERSIGHT, hiddenFor: MANAGERS },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/finance", label: "Financial Intelligence", icon: <IndianRupee size={16} />, roles: OVERSIGHT },
+  // Temporary, contract and outsourced workers: the travel desk, Travel Desk and Director only.
+  { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/workforce", label: "Temporary Workforce", icon: <HardHat size={16} />, roles: STAFF },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/search", label: "Search all trips", icon: <Search size={16} />, roles: MANAGERS },
   { group: "BUSINESS INTELLIGENCE", href: "/travel/bi/reports", label: "Download reports", icon: <FileDown size={16} />, roles: OVERSIGHT },
   // Director and Travel Desk: same job as another menu item, so reachable by link only
@@ -145,6 +149,7 @@ export const travelPageMeta: Record<string, { eyebrow: string; title: string; de
   "/travel/bi/employees": { eyebrow: "Business Intelligence", title: "Employee Intelligence" },
   "/travel/bi/finance": { eyebrow: "Business Intelligence", title: "Financial Intelligence" },
   "/travel/bi/reports": { eyebrow: "Business Intelligence", title: "Download reports" },
+  "/travel/bi/workforce": { eyebrow: "Business Intelligence", title: "Temporary Workforce" },
 };
 
 type NavItem = { label: string; href: string; icon: ReactNode; match?: string[] };
@@ -228,6 +233,7 @@ export function travelRail(role: Role): RailSection[] {
           { label: "Projects", href: "/travel/bi/projects" },
           { label: "Travel", href: "/travel/bi/travel" },
           { label: "Finance", href: "/travel/bi/finance" },
+          { label: "Temporary workforce", href: "/travel/bi/workforce" },
         ] },
         { label: "Search all trips", href: "/travel/search" },
         { label: "Download reports", href: "/travel/bi/reports" },
@@ -259,6 +265,8 @@ export function isTravelPathAllowed(role: Role, path: string): boolean {
   if (employeeMatch) return OVERSIGHT.includes(role) && UUID.test(employeeMatch[1]);
   const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
   if (uploadMatch) return STAFF.includes(role) && UUID.test(uploadMatch[1]);
+  const workerMatch = path.match(/^\/travel\/workforce\/([^/]+)$/);
+  if (workerMatch) return STAFF.includes(role) && UUID.test(workerMatch[1]);
   const sheetProjectMatch = path.match(/^\/travel\/bi\/projects\/p\/([^/]+)$/);
   if (sheetProjectMatch) return OVERSIGHT.includes(role) && projectKeyFromSlug(sheetProjectMatch[1]) !== null;
   const projectMatch = path.match(/^\/travel\/bi\/projects\/([^/]+)$/);
@@ -278,6 +286,10 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
   const uploadMatch = path.match(/^\/travel\/uploads\/([^/]+)$/);
   if (uploadMatch && UUID.test(uploadMatch[1])) {
     return canManage ? <UploadReport key={uploadMatch[1]} batchId={uploadMatch[1]} /> : null;
+  }
+  const workerMatch = path.match(/^\/travel\/workforce\/([^/]+)$/);
+  if (workerMatch && UUID.test(workerMatch[1])) {
+    return canManage ? <WorkforceDetail key={workerMatch[1]} workerId={workerMatch[1]} /> : null;
   }
   // The Travel Desk (COMPANY_ADMIN) has every permission the Director (ADMIN) has.
   const isManager = MANAGERS.includes(user.role);
@@ -305,6 +317,8 @@ export function TravelPage({ path, user }: { path: string; user: AuthUser }) {
       return OVERSIGHT.includes(user.role) ? <BiEmployees scopeLabel={biScope} /> : null;
     case "/travel/bi/finance":
       return OVERSIGHT.includes(user.role) ? <BiFinance /> : null;
+    case "/travel/bi/workforce":
+      return canManage ? <BiWorkforce canManage={MANAGERS.includes(user.role)} /> : null;
     case "/travel/bi/reports":
       return OVERSIGHT.includes(user.role) ? <BiReports scopeLabel={biScope} /> : null;
     case "/travel/home":

@@ -4,6 +4,7 @@ import { FileSpreadsheet, Search } from "lucide-react";
 import { exportToXlsx } from "../../utils/exportXlsx";
 import { listEmployees, type EmployeeSummary } from "../../lib/data/travel";
 import { getPeopleOverview, type PersonSpend } from "../../lib/data/people";
+import { WORKFORCE_TYPE_LABELS, listWorkers, type WorkforceType } from "../../lib/data/workforce";
 import { Empty, ErrorNotice, Loading, PageHeader, PeopleTabs, formatDate, formatMoney } from "./common";
 
 const PAGE = 50;
@@ -16,6 +17,14 @@ export default function EmployeeDirectory({ withExpenses = false }: { withExpens
     getPeopleOverview().then((o) => setSpend(new Map(o.people.map((p) => [p.employee_id, p])))).catch(() => setSpend(new Map()));
   }, [withExpenses]);
   const showMoney = withExpenses && spend.size > 0;
+  // Who is not a permanent employee. Only the travel desk, Travel Desk and Director may see this;
+  // for anyone else the call is refused and the list simply shows no label.
+  const [kinds, setKinds] = useState<Map<string, WorkforceType>>(new Map());
+  useEffect(() => {
+    listWorkers({ type: "non_permanent", include_inactive: true }, 1000)
+      .then((r) => setKinds(new Map(r.rows.map((w) => [w.id, w.workforce_type]))))
+      .catch(() => setKinds(new Map()));
+  }, []);
   const [q, setQ] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState<"current" | "past" | "">("");
@@ -98,7 +107,7 @@ export default function EmployeeDirectory({ withExpenses = false }: { withExpens
                   <tr key={e.employee_id}>
                     <td>
                       <Link href={`/travel/employees/${e.employee_id}`} className="font-semibold hover:underline">{e.employee_name}</Link>
-                      <div className="table-subline">{e.employee_code}{e.active ? "" : " · past employee"}{showMoney && /^NEW-/i.test(e.employee_code) ? " · from upload" : ""}{showMoney && spend.get(e.employee_id) && !spend.get(e.employee_id)?.has_login ? " · no login yet" : ""}</div>
+                      <div className="table-subline">{e.employee_code}{kinds.has(e.employee_id) ? ` · ${WORKFORCE_TYPE_LABELS[kinds.get(e.employee_id)!]}` : ""}{e.active ? "" : " · past employee"}{showMoney && /^NEW-/i.test(e.employee_code) ? " · from upload" : ""}{showMoney && spend.get(e.employee_id) && !spend.get(e.employee_id)?.has_login ? " · no login yet" : ""}</div>
                     </td>
                     <td>{e.department ?? "—"}<div className="table-subline">{e.designation ?? ""}</div></td>
                     <td className="text-right">{e.total_trips}</td>

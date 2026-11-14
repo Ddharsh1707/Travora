@@ -35,3 +35,18 @@ test("a project page opened from a project name is for oversight roles only", ()
   assert.ok(!isTravelPathAllowed("ADMIN", "/travel/bi/projects/p/n-a"), "a blank-like name has no page");
 });
 
+
+test("Temporary Workforce: travel desk, Travel Desk and Director only", () => {
+  const worker = "/travel/workforce/8a000000-0000-0000-0000-000000000101";
+  for (const role of ["TRAVEL_DESK", "COMPANY_ADMIN", "ADMIN"] as const) {
+    assert.ok(hrefs(role).includes("/travel/bi/workforce"), `${role} sees Temporary Workforce in the menu`);
+    assert.ok(isTravelPathAllowed(role, "/travel/bi/workforce"), `${role} can open Temporary Workforce`);
+    assert.ok(isTravelPathAllowed(role, worker), `${role} can open a worker`);
+  }
+  for (const role of ["EMPLOYEE", "APPROVER"] as const) {
+    assert.ok(!hrefs(role).includes("/travel/bi/workforce"), `${role} does not see Temporary Workforce`);
+    assert.ok(!isTravelPathAllowed(role, "/travel/bi/workforce"), `${role} cannot open Temporary Workforce`);
+    assert.ok(!isTravelPathAllowed(role, worker), `${role} cannot open a worker`);
+  }
+  assert.ok(!isTravelPathAllowed("ADMIN", "/travel/workforce/not-an-id"), "only real ids open a worker page");
+});
