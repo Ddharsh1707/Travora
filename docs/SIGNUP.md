@@ -43,16 +43,20 @@ fine for testing but not for a team.
 - Switch on **Enable custom SMTP** and fill in the details from your email
   provider (for example Gmail/Google Workspace, Zoho, Amazon SES, Resend).
 
-## Optional: only allow your company's email addresses
+**Step 5. Allow your company's email addresses (required)**
 
-Run this in **SQL Editor** (change the domain to yours):
+Self sign-up only gives access to email domains on the allowlist. With no
+domains listed, nobody who signs themselves up gets access
+(`20261114170000_signup_allowlist_required.sql`). Run this in **SQL Editor**
+(change the domain to yours):
 
 ```sql
 insert into private.signup_allowed_domains (domain) values ('mahathiinfra.com');
 ```
 
 People with other email addresses can still confirm their email, but they get
-no access. To allow any address again: `delete from private.signup_allowed_domains;`
+no access. To stop all self sign-ups again: `delete from private.signup_allowed_domains;`
+Logins the Director or Travel Desk create for people work whatever the domain.
 
 ## Giving someone more access
 

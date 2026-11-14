@@ -660,6 +660,8 @@ select t.ok(not exists (select 1 from pg_tables where schemaname = 'private' and
 -- ---------------------------------------------------------------------------
 reset role;
 select set_config('request.jwt.claims', '', true);
+-- Self sign-up only works for listed domains (20261114170000_signup_allowlist_required).
+insert into private.signup_allowed_domains (domain) values ('example.com');
 insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
   ('10000000-0000-0000-0000-00000000005a', 'newbie@example.com', null,
    '{"signup_source":"self","full_name":"  Nia <b>New</b>  ","role":"admin"}');
@@ -695,6 +697,10 @@ select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-
 select t.ok(exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-0000000000c8'),
   'sign-ups from an allowed domain get a profile');
 delete from private.signup_allowed_domains;
+insert into auth.users (id, email, email_confirmed_at, raw_user_meta_data) values
+  ('10000000-0000-0000-0000-00000000f5a1', 'walkin@example.com', now(), '{"signup_source":"self","full_name":"Walk In"}');
+select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-00000000f5a1'),
+  'with no allowed domains listed, a confirmed self sign-up gets no profile');
 select t.ok(not exists (select 1 from public.profiles where user_id = '10000000-0000-0000-0000-0000000000aa'),
   'confirmed logins that did not come from sign-up are still not given a profile');
 select t.ok(not has_table_privilege('authenticated', 'private.signup_allowed_domains', 'select,insert,update,delete'),
