@@ -39,6 +39,18 @@ and `SUPABASE_PROJECT_REF` if the app ever moves to a different Supabase project
 After this, the functions redeploy by themselves whenever a change to them is merged into `main`.
 To change the key later, edit the `GROQ_API_KEY` secret and run the workflow again.
 
+## Use Claude instead of Groq (paid)
+
+1. Open https://console.anthropic.com and sign in (or create an account).
+2. **Settings → Billing**: add a card and buy credits (for example $5). Claude is paid per use.
+3. **Settings → API Keys** → **Create Key**, name it `Trapple`, copy the key (starts with `sk-ant-`).
+4. On GitHub add a repository secret named `ANTHROPIC_API_KEY` with that key (same page as step 3 above).
+5. Run the **Deploy Supabase functions** workflow. Claude now answers first; Groq stays as the backup.
+
+The default model is `claude-opus-5-5`. For a cheaper model, add the Supabase secret
+`ANTHROPIC_MODEL` = `claude-sonnet-5-5`. To go back to Groq, delete the `ANTHROPIC_API_KEY`
+secret in Supabase (Edge Functions → Secrets).
+
 ## If it goes red
 
 - **"Nothing deployed" warning**: `SUPABASE_ACCESS_TOKEN` is missing or misspelled.
