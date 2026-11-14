@@ -44,11 +44,16 @@ export function routeFor(name: string, size: number, head: Uint8Array): { ok: tr
 
 const keyOf = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** Link to the suggested employee; otherwise add as new, or leave out when adding is switched off. */
+/**
+ * Link to the suggested employee; otherwise add as new, or leave out when adding is switched off.
+ * Someone who may already be on file under a slightly different name ("R Kumar" / "Ravi Kumar")
+ * is never added automatically: they stay undecided, so their lines wait for a person.
+ */
 export function autoDecisions(reviews: NameReview[], createMissing: boolean) {
   return reviews.map((r) => {
     if (r.decision === "link" && r.profile_id) return { name_key: r.name_key, decision: "link" as const, profile_id: r.profile_id };
     if (r.suggested_profile_id) return { name_key: r.name_key, decision: "link" as const, profile_id: r.suggested_profile_id };
+    if ((r.candidates?.length ?? 0) > 0) return { name_key: r.name_key, decision: "pending" as const, profile_id: null };
     return { name_key: r.name_key, decision: createMissing ? ("create" as const) : ("skip" as const), profile_id: null };
   });
 }
@@ -94,6 +99,7 @@ export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf",
   const linked = decisions.filter((d) => d.decision === "link").length;
   const added = decisions.filter((d) => d.decision === "create").length;
   const left = decisions.filter((d) => d.decision === "skip").length;
+  const unsure = decisions.filter((d) => d.decision === "pending").length;
 
   onStage("Linking project names");
   let projectsLinked = 0;
@@ -124,6 +130,7 @@ export async function autoImportSheets(file: File, kind: "csv" | "xlsx" | "pdf",
   if (batch.error_rows) notes.push(`${batch.error_rows} line${batch.error_rows === 1 ? "" : "s"} had errors and were left out; see the upload report.`);
   if (batch.duplicate_rows) notes.push(`${batch.duplicate_rows} line${batch.duplicate_rows === 1 ? " was" : "s were"} already imported earlier.`);
   if (left) notes.push(`${left} traveller${left === 1 ? "" : "s"} not found among employees were left out.`);
+  if (unsure) notes.push(`${unsure} traveller${unsure === 1 ? " looks" : "s look"} like someone already on file under a slightly different name, so their lines were left out. Upload the file step by step to decide who they are.`);
   return { batch, linked, added, left, projectsLinked, projectsCreated, notes };
 }
 

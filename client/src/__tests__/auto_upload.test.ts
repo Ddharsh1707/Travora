@@ -99,6 +99,11 @@ describe("Workbook decisions made automatically", () => {
     ]);
     assert.equal(autoDecisions([review({ name_key: "b" })], false)[0].decision, "skip");
   });
+  test("someone who may already be on file is never added automatically", () => {
+    const candidate = { profile_id: "p2", full_name: "Ravi Kumar", employee_id: "E2", workforce_type: "permanent_employee" as const, active: true, reason: "Initials match" };
+    assert.deepEqual(autoDecisions([review({ name_key: "KUMAR R", candidates: [candidate] })], true)[0], { name_key: "KUMAR R", decision: "pending", profile_id: null });
+    assert.equal(autoDecisions([review({ name_key: "x", candidates: [] })], true)[0].decision, "create", "no possible match: added as before");
+  });
   test("an earlier link is kept", () => {
     assert.deepEqual(autoDecisions([review({ decision: "link", profile_id: "p9", suggested_profile_id: "p1" })], true)[0], { name_key: "k", decision: "link", profile_id: "p9" });
   });

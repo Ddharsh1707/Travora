@@ -7,8 +7,8 @@ import { analyzeWorkbook, sheetSummaryForDb, WB_FIELDS, type SheetInput, type Wb
 import { readUploadFile } from "../../lib/data/readUploadFile";
 import {
   cancelImport, commitWorkbook, markNewPeopleLeft, createProject, decideNames, getImportBatch, getNameReviews, getUploadProjects, getWorkbookRows, listImportBatches,
-  listPeopleOptions, listProjects, setProjectAlias, stageWorkbook, storeImportFile,
-  type ImportBatch, type NameReview, type PersonOption, type Project, type UploadProject, type WorkbookRow,
+  listContractorNames, listPeopleOptions, listProjects, nameDecisionFor, setProjectAlias, stageWorkbook, storeImportFile, WORKFORCE_TYPE_LABELS,
+  type ImportBatch, type NameReview, type PersonOption, type Project, type UploadProject, type WorkbookRow, type WorkforceType,
 } from "../../lib/data/imports";
 import { Empty, ErrorNotice, Loading, PageHeader, Stat, StatusPill, formatDate, formatMoney } from "./common";
 import { DownloadOriginal } from "./UploadHistory";
@@ -50,6 +50,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
   const [rows, setRows] = useState<WorkbookRow[]>([]);
   const [reviews, setReviews] = useState<NameReview[]>([]);
   const [people, setPeople] = useState<PersonOption[]>([]);
+  const [contractorNames, setContractorNames] = useState<string[]>([]);
   const [uploadProjects, setUploadProjects] = useState<UploadProject[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [filter, setFilter] = useState<{ status: string; sheet: string }>({ status: "all", sheet: "all" });
@@ -115,9 +116,10 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
     setBusy(true);
     setError("");
     try {
-      const [rv, ppl] = await Promise.all([getNameReviews(batch.id), listPeopleOptions()]);
+      const [rv, ppl, cn] = await Promise.all([getNameReviews(batch.id), listPeopleOptions(), listContractorNames()]);
       setReviews(rv);
       setPeople(ppl);
+      setContractorNames(cn);
       setStep("people");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load the people to review.");
@@ -131,7 +133,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
     setBusy(true);
     setError("");
     try {
-      await decideNames(batch.id, reviews.map((r) => ({ name_key: r.name_key, decision: r.decision, profile_id: r.decision === "link" ? r.profile_id : null })));
+      await decideNames(batch.id, reviews.map(nameDecisionFor));
       const [up, pj] = await Promise.all([getUploadProjects(batch.id), listProjects()]);
       setUploadProjects(up);
       setProjects(pj);
@@ -281,7 +283,7 @@ export default function ImportTravel({ isManager = false }: { isManager?: boolea
       )}
 
       {step === "people" && batch && (
-        <PeopleStep reviews={reviews} setReviews={setReviews} people={people} busy={busy} onCancel={cancel} onNext={savePeople} />
+        <PeopleStep reviews={reviews} setReviews={setReviews} people={people} contractorNames={contractorNames} isManager={isManager} busy={busy} onCancel={cancel} onNext={savePeople} />
       )}
 
       {step === "projects" && batch && (
@@ -522,9 +524,13 @@ function LinesTable({ rows, filter, setFilter, done = false }: { rows: WorkbookR
 // ---------------------------------------------------------------------------
 // Step 4: who is each traveller?
 // ---------------------------------------------------------------------------
-function PeopleStep({ reviews, setReviews, people, busy, onCancel, onNext }: {
-  reviews: NameReview[]; setReviews: (fn: (r: NameReview[]) => NameReview[]) => void; people: PersonOption[]; busy: boolean; onCancel: () => void; onNext: () => void;
+function PeopleStep({ reviews, setReviews, people, contractorNames, isManager, busy, onCancel, onNext }: {
+  reviews: NameReview[]; setReviews: (fn: (r: NameReview[]) => NameReview[]) => void; people: PersonOption[]; contractorNames: string[]; isManager: boolean; busy: boolean; onCancel: () => void; onNext: () => void;
 }) {
+  // Only the Travel Desk and the Director say what kind of worker someone is; others add people as unknown.
+  const workerTypes: WorkforceType[] = isManager
+    ? ["unknown", "temporary_worker", "contract_worker", "outsourced_worker", "permanent_employee"]
+    : ["unknown"];
   const pending = reviews.filter((r) => r.decision === "pending" || (r.decision === "link" && !r.profile_id)).length;
   const counts = { link: reviews.filter((r) => r.decision === "link").length, create: reviews.filter((r) => r.decision === "create").length, skip: reviews.filter((r) => r.decision === "skip").length };
   const set = (key: string, patch: Partial<NameReview>) => setReviews((rs) => rs.map((r) => (r.name_key === key ? { ...r, ...patch } : r)));
@@ -546,7 +552,19 @@ function PeopleStep({ reviews, setReviews, people, busy, onCancel, onNext }: {
                 <tr key={r.name_key}>
                   <td className="font-semibold">{r.display_name}<div className="table-subline">{r.raw_names.join(" · ")}{r.employee_code ? ` · ID ${r.employee_code}` : ""}</div></td>
                   <td className="text-right">{r.row_count}</td>
-                  <td className="text-xs">{r.suggested ? <>Same name as <strong>{r.suggested.full_name}</strong> ({r.suggested.employee_id})</> : "No employee with this name"}</td>
+                  <td className="text-xs">
+                    {r.suggested ? <>{r.match_reason && r.match_reason !== "Same name as an existing employee" ? `${r.match_reason}: ` : "Same name as "}<strong>{r.suggested.full_name}</strong> ({r.suggested.employee_id})</> : (r.candidates?.length ? null : "No employee with this name")}
+                    {(r.candidates?.length ?? 0) > 0 && (
+                      <div className="workforce-candidates">
+                        <span className="block opacity-70">Possible match{r.candidates!.length === 1 ? "" : "es"}, check before linking:</span>
+                        {r.candidates!.map((c) => (
+                          <button key={c.profile_id} type="button" className="table-action" onClick={() => set(r.name_key, { decision: "link", profile_id: c.profile_id })} title={`Link to ${c.full_name}`}>
+                            {c.full_name} · {c.employee_id} · {c.reason}{c.workforce_type !== "permanent_employee" ? ` · ${WORKFORCE_TYPE_LABELS[c.workforce_type]}` : ""}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <div className="flex flex-wrap gap-2 items-center">
                       <select aria-label={`Decision for ${r.display_name}`} value={r.decision} onChange={(e) => set(r.name_key, { decision: e.target.value as NameReview["decision"], profile_id: e.target.value === "link" ? (r.profile_id ?? r.suggested_profile_id) : null })}>
@@ -561,6 +579,14 @@ function PeopleStep({ reviews, setReviews, people, busy, onCancel, onNext }: {
                           {people.map((p) => <option key={p.id} value={p.id}>{p.full_name} · {p.employee_id}{p.department ? ` · ${p.department}` : ""}</option>)}
                         </select>
                       )}
+                      {r.decision === "create" && (
+                        <>
+                          <select aria-label={`Kind of worker for ${r.display_name}`} value={r.workforce_type ?? "unknown"} onChange={(e) => set(r.name_key, { workforce_type: e.target.value as WorkforceType })} disabled={!isManager}>
+                            {workerTypes.map((t) => <option key={t} value={t}>{WORKFORCE_TYPE_LABELS[t]}</option>)}
+                          </select>
+                          <input aria-label={`Contractor for ${r.display_name}`} list="workforce-contractor-names" placeholder="Contractor (optional)" maxLength={200} value={r.contractor_name ?? ""} onChange={(e) => set(r.name_key, { contractor_name: e.target.value })} />
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -569,6 +595,8 @@ function PeopleStep({ reviews, setReviews, people, busy, onCancel, onNext }: {
           </table>
         </div>
       )}
+      <datalist id="workforce-contractor-names">{contractorNames.map((n) => <option key={n} value={n} />)}</datalist>
+      {reviews.some((r) => r.decision === "create") && <p className="text-xs opacity-70 mt-3">New people are saved as unverified, with no login. {isManager ? "Choose what kind of worker they are if you know; otherwise leave Unknown." : "The Travel Desk or the Director can say what kind of worker they are later."}</p>}
       {pending > 0 && <p className="text-sm mt-3 flex items-center gap-2"><AlertTriangle size={15} className="text-amber-600" /> {pending} {pending === 1 ? "person still needs" : "people still need"} a decision. Undecided people’s lines are left out.</p>}
       <div className="dialog-actions">
         <button type="button" className="button button-ghost" onClick={onCancel} disabled={busy}><XCircle size={14} /> Cancel upload</button>

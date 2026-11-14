@@ -232,3 +232,10 @@
 .rail-shell .sidebar-overlay.visible { z-index: 1099 !important; }
 .chart-link-tick { cursor: pointer; }
 .chart-link-tick:hover { text-decoration: underline; fill: var(--saffron, #F2A93B); }
+
+/* ---------------------------------------------------------------------------
+   Temporary workforce: possible-match suggestions on the upload People step.
+   Uses only the shared tokens; nothing above is changed.
+   --------------------------------------------------------------------------- */
+.workforce-candidates { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 4px; }
+.workforce-candidates .table-action { text-align: left; white-space: normal; }
