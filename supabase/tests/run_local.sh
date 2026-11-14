@@ -23,6 +23,7 @@ done
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"
 "${PSQL[@]}" -f "$HERE/security_sweep_test.sql"
+"${PSQL[@]}" -f "$HERE/workforce_test.sql"
 # The new files must be safe to run again
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000500_company_admin_role.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261107000510_admin_portal_uploads_assistant.sql"
@@ -33,8 +34,10 @@ done
 "${PSQL[@]}" -f "$HERE/../migrations/20261108000400_travel_desk_full_access.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261114000100_security_hardening.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261114170000_signup_allowlist_required.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261115100000_workforce_model.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"
 "${PSQL[@]}" -f "$HERE/security_sweep_test.sql"
+"${PSQL[@]}" -f "$HERE/workforce_test.sql"
 echo "re-ran 000500, 000510, 000520 and 000600"
