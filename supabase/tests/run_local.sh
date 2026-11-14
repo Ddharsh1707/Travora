@@ -32,6 +32,7 @@ done
 "${PSQL[@]}" -f "$HERE/../migrations/20261108000300_request_tickets.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261108000400_travel_desk_full_access.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261114000100_security_hardening.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261114170000_signup_allowlist_required.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"
