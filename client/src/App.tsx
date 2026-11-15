@@ -14,6 +14,8 @@ import { onSupabaseSignedOut, supabaseRestoreSession, supabaseSignOut } from "./
 import { AUTH_EXPIRED_EVENT, clearAuth, getStoredUser, getToken, isValidAuthUser, travelRequestsApi, dashboardApi, employeesApi, bookingsApi, bulkBookingsApi, notificationsApi, healthApi, manualCloudSync, REGISTERED_EMPLOYEES, spendReportsApi, type ExecutiveSpendOverview, type AuthUser, type Role, type BulkBookingRecord, type BulkBookingPassenger, type EmployeeRecord } from "./lib/api";
 import { CommandPalette } from "./components/CommandPalette";
 import { Logo } from "./components/Logo";
+import { SiteFooter } from "./components/SiteFooter";
+import { isLegalPath } from "./pages/legal/legalInfo";
 import { LoginPage } from "./pages/LoginPage";
 import { TravelCalendar } from "./components/TravelCalendar";
 import { ActivityTimeline } from "./components/ActivityTimeline";
@@ -45,6 +47,7 @@ const LandingPage = lazyNamed(() => import("./pages/LandingPage"), "LandingPage"
 const TrappleAIFloatingChat = lazyNamed(() => import("./components/TrappleAIFloatingChat"), "TrappleAIFloatingChat");
 const InteractiveRouteMap = lazyNamed(() => import("./components/InteractiveRouteMap"), "InteractiveRouteMap");
 const ReportExtractionSuite = lazyNamed(() => import("./components/ReportExtractionSuite"), "ReportExtractionSuite");
+const LegalPage = lazy(() => import("./pages/legal/LegalPage"));
 
 /** Shown while a lazily loaded screen downloads. */
 function PageFallback() {
@@ -622,7 +625,7 @@ function AppShell({ children, role, user, onLogout }: { children: ReactNode; rol
 /** Top bar, route progress line and the animated page area. */
 function ShellMain({ children, location, meta, user, onMenu, onOpenSearch, collapsed }: { children: ReactNode; location: string; meta: { eyebrow: string; title: string; description?: string }; user: AuthUser; onMenu: () => void; onOpenSearch: () => void; collapsed: boolean }) {
   return (
-    <div className={`app-main ${collapsed ? "sidebar-collapsed" : ""}`}>
+    <div className={`app-main site-shell ${collapsed ? "sidebar-collapsed" : ""}`}>
       <div className="relative">
         <Topbar onMenu={onMenu} onOpenSearch={onOpenSearch} meta={meta} user={user} />
         <motion.div
@@ -646,6 +649,7 @@ function ShellMain({ children, location, meta, user, onMenu, onOpenSearch, colla
           </motion.div>
         </AnimatePresence>
       </main>
+      <SiteFooter />
     </div>
   );
 }
@@ -7409,6 +7413,7 @@ function AppRouter() {
 
   useEffect(() => {
     if (restoring) return;
+    if (isLegalPath(location)) return; // legal and information pages are open to everyone
     if (!user && location !== "/" && location !== "/login" && !location.startsWith("/activate")) {
       setLocation("/login");
     } else if (user && location === "/") {
@@ -7417,6 +7422,11 @@ function AppRouter() {
       setLocation(roleRoots[user.role]);
     }
   }, [user, location, allowed, setLocation, restoring]);
+
+  // Privacy, Terms, Cookies, Data We Collect, Cancellation & Refund and Contact: public pages
+  if (isLegalPath(location)) {
+    return <LegalPage path={location} backHref={user && role ? roleRoots[user.role] : "/"} backLabel={user && role ? "Back to dashboard" : "Back to home"} />;
+  }
 
   if (location === "/activate" || location.startsWith("/activate")) {
     return <ActivateAccount />;

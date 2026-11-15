@@ -23,6 +23,7 @@ const TerminalScene3D = lazy(() => import("../components/TerminalScene3D"));
 import { useTheme } from "../contexts/ThemeContext";
 import { getResolvedUrl, login as loginApi, persistAuth, type AuthUser } from "../lib/api";
 import { isSupabaseEnabled } from "../lib/supabase";
+import { SiteFooter } from "@/components/SiteFooter";
 import {
   passwordProblems,
   passwordStrength,
@@ -372,6 +373,7 @@ export function LoginPage({
   };
 
   return (
+    <>
     <div className="auth-page">
       <AuthScene />
 
@@ -594,11 +596,8 @@ export function LoginPage({
           </motion.div>
         </motion.section>
       </main>
-
-      <motion.footer className="auth-footer" {...rise(0.6)}>
-        <span>© Trapple · Mahathi Infra Services Pvt. Ltd.</span>
-        <span>Travel desk support: desk@mahathiinfra.com</span>
-      </motion.footer>
     </div>
+    <SiteFooter />
+    </>
   );
 }
