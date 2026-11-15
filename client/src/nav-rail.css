@@ -239,3 +239,118 @@
    --------------------------------------------------------------------------- */
 .workforce-candidates { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 4px; }
 .workforce-candidates .table-action { text-align: left; white-space: normal; }
+
+/* ---------------------------------------------------------------------------
+   Site footer (components/SiteFooter.tsx): one footer for every page.
+   It sits in the normal page flow after the content, never fixed. Page shells
+   below make the page a column at least one screen tall, so the footer rests
+   at the bottom of short pages and after the content on long ones.
+   Uses only the shared tokens; nothing above is changed.
+   --------------------------------------------------------------------------- */
+.site-footer { position: relative; z-index: 1; flex-shrink: 0; width: 100%; margin-top: auto; background: var(--navy); color: rgba(255, 255, 255, 0.62); font-family: var(--font-sans); border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.site-footer-inner { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr); gap: 28px 48px; max-width: 1420px; margin: 0 auto; padding: 34px clamp(18px, 4vw, 55px) 26px; }
+.site-footer-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
+.site-footer-tagline { margin-top: 6px; color: rgba(255, 255, 255, 0.85); font-family: var(--font-heading); font-size: 14px; font-weight: 600; }
+.site-footer-org { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.02em; }
+.site-footer-mail { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--steel-300); border-radius: 4px; transition: color 0.18s var(--ease); }
+.site-footer-heading { display: block; margin-bottom: 12px; color: var(--steel-300); font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.site-footer-nav ul { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 9px 36px; list-style: none; margin: 0; padding: 0; }
+.site-footer-nav a { position: relative; color: rgba(255, 255, 255, 0.72); font-size: 13px; border-radius: 4px; transition: color 0.18s var(--ease); }
+.site-footer-nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: var(--amber); transform: scaleX(0); transform-origin: left; transition: transform 0.22s var(--ease); }
+.site-footer-nav a:hover, .site-footer-mail:hover { color: var(--amber); }
+.site-footer-nav a:hover::after, .site-footer-nav a[aria-current="page"]::after { transform: scaleX(1); }
+.site-footer-nav a[aria-current="page"] { color: rgba(255, 255, 255, 0.95); }
+.site-footer a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.site-footer-bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; max-width: 1420px; margin: 0 auto; padding: 14px clamp(18px, 4vw, 55px) 18px; border-top: 1px solid rgba(255, 255, 255, 0.08); font-family: var(--font-mono); font-size: 10.5px; color: rgba(255, 255, 255, 0.45); }
+.dark .site-footer { border-top-color: var(--line); }
+
+/* Signed-in portals: the main column becomes a full-height column so the footer
+   sits after the page, and keeps clear of the floating assistant button. */
+.site-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.site-shell > .content-wrap { width: 100%; flex: 1 0 auto; }
+.site-shell > .site-footer .site-footer-bottom { justify-content: flex-start; padding-right: max(clamp(18px, 4vw, 55px), 210px); }
+
+@media (max-width: 760px) {
+  .site-footer-inner { grid-template-columns: 1fr; gap: 24px; padding-top: 28px; }
+  .site-footer-nav ul { grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+  .site-footer-bottom { flex-direction: column; }
+  .site-shell > .site-footer .site-footer-bottom { padding-right: clamp(18px, 4vw, 55px); padding-bottom: 84px; }
+}
+@media (max-width: 420px) {
+  .site-footer-nav ul { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------------------
+   Legal pages (pages/legal/LegalPage.tsx): Privacy, Terms, Cookies, Data We
+   Collect, Cancellation & Refund and Contact. Uses only the shared tokens.
+   --------------------------------------------------------------------------- */
+.legal-shell { display: flex; flex-direction: column; min-height: 100vh; background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+.legal-skip { position: absolute; left: 16px; top: -60px; z-index: 50; padding: 8px 14px; border-radius: var(--radius-sm, 8px); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-md); font-size: 13px; }
+.legal-skip:focus { top: 12px; }
+.legal-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; max-width: 1180px; margin: 0 auto; padding: 18px clamp(16px, 4vw, 40px); }
+.legal-home { border-radius: 8px; }
+.legal-home:focus-visible, .legal-toc a:focus-visible, .legal-article a:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
+.legal-back { white-space: nowrap; }
+.legal-main { flex: 1 0 auto; width: 100%; max-width: 1180px; margin: 0 auto; padding: 8px clamp(16px, 4vw, 40px) 64px; outline: none; }
+.legal-hero { max-width: 780px; padding: 28px 0 30px; }
+.legal-hero h1 { margin-top: 10px; font-family: var(--font-heading); font-size: clamp(30px, 4.2vw, 44px); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; color: var(--ink); }
+.legal-hero > p { margin-top: 14px; max-width: 640px; color: var(--ink-soft); font-size: 15px; line-height: 1.7; }
+.legal-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 18px; color: var(--ink-muted); font-family: var(--font-mono); font-size: 11px; }
+.legal-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.legal-review-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 18px; padding: 11px 14px; border: 1px solid var(--line); border-left: 3px solid var(--amber); border-radius: var(--radius-sm, 8px); background: var(--saffron-soft); color: var(--ink-soft); font-size: 12.5px; line-height: 1.55; }
+.legal-review-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--amber-ink); }
+.dark .legal-review-note svg { color: var(--amber); }
+.legal-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 32px; align-items: start; }
+.legal-aside { position: sticky; top: 20px; display: grid; gap: 22px; }
+.legal-toc ol, .legal-toc ul { display: grid; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; }
+.legal-toc a { display: block; padding: 6px 10px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 12.5px; line-height: 1.4; transition: color 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease); }
+.legal-toc a:hover { color: var(--ink); border-left-color: var(--amber); background: var(--surface-hover); }
+.legal-toc a[aria-current="page"] { color: var(--ink); font-weight: 600; border-left-color: var(--amber); }
+.legal-article { padding: clamp(22px, 3.4vw, 40px); }
+.legal-section { scroll-margin-top: 24px; }
+.legal-section + .legal-section { margin-top: 30px; padding-top: 28px; border-top: 1px solid var(--line); }
+.legal-section h2 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.legal-section h3 { margin-top: 20px; font-family: var(--font-heading); font-size: 15px; font-weight: 700; color: var(--ink); }
+.legal-section p, .legal-section li { color: var(--ink-soft); font-size: 14.5px; line-height: 1.75; }
+.legal-section p { margin-top: 12px; max-width: 72ch; }
+.legal-section ul, .legal-section ol { margin-top: 10px; padding-left: 20px; max-width: 72ch; }
+.legal-section ul { list-style: disc; }
+.legal-section li + li { margin-top: 6px; }
+.legal-section li::marker { color: var(--amber); }
+.legal-section strong { color: var(--ink); font-weight: 600; }
+.legal-section a { color: var(--process); font-weight: 600; text-decoration: underline; text-decoration-color: var(--process-soft); text-underline-offset: 3px; }
+.legal-section a:hover { text-decoration-color: currentColor; }
+.legal-section code { padding: 1px 6px; border-radius: 5px; background: var(--surface-muted); color: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+.legal-table { margin-top: 14px; }
+.legal-table table { width: 100%; min-width: 0; }
+.legal-table td { vertical-align: top; font-size: 13px; line-height: 1.6; }
+.legal-data-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.legal-data-card { padding: 18px 18px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm, 10px); background: var(--surface-soft); }
+.legal-data-card h3 { margin: 0; }
+.legal-data-card dl { display: grid; gap: 10px; margin-top: 12px; }
+.legal-data-card dt { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); }
+.legal-data-card dd { margin: 2px 0 0; color: var(--ink-soft); font-size: 13.5px; line-height: 1.6; }
+.legal-contact-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.legal-contact-card { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-sm, 10px); background: var(--surface-soft); }
+.legal-contact-card h3 { margin: 0; }
+.legal-contact-card p { margin-top: 8px; font-size: 13.5px; overflow-wrap: anywhere; }
+.legal-facts { display: grid; gap: 0; margin-top: 12px; max-width: 640px; }
+.legal-facts > div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.legal-facts dt { color: var(--ink-muted); font-size: 13px; }
+.legal-facts dd { margin: 0; color: var(--ink); font-size: 14px; }
+
+@media (max-width: 900px) {
+  .legal-layout { grid-template-columns: 1fr; gap: 20px; }
+  .legal-aside { position: static; }
+  .legal-toc-other { display: none; }
+  .legal-contact-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .legal-data-grid { grid-template-columns: 1fr; }
+  .legal-hero { padding-top: 16px; }
+  .legal-facts > div { grid-template-columns: 1fr; gap: 2px; }
+  .legal-table table { min-width: 520px; }
+}
+@media (max-width: 420px) {
+  .legal-back { padding-left: 10px; padding-right: 10px; font-size: 12px; }
+}

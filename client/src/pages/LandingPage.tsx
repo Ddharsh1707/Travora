@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNod
 import { AnimatePresence, motion, useInView, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowRight, BarChart3, Bot, CheckCircle2, ClipboardCheck, FileSpreadsheet, FolderKanban, KeyRound, Lock, Menu, Plane, Receipt, ScrollText, ShieldCheck, UsersRound, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { SiteFooter } from "@/components/SiteFooter";
 
 // The 3D intro is loaded on its own so the rest of the page paints first.
 const TerminalScene3D = lazy(() => import("@/components/TerminalScene3D"));
@@ -702,23 +703,6 @@ function CallToAction({ onSignIn }: { onSignIn: () => void }) {
   );
 }
 
-function Footer() {
-  return (
-    <footer className="bg-[#070C10] py-12 text-white/55">
-      <div className={`${container} flex flex-col gap-8 md:flex-row md:items-center md:justify-between`}>
-        <div className="flex items-center gap-5">
-          <Logo light />
-          <span className="lp-mono hidden border-l border-white/15 pl-5 text-[11px] uppercase tracking-[0.14em] sm:inline">Travel desk</span>
-        </div>
-        <div className="lp-mono text-[11px] leading-relaxed tracking-[0.04em] md:text-right">
-          <div>Mahathi Infra Services Pvt. Ltd. · Hyderabad, Telangana</div>
-          <div className="mt-1 text-white/35">© {new Date().getFullYear()} Trapple. For Mahathi Infra Services employees.</div>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export function LandingPage({ onSignIn }: LandingPageProps) {
   return (
     <div className="lp min-h-screen overflow-x-hidden">
@@ -733,7 +717,7 @@ export function LandingPage({ onSignIn }: LandingPageProps) {
         <Security />
         <CallToAction onSignIn={onSignIn} />
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   );
 }
