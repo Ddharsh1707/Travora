@@ -114,6 +114,8 @@ select tf.ok(not exists (
 select tf.ok((select count(*) from pg_proc p where pg_get_userbyid(p.proowner) = 'trapple_definer') >= 50,
              'the business functions run as trapple_definer');
 select tf.ok(not (select rolbypassrls from pg_roles where rolname = 'trapple_definer'), 'trapple_definer does not skip the rules');
+select tf.ok(not has_schema_privilege('trapple_definer', 'public', 'CREATE') and not has_schema_privilege('trapple_definer', 'private', 'CREATE'),
+             'trapple_definer cannot create objects (it only runs the functions it was given)');
 
 grant usage on schema tf to authenticated;
 grant select on all tables in schema tf to authenticated;
