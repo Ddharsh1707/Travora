@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // Read the profile AS the admin, so RLS still applies to this lookup.
     const { data: profile, error: profileError } = await caller.userClient
       .from("profiles")
-      .select("id, email, user_id, active")
+      .select("id, email, user_id, active, company_id")
       .eq("id", body.profileId)
       .maybeSingle();
     if (profileError || !profile) return fail(req, 404, "Employee not found", profileError);
@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
       entity_type: "profiles",
       entity_id: profile.id,
       metadata: {},
+      company_id: profile.company_id,
     });
 
     return json(req, 200, { ok: true });
