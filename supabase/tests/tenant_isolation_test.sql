@@ -207,6 +207,25 @@ insert into public.profiles (employee_id, full_name) values ('TIDR2', 'Ti New Hi
 select ti.ok((select company_id from public.profiles where employee_id = 'TIDR2') = '9c000000-0000-0000-0000-000000000002',
              'a person added by company 2 belongs to company 2');
 
+-- "Add person" asks for the new id back, so the new row must pass the viewing rule too.
+with added as (
+  insert into public.profiles (employee_id, full_name, email, role, manager_id)
+  values ('TIRET1', 'Ti Returned 1', 'ti-ret-1@x.example', 'employee', ti.u('2', 'b1'))
+  returning id)
+select ti.ok((select count(*) from added) = 1, 'company 2 Director can add a person and get the new id back');
+select ti.login(ti.uid('2', 'td'));
+with added as (
+  insert into public.profiles (employee_id, full_name, email, role)
+  values ('TIRET2', 'Ti Returned 2', 'ti-ret-2@x.example', 'employee')
+  returning id)
+select ti.ok((select count(*) from added) = 1, 'company 2 Travel Desk can add a person and get the new id back');
+select ti.ok((select company_id from public.profiles where employee_id = 'TIRET2') = '9c000000-0000-0000-0000-000000000002',
+             'that person belongs to company 2');
+select ti.throws($$insert into public.profiles (employee_id, full_name, manager_id)
+                   values ('TIRET3', 'Ti Returned 3', '10000000-0000-0000-0000-0000000000b1') returning id$$,
+                 'company 2 Travel Desk cannot add a person under a company 1 manager');
+select ti.login(ti.uid('2', 'dr'));
+
 select ti.login(ti.uid('2', 'em'));
 insert into public.travel_requests (employee_id, origin, destination, departure_date, purpose, company_id)
 values ('20000000-0000-0000-0000-0000000000e1', 'Hyderabad', 'Pune', '2026-12-10', 'Training', (select id from ti.c where n = 1));

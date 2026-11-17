@@ -48,6 +48,7 @@ done
 "${PSQL[@]}" -f "$HERE/../migrations/20261115200000_bulk_save_where_clause.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261116100000_tenant_isolation.sql"
 "${PSQL[@]}" -f "$HERE/../migrations/20261116120000_tenant_isolation_functions.sql"
+"${PSQL[@]}" -f "$HERE/../migrations/20261116130000_tenant_helpers_new_rows.sql"
 "${PSQL[@]}" -f "$HERE/requests_pdf_test.sql"
 "${PSQL[@]}" -f "$HERE/delete_reset_test.sql"
 "${PSQL[@]}" -f "$HERE/request_tickets_test.sql"
